@@ -1,0 +1,27 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ElectronicJournal xmlns="urn:predreis:journals:journal:1.0" version="1.0" id="77777777-7777-4777-8777-777777777777" kind="medical">
+  <Issuer>
+    <INN>5027236147</INN>
+    <Name>ООО «ПРЕДРЕЙС»</Name>
+  </Issuer>
+  <Organization>
+    <INN>7707083893</INN>
+    <Name>ООО «Тестовая логистика»</Name>
+  </Organization>
+  <Period>
+    <From>2026-10-01</From>
+    <To>2026-10-31</To>
+  </Period>
+  <CreatedAt>2026-11-01T09:00:00+03:00</CreatedAt>
+  <Records count="2">
+    <Record id="66666666-6666-4666-8666-666666666666" source="epl" performedAt="2026-10-13T17:05:00+03:00" result="not_admitted">
+      <Xml path="records/66666666-6666-4666-8666-666666666666/record.xml" sha256="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"/>
+    </Record>
+    <Record id="11111111-1111-4111-8111-111111111111" source="manual" performedAt="2026-10-14T08:20:00+03:00" result="admitted">
+      <Xml path="records/11111111-1111-4111-8111-111111111111/record.xml" sha256="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"/>
+      <Pdf path="records/11111111-1111-4111-8111-111111111111/record.pdf" sha256="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"/>
+      <Signature path="records/11111111-1111-4111-8111-111111111111/record.xml.sig" sha256="cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" certSerial="f18dd73747eccc4ab0d2b1ee00d4040e" signer="Абдуллаева Гульзана Абутдиновна"/>
+      <Timestamp path="records/11111111-1111-4111-8111-111111111111/record.xml.tsp" sha256="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"/>
+    </Record>
+  </Records>
+</ElectronicJournal>

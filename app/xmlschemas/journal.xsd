@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Машиночитаемый файл электронного журнала (документ типа 2).
+  Перечисляет записи журнала и ссылается на их файлы внутри ZIP-контейнера по относительным путям
+  с контрольными суммами SHA-256. СТАТУС: черновик.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:jr="urn:predreis:journals:journal:1.0"
+           targetNamespace="urn:predreis:journals:journal:1.0"
+           elementFormDefault="qualified"
+           attributeFormDefault="unqualified">
+
+  <xs:simpleType name="UuidType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="Sha256Type">
+    <xs:restriction base="xs:string"><xs:pattern value="[0-9a-f]{64}"/></xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="DateTimeTzType">
+    <xs:restriction base="xs:dateTime"><xs:pattern value=".+(Z|[+\-]\d{2}:\d{2})"/></xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="NonEmptyStringType">
+    <xs:restriction base="xs:token"><xs:minLength value="1"/><xs:maxLength value="1000"/></xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="InnType">
+    <xs:restriction base="xs:string"><xs:pattern value="\d{10}|\d{12}"/></xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="KindType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="medical"/>
+      <xs:enumeration value="technical"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="SourceType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="manual"/>
+      <xs:enumeration value="ocr"/>
+      <xs:enumeration value="epl"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="ResultType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="admitted"/>
+      <xs:enumeration value="not_admitted"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="PartyType">
+    <xs:sequence>
+      <xs:element name="INN" type="jr:InnType"/>
+      <xs:element name="Name" type="jr:NonEmptyStringType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="FileRefType">
+    <xs:attribute name="path" type="jr:NonEmptyStringType" use="required"/>
+    <xs:attribute name="sha256" type="jr:Sha256Type" use="required"/>
+  </xs:complexType>
+
+  <xs:complexType name="SignatureRefType">
+    <xs:complexContent>
+      <xs:extension base="jr:FileRefType">
+        <xs:attribute name="certSerial" type="jr:NonEmptyStringType" use="required"/>
+        <xs:attribute name="signer" type="jr:NonEmptyStringType" use="required"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="RecordRefType">
+    <xs:sequence>
+      <xs:element name="Xml" type="jr:FileRefType"/>
+      <xs:element name="Pdf" type="jr:FileRefType" minOccurs="0"/>
+      <xs:element name="Signature" type="jr:SignatureRefType" minOccurs="0"/>
+      <xs:element name="Timestamp" type="jr:FileRefType" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="jr:UuidType" use="required"/>
+    <xs:attribute name="source" type="jr:SourceType" use="required"/>
+    <xs:attribute name="performedAt" type="jr:DateTimeTzType" use="required"/>
+    <xs:attribute name="result" type="jr:ResultType" use="required"/>
+  </xs:complexType>
+
+  <xs:element name="ElectronicJournal">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="Issuer" type="jr:PartyType"/>
+        <xs:element name="Organization" type="jr:PartyType"/>
+        <xs:element name="Period">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="From" type="xs:date"/>
+              <xs:element name="To" type="xs:date"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="CreatedAt" type="jr:DateTimeTzType"/>
+        <xs:element name="Records">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="Record" type="jr:RecordRefType" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="count" type="xs:positiveInteger" use="required"/>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+      <xs:attribute name="version" type="xs:string" use="required" fixed="1.0"/>
+      <xs:attribute name="id" type="jr:UuidType" use="required"/>
+      <xs:attribute name="kind" type="jr:KindType" use="required"/>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

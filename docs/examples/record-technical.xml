@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ElectronicRecord xmlns="urn:predreis:journals:record:1.0" version="1.0" id="44444444-4444-4444-8444-444444444444">
+  <Source>manual</Source>
+  <Organization>
+    <INN>7707083893</INN>
+    <KPP>770701001</KPP>
+    <OGRN>1027700132195</OGRN>
+    <Name>ООО «Тестовая логистика»</Name>
+    <ShortName>Тест-Логистик</ShortName>
+    <LegalAddress>г. Москва, ул. Тестовая, 1</LegalAddress>
+  </Organization>
+  <PerformedAt>2026-10-14T08:36:00+03:00</PerformedAt>
+  <Specialist userId="55555555-5555-4555-8555-555555555555">
+    <FullName>Абдуллаева Гульзана Абутдиновна</FullName>
+  </Specialist>
+  <TechnicalInspection>
+    <Vehicle>
+      <Brand>Грузовой ГАЗон</Brand>
+      <Model>2824ЕИ</Model>
+      <Type>грузовой</Type>
+      <Plate>О224ЕК790</Plate>
+    </Vehicle>
+    <Driver>
+      <FullName>Ефимов Андрей Константинович</FullName>
+      <BirthDate>1974-07-21</BirthDate>
+      <Gender>M</Gender>
+    </Driver>
+    <Odometer>1167</Odometer>
+    <Result>admitted</Result>
+  </TechnicalInspection>
+</ElectronicRecord>

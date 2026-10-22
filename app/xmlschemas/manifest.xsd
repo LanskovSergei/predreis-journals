@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Манифест ZIP-контейнера электронного журнала: состав, размеры, SHA-256, назначение файлов
+  и соответствие подписей подписанным файлам (реестр документов в контейнере, ТЗ стр. 21).
+  СТАТУС: черновик.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:mf="urn:predreis:journals:manifest:1.0"
+           targetNamespace="urn:predreis:journals:manifest:1.0"
+           elementFormDefault="qualified"
+           attributeFormDefault="unqualified">
+
+  <xs:simpleType name="UuidType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="Sha256Type">
+    <xs:restriction base="xs:string"><xs:pattern value="[0-9a-f]{64}"/></xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="DateTimeTzType">
+    <xs:restriction base="xs:dateTime"><xs:pattern value=".+(Z|[+\-]\d{2}:\d{2})"/></xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="PathType">
+    <xs:annotation><xs:documentation>Относительный путь внутри архива: не начинается с «/», «\\» и «.». Сегменты «..» схемой не отсекаются — их запрещает код (safe_archive_path).</xs:documentation></xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[^/\\.][^\\:*?&quot;&lt;&gt;|]*"/>
+      <xs:maxLength value="500"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="RoleType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="journal-xml"/>
+      <xs:enumeration value="journal-pdf"/>
+      <xs:enumeration value="journal-signature"/>
+      <xs:enumeration value="journal-timestamp"/>
+      <xs:enumeration value="record-xml"/>
+      <xs:enumeration value="record-pdf"/>
+      <xs:enumeration value="record-signature"/>
+      <xs:enumeration value="record-timestamp"/>
+      <xs:enumeration value="audit-log"/>
+      <xs:enumeration value="certificates"/>
+      <xs:enumeration value="readme"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="FileType">
+    <xs:attribute name="path" type="mf:PathType" use="required"/>
+    <xs:attribute name="role" type="mf:RoleType" use="required"/>
+    <xs:attribute name="size" type="xs:nonNegativeInteger" use="required"/>
+    <xs:attribute name="sha256" type="mf:Sha256Type" use="required"/>
+    <xs:attribute name="recordId" type="mf:UuidType" use="optional"/>
+    <xs:attribute name="signedFile" type="mf:PathType" use="optional"/>
+  </xs:complexType>
+
+  <xs:element name="Manifest">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="Files">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="File" type="mf:FileType" maxOccurs="unbounded"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+      <xs:attribute name="formatVersion" type="xs:string" use="required" fixed="1.0"/>
+      <xs:attribute name="containerId" type="mf:UuidType" use="required"/>
+      <xs:attribute name="createdAt" type="mf:DateTimeTzType" use="required"/>
+      <xs:attribute name="generator" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

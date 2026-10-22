@@ -1,64 +1,104 @@
-"""Машиночитаемое представление записи (XML). Схема — черновик, XSD утверждается отдельно."""
+"""Машиночитаемое представление записи (XML) по схеме xmlschemas/record.xsd."""
 
 from __future__ import annotations
 
-import xml.etree.ElementTree as ET
+from decimal import Decimal
+from typing import Any
 
-from app.domain.enums import JournalKind
-from app.models.records import MedicalRecord, TechnicalRecord
+from lxml import etree
 
-SCHEMA_VERSION = "1.0"
+from app.domain.enums import JournalKind, RecordSource
+from app.models.records import AnyRecord, MedicalRecord, TechnicalRecord
+from app.xmlschemas import FORMAT_VERSION, NS_RECORD, ensure_valid
+
+_NSMAP = {None: NS_RECORD}
 
 
-def _sub(parent: ET.Element, tag: str, value: object | None) -> ET.Element:
-    """Добавляет дочерний элемент с текстовым значением (None → пустой элемент)."""
-    el = ET.SubElement(parent, tag)
+def _sub(parent: etree._Element, tag: str, value: object | None) -> etree._Element:
+    """Добавляет дочерний элемент в пространстве имён записи."""
+    el = etree.SubElement(parent, f"{{{NS_RECORD}}}{tag}")
     el.text = "" if value is None else str(value)
     return el
 
 
-def build_record_xml(kind: JournalKind, record: MedicalRecord | TechnicalRecord) -> bytes:
-    """Строит XML электронной записи (детерминированный порядок элементов)."""
-    root = ET.Element(
-        "ElectronicRecord",
-        {"version": SCHEMA_VERSION, "kind": kind.value, "id": str(record.id)},
+def _sub_opt(parent: etree._Element, tag: str, value: object | None) -> None:
+    """Добавляет элемент, только если значение задано."""
+    if value is not None and str(value).strip() != "":
+        _sub(parent, tag, value)
+
+
+def _decimal(value: Decimal) -> str:
+    """Десятичное число без экспоненты и лишних нулей справа от разделителя."""
+    return format(value, "f")
+
+
+def _driver(parent: etree._Element, driver: dict[str, Any]) -> None:
+    """Блок «Водитель» из снимка реквизитов."""
+    el = etree.SubElement(parent, f"{{{NS_RECORD}}}Driver")
+    _sub(el, "FullName", driver.get("full_name"))
+    _sub(el, "BirthDate", driver.get("birth_date"))
+    _sub_opt(el, "Gender", driver.get("gender"))
+
+
+def build_record_xml(kind: JournalKind, record: AnyRecord) -> bytes:
+    """Строит XML электронной записи и проверяет его по XSD (ошибка — XmlInvalidError)."""
+    snap = record.snapshot
+    root = etree.Element(
+        f"{{{NS_RECORD}}}ElectronicRecord",
+        {"version": FORMAT_VERSION, "id": str(record.id)},
+        nsmap=_NSMAP,
     )
-    org = record.snapshot.get("organization", {})
-    org_el = ET.SubElement(root, "Organization")
+    _sub(root, "Source", record.source.value)
+    if record.source is RecordSource.EPL:
+        waybill = etree.SubElement(root, f"{{{NS_RECORD}}}Waybill")
+        _sub(waybill, "Number", record.waybill_number)
+        _sub(waybill, "GisUid", record.gis_uid)
+        _sub(waybill, "Title", f"T{record.epl_title_number}")
+
+    org = snap.get("organization", {})
+    org_el = etree.SubElement(root, f"{{{NS_RECORD}}}Organization")
     _sub(org_el, "INN", org.get("inn"))
+    _sub_opt(org_el, "KPP", org.get("kpp"))
+    _sub_opt(org_el, "OGRN", org.get("ogrn"))
     _sub(org_el, "Name", org.get("name"))
+    _sub_opt(org_el, "ShortName", org.get("short_name"))
+    _sub_opt(org_el, "LegalAddress", org.get("legal_address"))
+
     _sub(root, "PerformedAt", record.performed_at.isoformat())
-    specialist = ET.SubElement(root, "Specialist", {"userId": str(record.specialist_user_id)})
-    _sub(specialist, "FullName", record.snapshot.get("specialist", {}).get("full_name"))
-    driver = record.snapshot.get("driver")
+    specialist = etree.SubElement(
+        root, f"{{{NS_RECORD}}}Specialist", {"userId": str(record.specialist_user_id)}
+    )
+    _sub(specialist, "FullName", snap.get("specialist", {}).get("full_name"))
 
     if isinstance(record, MedicalRecord):
-        _sub(root, "Phase", record.phase.value)
-        drv = ET.SubElement(root, "Driver")
-        _sub(drv, "FullName", (driver or {}).get("full_name"))
-        _sub(drv, "BirthDate", (driver or {}).get("birth_date"))
-        _sub(drv, "Gender", (driver or {}).get("gender"))
-        vitals = ET.SubElement(root, "Examination")
-        _sub(vitals, "Complaints", record.complaints)
-        _sub(vitals, "BloodPressure", f"{record.bp_systolic}/{record.bp_diastolic}")
-        _sub(vitals, "Pulse", record.pulse)
-        _sub(vitals, "Temperature", record.temperature)
-        _sub(vitals, "AlcoholMgL", record.alcohol_mgl)
-        _sub(vitals, "HarmfulFactors", record.harmful_factors.value)
-        _sub(vitals, "HarmfulFactorsNote", record.harmful_factors_note)
+        exam = etree.SubElement(root, f"{{{NS_RECORD}}}MedicalExamination")
+        _sub(exam, "Phase", record.phase.value)
+        _driver(exam, snap.get("driver", {}))
+        _sub(exam, "Complaints", record.complaints)
+        pressure = etree.SubElement(exam, f"{{{NS_RECORD}}}BloodPressure")
+        _sub(pressure, "Systolic", record.bp_systolic)
+        _sub(pressure, "Diastolic", record.bp_diastolic)
+        _sub(exam, "Pulse", record.pulse)
+        _sub(exam, "Temperature", _decimal(record.temperature))
+        _sub(exam, "Alcohol", _decimal(record.alcohol_mgl))
+        _sub(exam, "HarmfulFactors", record.harmful_factors.value)
+        _sub_opt(exam, "HarmfulFactorsNote", record.harmful_factors_note)
+        _sub(exam, "Result", record.result.value)
     else:
         assert isinstance(record, TechnicalRecord)
-        vehicle = record.snapshot.get("vehicle", {})
-        veh = ET.SubElement(root, "Vehicle")
+        inspection = etree.SubElement(root, f"{{{NS_RECORD}}}TechnicalInspection")
+        vehicle = snap.get("vehicle", {})
+        veh = etree.SubElement(inspection, f"{{{NS_RECORD}}}Vehicle")
         _sub(veh, "Brand", vehicle.get("brand"))
         _sub(veh, "Model", vehicle.get("model"))
-        _sub(veh, "Type", vehicle.get("vehicle_type"))
+        _sub_opt(veh, "Type", vehicle.get("vehicle_type"))
         _sub(veh, "Plate", vehicle.get("plate"))
-        _sub(root, "Odometer", record.odometer)
-        if driver:
-            drv = ET.SubElement(root, "Driver")
-            _sub(drv, "FullName", driver.get("full_name"))
+        if snap.get("driver"):
+            _driver(inspection, snap["driver"])
+        _sub(inspection, "Odometer", record.odometer)
+        _sub(inspection, "Result", record.result.value)
 
-    _sub(root, "Result", record.result.value)
-    ET.indent(root)
-    return ET.tostring(root, encoding="utf-8", xml_declaration=True)
+    _sub_opt(root, "Note", record.note)
+    data = etree.tostring(root, xml_declaration=True, encoding="UTF-8", pretty_print=True)
+    ensure_valid(data, "record", code="record_xml_invalid")
+    return data

@@ -23,6 +23,7 @@ dependencies = [
     "weasyprint>=62",
     "python-multipart>=0.0.9",
     "tzdata>=2024.1",
+    "lxml>=5.0",
 ]
 
 [project.optional-dependencies]
@@ -38,7 +39,7 @@ dev = [
 include = ["app*"]
 
 [tool.setuptools.package-data]
-app = ["templates/**/*.html"]
+app = ["templates/**/*.html", "xmlschemas/*.xsd"]
 
 [tool.ruff]
 line-length = 99

@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Электронная запись о предрейсовом/послерейсовом медицинском осмотре водителя
+  или о предрейсовом контроле технического состояния ТС.
+  Версия формата задаётся пространством имён; несовместимое изменение = новая версия (…:record:2.0).
+  СТАТУС: черновик, ждёт утверждения. Единицы измерения алкоголя уточняются.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:rec="urn:predreis:journals:record:1.0"
+           targetNamespace="urn:predreis:journals:record:1.0"
+           elementFormDefault="qualified"
+           attributeFormDefault="unqualified">
+
+  <!-- ===== Простые типы ===== -->
+  <xs:simpleType name="UuidType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="DateTimeTzType">
+    <xs:annotation><xs:documentation>Момент времени с обязательным часовым поясом.</xs:documentation></xs:annotation>
+    <xs:restriction base="xs:dateTime">
+      <xs:pattern value=".+(Z|[+\-]\d{2}:\d{2})"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="NonEmptyStringType">
+    <xs:restriction base="xs:token">
+      <xs:minLength value="1"/>
+      <xs:maxLength value="1000"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="InnType">
+    <xs:restriction base="xs:string"><xs:pattern value="\d{10}|\d{12}"/></xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="KppType">
+    <xs:restriction base="xs:string"><xs:pattern value="\d{9}"/></xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="OgrnType">
+    <xs:restriction base="xs:string"><xs:pattern value="\d{13}|\d{15}"/></xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="SourceType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="manual"/>
+      <xs:enumeration value="ocr"/>
+      <xs:enumeration value="epl"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="PhaseType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="pre"/>
+      <xs:enumeration value="post"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="ResultType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="admitted"/>
+      <xs:enumeration value="not_admitted"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="GenderType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="M"/>
+      <xs:enumeration value="F"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="HarmfulFactorsType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="absent"/>
+      <xs:enumeration value="detected"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="EplTitleType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="T2"/>
+      <xs:enumeration value="T3"/>
+      <xs:enumeration value="T6"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="SystolicType">
+    <xs:restriction base="xs:integer"><xs:minInclusive value="50"/><xs:maxInclusive value="300"/></xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="DiastolicType">
+    <xs:restriction base="xs:integer"><xs:minInclusive value="30"/><xs:maxInclusive value="200"/></xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="PulseType">
+    <xs:restriction base="xs:integer"><xs:minInclusive value="20"/><xs:maxInclusive value="250"/></xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TemperatureType">
+    <xs:restriction base="xs:decimal">
+      <xs:fractionDigits value="1"/>
+      <xs:minInclusive value="30"/>
+      <xs:maxInclusive value="45"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="AlcoholType">
+    <xs:annotation><xs:documentation>Результат пробы на алкоголь. Единицы измерения уточняются (mg/L или ‰).</xs:documentation></xs:annotation>
+    <xs:restriction base="xs:decimal">
+      <xs:fractionDigits value="2"/>
+      <xs:minInclusive value="0"/>
+      <xs:maxInclusive value="5"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="OdometerType">
+    <xs:restriction base="xs:integer">
+      <xs:minInclusive value="0"/>
+      <xs:maxInclusive value="10000000"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- ===== Составные типы ===== -->
+  <xs:complexType name="OrganizationType">
+    <xs:annotation><xs:documentation>Реквизиты организации на момент осмотра.</xs:documentation></xs:annotation>
+    <xs:sequence>
+      <xs:element name="INN" type="rec:InnType"/>
+      <xs:element name="KPP" type="rec:KppType" minOccurs="0"/>
+      <xs:element name="OGRN" type="rec:OgrnType" minOccurs="0"/>
+      <xs:element name="Name" type="rec:NonEmptyStringType"/>
+      <xs:element name="ShortName" type="rec:NonEmptyStringType" minOccurs="0"/>
+      <xs:element name="LegalAddress" type="rec:NonEmptyStringType" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="SpecialistType">
+    <xs:annotation><xs:documentation>Медик или механик, проводивший осмотр (подписант записи).</xs:documentation></xs:annotation>
+    <xs:sequence>
+      <xs:element name="FullName" type="rec:NonEmptyStringType"/>
+    </xs:sequence>
+    <xs:attribute name="userId" type="rec:UuidType" use="required"/>
+  </xs:complexType>
+
+  <xs:complexType name="DriverType">
+    <xs:sequence>
+      <xs:element name="FullName" type="rec:NonEmptyStringType"/>
+      <xs:element name="BirthDate" type="xs:date"/>
+      <xs:element name="Gender" type="rec:GenderType" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="WaybillType">
+    <xs:annotation><xs:documentation>Данные ЭПЛ; присутствует только у записей из ЭПЛ.</xs:documentation></xs:annotation>
+    <xs:sequence>
+      <xs:element name="Number" type="rec:NonEmptyStringType"/>
+      <xs:element name="GisUid" type="rec:NonEmptyStringType"/>
+      <xs:element name="Title" type="rec:EplTitleType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="BloodPressureType">
+    <xs:sequence>
+      <xs:element name="Systolic" type="rec:SystolicType"/>
+      <xs:element name="Diastolic" type="rec:DiastolicType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="MedicalExaminationType">
+    <xs:sequence>
+      <xs:element name="Phase" type="rec:PhaseType"/>
+      <xs:element name="Driver" type="rec:DriverType"/>
+      <xs:element name="Complaints" type="rec:NonEmptyStringType"/>
+      <xs:element name="BloodPressure" type="rec:BloodPressureType"/>
+      <xs:element name="Pulse" type="rec:PulseType"/>
+      <xs:element name="Temperature" type="rec:TemperatureType"/>
+      <xs:element name="Alcohol" type="rec:AlcoholType"/>
+      <xs:element name="HarmfulFactors" type="rec:HarmfulFactorsType"/>
+      <xs:element name="HarmfulFactorsNote" type="rec:NonEmptyStringType" minOccurs="0"/>
+      <xs:element name="Result" type="rec:ResultType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="VehicleType">
+    <xs:sequence>
+      <xs:element name="Brand" type="rec:NonEmptyStringType"/>
+      <xs:element name="Model" type="rec:NonEmptyStringType"/>
+      <xs:element name="Type" type="rec:NonEmptyStringType" minOccurs="0"/>
+      <xs:element name="Plate" type="rec:NonEmptyStringType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="TechnicalInspectionType">
+    <xs:sequence>
+      <xs:element name="Vehicle" type="rec:VehicleType"/>
+      <xs:element name="Driver" type="rec:DriverType" minOccurs="0"/>
+      <xs:element name="Odometer" type="rec:OdometerType"/>
+      <xs:element name="Result" type="rec:ResultType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- ===== Корневой элемент ===== -->
+  <xs:element name="ElectronicRecord">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="Source" type="rec:SourceType"/>
+        <xs:element name="Waybill" type="rec:WaybillType" minOccurs="0"/>
+        <xs:element name="Organization" type="rec:OrganizationType"/>
+        <xs:element name="PerformedAt" type="rec:DateTimeTzType"/>
+        <xs:element name="Specialist" type="rec:SpecialistType"/>
+        <xs:choice>
+          <xs:element name="MedicalExamination" type="rec:MedicalExaminationType"/>
+          <xs:element name="TechnicalInspection" type="rec:TechnicalInspectionType"/>
+        </xs:choice>
+        <xs:element name="Note" type="rec:NonEmptyStringType" minOccurs="0"/>
+      </xs:sequence>
+      <xs:attribute name="version" type="xs:string" use="required" fixed="1.0"/>
+      <xs:attribute name="id" type="rec:UuidType" use="required"/>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

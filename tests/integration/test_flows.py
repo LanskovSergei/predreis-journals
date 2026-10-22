@@ -385,6 +385,25 @@ async def test_epl_technical_title3(session: AsyncSession, storage: LocalStorage
     assert rec.epl_details["released"] is True
 
 
+async def test_epl_records_produce_valid_xml(session: AsyncSession, storage: LocalStorage) -> None:
+    """Записи из ЭПЛ после сохранения в БД превращаются в валидный XML по схеме."""
+    from app.modules.signing.xml_builder import build_record_xml
+    from app.xmlschemas import validate_xml
+
+    w = await seed(session)
+    svc = IntegrationService(session, storage)
+    for title in ("T2", "T3"):
+        raw = epl_event(title, w, notes="примечание из ЭПЛ")
+        await svc.handle(TypeAdapter(IntegrationEvent).validate_python(raw))
+    med = (await session.execute(select(MedicalRecord))).scalar_one()
+    tech = (await session.execute(select(TechnicalRecord))).scalar_one()
+    for kind, rec in ((JournalKind.MEDICAL, med), (JournalKind.TECHNICAL, tech)):
+        data = build_record_xml(kind, rec)
+        assert validate_xml(data, "record") == []
+        assert b"<GisUid>7f1c1f0a" in data and b"<Source>epl</Source>" in data
+    assert b"T2" in build_record_xml(JournalKind.MEDICAL, med)
+
+
 async def test_epl_requires_synced_references(
     session: AsyncSession, storage: LocalStorage
 ) -> None:

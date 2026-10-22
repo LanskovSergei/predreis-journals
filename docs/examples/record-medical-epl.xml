@@ -1,0 +1,40 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ElectronicRecord xmlns="urn:predreis:journals:record:1.0" version="1.0" id="66666666-6666-4666-8666-666666666666">
+  <Source>epl</Source>
+  <Waybill>
+    <Number>ЭПЛ-2026-000123</Number>
+    <GisUid>7f1c1f0a-0000-4000-8000-000000000001</GisUid>
+    <Title>T2</Title>
+  </Waybill>
+  <Organization>
+    <INN>7707083893</INN>
+    <KPP>770701001</KPP>
+    <OGRN>1027700132195</OGRN>
+    <Name>ООО «Тестовая логистика»</Name>
+    <ShortName>Тест-Логистик</ShortName>
+    <LegalAddress>г. Москва, ул. Тестовая, 1</LegalAddress>
+  </Organization>
+  <PerformedAt>2026-10-14T08:20:00+03:00</PerformedAt>
+  <Specialist userId="22222222-2222-4222-8222-222222222222">
+    <FullName>Абдуллаева Гульзана Абутдиновна</FullName>
+  </Specialist>
+  <MedicalExamination>
+    <Phase>pre</Phase>
+    <Driver>
+      <FullName>Ефимов Андрей Константинович</FullName>
+      <BirthDate>1974-07-21</BirthDate>
+      <Gender>M</Gender>
+    </Driver>
+    <Complaints>отсутствуют</Complaints>
+    <BloodPressure>
+      <Systolic>137</Systolic>
+      <Diastolic>84</Diastolic>
+    </BloodPressure>
+    <Pulse>72</Pulse>
+    <Temperature>36.6</Temperature>
+    <Alcohol>0.00</Alcohol>
+    <HarmfulFactors>absent</HarmfulFactors>
+    <Result>admitted</Result>
+  </MedicalExamination>
+  <Note>Проверено повторно</Note>
+</ElectronicRecord>
