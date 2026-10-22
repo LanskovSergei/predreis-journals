@@ -53,7 +53,7 @@ make lint typecheck
 | Статистика стартовой страницы | ✅ |
 | Outbox → Предрейс, ночная сверка справочников | ✅ (ждёт эндпоинтов Предрейса) |
 | Электронный журнал: статусы, резервирование, подпись/отклонение СА | ✅ |
-| **Электронный журнал: сборка ZIP** (`ejournal/builder.py`) | ⏳ заглушка |
+| Электронный журнал: сборка ZIP, `journal.xml`/`manifest.xml`, audit log, PDF с плашкой, самопроверка | ✅ |
 | **OCR сканов** (`ocr/service.py`, клиент Yandex Vision готов) | ⏳ заглушка |
 | Создание записей на период (диапазон дат) | ⏳ не реализовано, вопрос к ТЗ |
 | XSD для XML записи и журнала | ⏳ схема-черновик |
@@ -64,6 +64,8 @@ make lint typecheck
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — архитектура, модель данных, FSM, безопасность
 - [docs/integration-contract.md](docs/integration-contract.md) — контракт с Предрейсом и список его доработок
+- [docs/xml-schema.md](docs/xml-schema.md) — форматы XML (XSD) и образцы
+- [docs/container-format.md](docs/container-format.md) — состав ZIP-контейнера журнала и порядок его проверки
 - [docs/openapi.json](docs/openapi.json) — контракт API для фронтенда (`make openapi`)
 
 ## Структура

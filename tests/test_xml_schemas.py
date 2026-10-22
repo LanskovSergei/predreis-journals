@@ -14,6 +14,7 @@ from lxml import etree
 from app.core.errors import ValidationFailedError
 from app.domain.enums import JournalKind, RecordSource
 from app.modules.ejournal.xml_builder import (
+    AuditRef,
     FileRef,
     JournalRecordRef,
     ManifestFile,
@@ -217,6 +218,7 @@ def _journal(records: list[JournalRecordRef]) -> bytes:
         period_from=samples.date(2026, 10, 1),
         period_to=samples.date(2026, 10, 31),
         created_at=datetime(2026, 11, 1, tzinfo=samples.MSK),
+        audit=AuditRef("audit/audit-log.json", samples.SHA_B, 0, samples.SHA_C),
         records=records,
     )
 

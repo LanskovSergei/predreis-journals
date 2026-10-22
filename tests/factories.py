@@ -148,7 +148,11 @@ class FakeSigner:
             signature=b"SIG:" + content[:16],
             tsp=b"TSP",
             cert_serial="f18dd73747eccc4ab0d2b1ee00d4040e",
-            cert_subject="Абдуллаева Гульзана Абутдиновна",
+            cert_subject=(
+                "ООО «ПРЕДРЕЙС»"
+                if kind is SignatureKind.ORGANIZATION
+                else "Абдуллаева Гульзана Абутдиновна"
+            ),
             cert_valid_from=now - timedelta(days=365),
             cert_valid_to=now + timedelta(days=365),
             ocsp_status="good",

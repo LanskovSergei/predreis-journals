@@ -59,6 +59,16 @@
     <xs:attribute name="sha256" type="jr:Sha256Type" use="required"/>
   </xs:complexType>
 
+  <xs:complexType name="AuditLogRefType">
+    <xs:annotation><xs:documentation>Выгрузка журнала аудита по записям; хеш входит в подписанный journal.xml.</xs:documentation></xs:annotation>
+    <xs:complexContent>
+      <xs:extension base="jr:FileRefType">
+        <xs:attribute name="entries" type="xs:nonNegativeInteger" use="required"/>
+        <xs:attribute name="chainHead" type="jr:Sha256Type" use="required"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
   <xs:complexType name="SignatureRefType">
     <xs:complexContent>
       <xs:extension base="jr:FileRefType">
@@ -95,6 +105,7 @@
           </xs:complexType>
         </xs:element>
         <xs:element name="CreatedAt" type="jr:DateTimeTzType"/>
+        <xs:element name="AuditLog" type="jr:AuditLogRefType"/>
         <xs:element name="Records">
           <xs:complexType>
             <xs:sequence>

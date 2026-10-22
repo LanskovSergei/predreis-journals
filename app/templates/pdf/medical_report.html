@@ -1,6 +1,22 @@
 {% extends "_base.html" %}
 {% block content %}
 <table class="data">
+  <colgroup>
+    <col style="width: 3%">
+    <col style="width: 7.5%">
+    <col style="width: 5.5%">
+    <col style="width: 10%">
+    <col style="width: 7.5%">
+    <col style="width: 3.5%">
+    <col style="width: 6%">
+    <col style="width: 5%">
+    <col style="width: 3.5%">
+    <col style="width: 5%">
+    <col style="width: 5.5%">
+    <col style="width: 8%">
+    <col style="width: 7.5%">
+    <col style="width: 22%">
+  </colgroup>
   <thead>
     <tr>
       <th rowspan="2">№</th>
@@ -26,10 +42,10 @@
   {% for r in rows %}
     <tr>
       <td class="center">{{ r.n }}</td>
-      <td class="center">{{ r.date }}</td>
-      <td class="center">{{ r.time }}</td>
+      <td class="center nw">{{ r.date }}</td>
+      <td class="center nw">{{ r.time }}</td>
       <td>{{ r.driver_name }}</td>
-      <td class="center">{{ r.birth_date }}</td>
+      <td class="center nw">{{ r.birth_date }}</td>
       <td class="center">{{ r.gender }}</td>
       <td class="center">{{ r.complaints }}</td>
       <td class="center">{{ r.blood_pressure }}</td>

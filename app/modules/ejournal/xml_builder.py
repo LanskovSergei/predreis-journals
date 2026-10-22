@@ -44,6 +44,14 @@ class SignatureRef(FileRef):
 
 
 @dataclass(frozen=True, slots=True)
+class AuditRef(FileRef):
+    """Ссылка на выгрузку аудита: число записей и хеш головы глобальной цепочки."""
+
+    entries: int
+    chain_head: str
+
+
+@dataclass(frozen=True, slots=True)
 class JournalRecordRef:
     """Запись журнала: идентификатор, краткие данные и ссылки на файлы."""
 
@@ -109,6 +117,7 @@ def build_journal_xml(
     period_from: date,
     period_to: date,
     created_at: datetime,
+    audit: AuditRef,
     records: Sequence[JournalRecordRef],
 ) -> bytes:
     """Строит journal.xml: записи упорядочены по времени осмотра, документ проверяется по XSD."""
@@ -123,6 +132,16 @@ def build_journal_xml(
     etree.SubElement(period, _q(NS_JOURNAL, "From")).text = period_from.isoformat()
     etree.SubElement(period, _q(NS_JOURNAL, "To")).text = period_to.isoformat()
     etree.SubElement(root, _q(NS_JOURNAL, "CreatedAt")).text = created_at.isoformat()
+    etree.SubElement(
+        root,
+        _q(NS_JOURNAL, "AuditLog"),
+        {
+            "path": safe_archive_path(audit.path),
+            "sha256": audit.sha256,
+            "entries": str(audit.entries),
+            "chainHead": audit.chain_head,
+        },
+    )
     ordered = sorted(records, key=lambda r: (r.performed_at, str(r.record_id)))
     container = etree.SubElement(root, _q(NS_JOURNAL, "Records"), {"count": str(len(ordered))})
     for rec in ordered:

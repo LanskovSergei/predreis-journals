@@ -2303,13 +2303,60 @@
         }
       }
     },
+    "/api/v1/ejournals/{journal_id}/preview": {
+      "get": {
+        "tags": [
+          "Электронные журналы"
+        ],
+        "summary": "Человекочитаемая версия журнала (PDF)",
+        "description": "PDF содержимого журнала для СА: до подписи — без плашки, после — подписанная версия.",
+        "operationId": "preview_journal_api_v1_ejournals__journal_id__preview_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "journal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Journal Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/ejournals/{journal_id}/download": {
       "get": {
         "tags": [
           "Электронные журналы"
         ],
         "summary": "Скачать ZIP-контейнер",
-        "description": "Отдаёт собранный ZIP (после подписи).",
+        "description": "Отдаёт собранный ZIP (только после подписи; доступ — Предрейс, Админ, СА).",
         "operationId": "download_journal_api_v1_ejournals__journal_id__download_get",
         "security": [
           {

@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # Библиотеки для WeasyPrint и шрифты с кириллицей для PDF
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b shared-mime-info \
+        libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b libharfbuzz-subset0 shared-mime-info \
         fonts-dejavu-core fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 

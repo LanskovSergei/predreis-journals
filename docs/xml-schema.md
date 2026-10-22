@@ -42,7 +42,7 @@
 
 ## Журнал (`journal.xsd`)
 
-`ElectronicJournal @id @kind`: `Issuer`, `Organization`, `Period`, `CreatedAt`, `Records @count` с
+`ElectronicJournal @id @kind`: `Issuer`, `Organization`, `Period`, `CreatedAt`, `AuditLog` (`@path @sha256 @entries @chainHead` — хеш выгрузки аудита входит в подписанный документ), `Records @count` с
 `Record @id @source @performedAt @result`, внутри ссылки `Xml`, `Pdf`?, `Signature`? (`@certSerial @signer`),
 `Timestamp`? — каждая с `@path` и `@sha256`. Записи упорядочены по времени осмотра. Журнал без записей
 недопустим.

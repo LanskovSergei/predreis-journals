@@ -73,6 +73,16 @@ class EJournal(TimestampMixin, Base):
     sig_key: Mapped[str | None] = mapped_column(Text)
     zip_key: Mapped[str | None] = mapped_column(Text)
     zip_sha256: Mapped[str | None] = mapped_column(String(64))
+    xml_sha256: Mapped[str | None] = mapped_column(String(64))
+    tsp_key: Mapped[str | None] = mapped_column(Text)
+    preview_pdf_key: Mapped[str | None] = mapped_column(Text)
+    audit_key: Mapped[str | None] = mapped_column(Text)
+    cert_serial: Mapped[str | None] = mapped_column(String(128))
+    cert_subject: Mapped[str | None] = mapped_column(Text)
+    cert_valid_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cert_valid_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ocsp_status: Mapped[str | None] = mapped_column(String(32))
+    package: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
     filters: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
 

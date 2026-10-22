@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from datetime import date
 from typing import Any
 from urllib.parse import quote
@@ -112,6 +113,68 @@ async def render_single_record_pdf(
     return await html_to_pdf(html)
 
 
+JOURNAL_TITLES = {
+    JournalKind.MEDICAL: (
+        "Электронный журнал предрейсовых (предсменных) и послерейсовых (послесменных) "
+        "медицинских осмотров водителей"
+    ),
+    JournalKind.TECHNICAL: (
+        "Электронный журнал предрейсового контроля технического состояния транспортных средств"
+    ),
+}
+
+
+async def render_registry_pdf(
+    *,
+    kind: JournalKind,
+    customer: dict[str, Any],
+    records: Sequence[MedicalRecord | TechnicalRecord],
+    docs: dict[uuid.UUID, RecordDocument],
+    period_from: str,
+    period_to: str,
+    title: str | None = None,
+    stamp: dict[str, str] | None = None,
+) -> bytes:
+    """Рендерит PDF-реестр записей (Выгрузка или человекочитаемая версия электронного журнала)."""
+    settings = get_settings()
+    common: dict[str, Any] = {
+        "customer": customer,
+        "executor": _executor(settings),
+        "period_from": period_from,
+        "period_to": period_to,
+        "stamp": stamp,
+    }
+    if kind is JournalKind.MEDICAL:
+        rows = [
+            medical_row(i, r, docs.get(r.id))
+            for i, r in enumerate(records, 1)
+            if isinstance(r, MedicalRecord)
+        ]
+        html = render_html(
+            "medical_report.html",
+            title=title or MEDICAL_TITLE,
+            rows=rows,
+            executor_license=settings.executor_license,
+            privacy_notice=MEDICAL_PRIVACY_NOTICE,
+            **common,
+        )
+    else:
+        rows = [
+            technical_row(i, r, docs.get(r.id))
+            for i, r in enumerate(records, 1)
+            if isinstance(r, TechnicalRecord)
+        ]
+        html = render_html(
+            "technical_report.html",
+            title=title or TECHNICAL_TITLE,
+            rows=rows,
+            executor_license=None,
+            privacy_notice=None,
+            **common,
+        )
+    return await html_to_pdf(html)
+
+
 class ReportService:
     """Выгрузка записей архива в PDF."""
 
@@ -164,52 +227,29 @@ class ReportService:
         docs = await svc.signatures([r.id for r in records])
         date_from = req.date_from or local_date(records[0].performed_at)
         date_to = req.date_to or local_date(records[-1].performed_at)
-        common: dict[str, Any] = {
-            "customer": {
+        period_from = fmt_date_value(date_from)
+        period_to = fmt_date_value(date_to)
+        pdf = await render_registry_pdf(
+            kind=kind,
+            customer={
                 "name": org.short_name or org.name,
                 "inn": org.inn,
                 "address": org.legal_address,
             },
-            "executor": _executor(settings),
-            "period_from": fmt_date_value(date_from),
-            "period_to": fmt_date_value(date_to),
-            "stamp": None,
-        }
-        if kind is JournalKind.MEDICAL:
-            rows = [medical_row(i, r, docs.get(r.id)) for i, r in enumerate(records, 1)]
-            html = render_html(
-                "medical_report.html",
-                title=MEDICAL_TITLE,
-                rows=rows,
-                executor_license=settings.executor_license,
-                privacy_notice=MEDICAL_PRIVACY_NOTICE,
-                **common,
-            )
-            name = "Отчёт о медосмотрах"
-        else:
-            rows = [technical_row(i, r, docs.get(r.id)) for i, r in enumerate(records, 1)]
-            html = render_html(
-                "technical_report.html",
-                title=TECHNICAL_TITLE,
-                rows=rows,
-                executor_license=None,
-                privacy_notice=None,
-                **common,
-            )
-            name = "Отчёт о техконтроле"
-        pdf = await html_to_pdf(html)
-        filename = f"{name} ПРЕДРЕЙС_с {common['period_from']} по {common['period_to']}.pdf"
+            records=records,
+            docs=docs,
+            period_from=period_from,
+            period_to=period_to,
+        )
+        name = "Отчёт о медосмотрах" if kind is JournalKind.MEDICAL else "Отчёт о техконтроле"
+        filename = f"{name} ПРЕДРЕЙС_с {period_from} по {period_to}.pdf"
         await append_audit(
             self.session,
             principal,
             action="report.export",
             entity_type=kind.value,
             entity_id=str(organization_id),
-            payload={
-                "rows": len(records),
-                "from": common["period_from"],
-                "to": common["period_to"],
-            },
+            payload={"rows": len(records), "from": period_from, "to": period_to},
         )
         await self.session.commit()
         return pdf, filename

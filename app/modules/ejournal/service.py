@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationFailedError
 from app.core.security import Principal
+from app.core.storage import Storage, get_storage
 from app.domain.enums import EJournalStatus, JournalKind, RecordStatus
 from app.domain.permissions import RECORD_PERMS, Permission, has_permission
 from app.integrations.predreis.client import Signer
@@ -19,7 +20,7 @@ from app.models.catalog import Organization
 from app.models.documents import EJournal, EJournalItem
 from app.models.records import AnyRecord, record_model
 from app.modules.audit.service import append_audit
-from app.modules.ejournal.builder import ContainerBuilder
+from app.modules.ejournal.builder import ContainerBuilder, PackageBuilder
 from app.modules.ejournal.schemas import EJournalCreate
 from app.modules.integration import outbox
 
@@ -44,12 +45,14 @@ class EJournalService:
         self,
         session: AsyncSession,
         signer: Signer,
-        builder: ContainerBuilder | None = None,
+        builder: PackageBuilder | None = None,
+        storage: Storage | None = None,
     ) -> None:
-        """Принимает сессию, подписанта и строителя контейнера."""
+        """Принимает сессию, подписанта, строителя контейнера и хранилище файлов."""
         self.session = session
         self.signer = signer
-        self.builder = builder or ContainerBuilder()
+        self.storage = storage or get_storage()
+        self.builder: PackageBuilder = builder or ContainerBuilder(session, self.storage)
 
     @staticmethod
     def _require_view(principal: Principal) -> None:
@@ -237,6 +240,7 @@ class EJournalService:
         ).scalars()
         for item in items:
             await self.session.delete(item)
+        staged_keys = self.builder.discard(journal)
         journal.status = EJournalStatus.REJECTED
         journal.rejected_by = principal.user_id
         journal.reject_reason = reason
@@ -250,4 +254,5 @@ class EJournalService:
             payload={"reason": reason},
         )
         await self.session.commit()
+        await self.builder.delete_files(staged_keys)
         return journal

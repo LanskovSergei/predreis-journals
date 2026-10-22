@@ -5,10 +5,11 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import select, text
+from sqlalchemy import ARRAY, String, any_, bindparam, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import Principal
@@ -84,3 +85,61 @@ async def verify_chain(session: AsyncSession) -> bool:
             return False
         prev = row.hash
     return True
+
+
+@dataclass(frozen=True, slots=True)
+class AuditExport:
+    """Выгрузка журнала аудита: файл, число записей и голова глобальной цепочки."""
+
+    data: bytes
+    entries: int
+    chain_head: str
+
+
+async def export_audit_json(session: AsyncSession, entity_ids: list[str]) -> AuditExport:
+    """Выгружает записи аудита по указанным сущностям (JSON с каждым prev_hash и hash)."""
+    rows: list[AuditLog] = []
+    if entity_ids:
+        ids = bindparam("ids", entity_ids, type_=ARRAY(String))
+        rows = list(
+            (
+                await session.execute(
+                    select(AuditLog).where(AuditLog.entity_id == any_(ids)).order_by(AuditLog.id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+    head = (
+        await session.execute(select(AuditLog.hash).order_by(AuditLog.id.desc()).limit(1))
+    ).scalar_one_or_none() or GENESIS_HASH
+    entries = [{**_body(r), "id": r.id, "prev_hash": r.prev_hash, "hash": r.hash} for r in rows]
+    doc = {"format": "1.0", "genesis_hash": GENESIS_HASH, "chain_head": head, "entries": entries}
+    data = json.dumps(doc, ensure_ascii=False, sort_keys=True, indent=1).encode("utf-8")
+    return AuditExport(data=data, entries=len(entries), chain_head=head)
+
+
+def verify_audit_export(data: bytes) -> list[str]:
+    """Пересчитывает хеш каждой записи выгрузки; возвращает список расхождений."""
+    try:
+        doc = json.loads(data)
+        entries = doc["entries"]
+    except (ValueError, KeyError, TypeError):
+        return ["Некорректный формат выгрузки аудита"]
+    errors: list[str] = []
+    body_keys = (
+        "ts",
+        "actor_id",
+        "actor_role",
+        "ip",
+        "session_id",
+        "action",
+        "entity_type",
+        "entity_id",
+        "payload",
+    )
+    for e in entries:
+        body = {k: e.get(k) for k in body_keys}
+        if compute_hash(e.get("prev_hash", ""), body) != e.get("hash"):
+            errors.append(f"Хеш записи аудита id={e.get('id')} не совпадает")
+    return errors

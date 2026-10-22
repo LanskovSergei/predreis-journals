@@ -102,16 +102,34 @@ async def reject_journal(
     )
 
 
+@router.get("/{journal_id}/preview", summary="Человекочитаемая версия журнала (PDF)")
+async def preview_journal(
+    journal_id: uuid.UUID,
+    principal: Principal = Depends(get_principal),
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    """PDF содержимого журнала для СА: до подписи — без плашки, после — подписанная версия."""
+    journal = await _service(session).get(principal, journal_id)
+    key = journal.pdf_key if journal.status is EJournalStatus.SIGNED else journal.preview_pdf_key
+    if not key:
+        raise NotFoundError("Журнал ещё не отправлен на подпись")
+    return Response(
+        content=await get_storage().get(key),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="journal-{journal.id}.pdf"'},
+    )
+
+
 @router.get("/{journal_id}/download", summary="Скачать ZIP-контейнер")
 async def download_journal(
     journal_id: uuid.UUID,
     principal: Principal = Depends(get_principal),
     session: AsyncSession = Depends(get_session),
 ) -> Response:
-    """Отдаёт собранный ZIP (после подписи)."""
+    """Отдаёт собранный ZIP (только после подписи; доступ — Предрейс, Админ, СА)."""
     journal = await _service(session).get(principal, journal_id)
-    if not journal.zip_key:
-        raise NotFoundError("ZIP-контейнер ещё не сформирован")
+    if journal.status is not EJournalStatus.SIGNED or not journal.zip_key:
+        raise NotFoundError("ZIP-контейнер появляется после подписи журнала")
     data = await get_storage().get(journal.zip_key)
     return Response(
         content=data,

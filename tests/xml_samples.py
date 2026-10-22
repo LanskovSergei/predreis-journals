@@ -16,6 +16,7 @@ from app.domain.enums import (
 )
 from app.models.records import MedicalRecord, TechnicalRecord
 from app.modules.ejournal.xml_builder import (
+    AuditRef,
     FileRef,
     JournalRecordRef,
     ManifestFile,
@@ -132,6 +133,7 @@ def journal_xml() -> bytes:
         period_from=date(2026, 10, 1),
         period_to=date(2026, 10, 31),
         created_at=datetime(2026, 11, 1, 9, 0, tzinfo=MSK),
+        audit=AuditRef("audit/audit-log.json", SHA_B, 12, SHA_C),
         records=[full, epl],
     )
 

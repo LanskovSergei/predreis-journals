@@ -14,7 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import (
     ConflictError,
     ForbiddenError,
-    NotImplementedYetError,
     ValidationFailedError,
 )
 from app.core.storage import LocalStorage
@@ -36,7 +35,6 @@ from app.models.integration import InboxEvent
 from app.models.records import MedicalRecord, TechnicalRecord
 from app.modules.audit.service import verify_chain
 from app.modules.deletion.service import DeletionService
-from app.modules.ejournal.builder import ContainerBuilder
 from app.modules.ejournal.schemas import EJournalCreate
 from app.modules.ejournal.service import EJournalService
 from app.modules.integration.service import IntegrationService
@@ -59,14 +57,21 @@ PERFORMED = datetime(2026, 10, 14, 8, 20, tzinfo=timezone(timedelta(hours=3)))
 PAGE = PageParams(page=1, page_size=10)
 
 
-class NoopBuilder(ContainerBuilder):
-    """Строитель без файловой работы: проверяем только машину состояний."""
+class NoopBuilder:
+    """Строитель без файловой работы: проверяем только машину состояний журнала."""
 
     async def build_package(self, journal: object, records: object) -> None:
         """Ничего не собирает."""
 
     async def finalize(self, journal: object, signer: object, principal: object) -> None:
         """Ничего не подписывает."""
+
+    def discard(self, journal: object) -> list[str]:
+        """Нечего сбрасывать."""
+        return []
+
+    async def delete_files(self, keys: object) -> None:
+        """Нечего удалять."""
 
 
 def _medical_data(w: World, **over: object) -> MedicalRecordCreate:
@@ -499,30 +504,6 @@ async def test_ejournal_reject_releases_records(
     assert rec.status is RecordStatus.SIGNED and rec.reserved_journal_id is None
     j2 = await svc.create(manager, data)
     assert j2.record_count == 1
-
-
-async def test_ejournal_stub_builder_fails_safely(
-    session: AsyncSession, storage: LocalStorage
-) -> None:
-    """Пока сборка контейнера не реализована, «Отправить» падает и ничего не резервирует."""
-    w = await seed(session)
-    await _signed_record(session, w, storage)
-    manager = principal(Role.PREDREIS, w.manager.id)
-    svc = EJournalService(session, FakeSigner())
-    draft = await svc.create(
-        manager,
-        EJournalCreate(
-            kind=JournalKind.MEDICAL,
-            organization_id=w.org.id,
-            period_from=PERFORMED.date(),
-            period_to=PERFORMED.date(),
-        ),
-    )
-    with pytest.raises(NotImplementedYetError):
-        await svc.submit(manager, draft.id)
-    await session.rollback()
-    rec = (await session.execute(select(MedicalRecord))).scalar_one()
-    assert rec.reserved_journal_id is None
 
 
 async def test_pdf_export_for_client_and_manager(
