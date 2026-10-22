@@ -1,0 +1,58 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: journals
+      POSTGRES_PASSWORD: journals
+      POSTGRES_DB: journals
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U journals"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  migrate:
+    build: .
+    env_file: .env
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - storage:/var/lib/journals/storage
+
+  worker:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    command: ["arq", "app.workers.settings.WorkerSettings"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+    volumes:
+      - storage:/var/lib/journals/storage
+
+volumes:
+  pgdata:
+  storage:

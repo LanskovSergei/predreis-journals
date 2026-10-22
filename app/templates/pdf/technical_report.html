@@ -1,0 +1,38 @@
+{% extends "_base.html" %}
+{% block content %}
+<table class="data">
+  <thead>
+    <tr>
+      <th>№</th>
+      <th>Дата проведения техконтроля</th>
+      <th>Время проведения техконтроля</th>
+      <th>Марка и модель транспортного средства</th>
+      <th>Госномер транспортного средства</th>
+      <th>Показания одометра</th>
+      <th>Отметка о прохождении контроля</th>
+      <th>ФИО контролёра</th>
+      <th>Подпись контролёра (номер сертификата, ФИО, срок действия)</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td class="center">{{ r.n }}</td>
+      <td class="center">{{ r.date }}</td>
+      <td class="center">{{ r.time }}</td>
+      <td>{{ r.vehicle_name }}</td>
+      <td class="center">{{ r.plate }}</td>
+      <td class="center">{{ r.odometer }}</td>
+      <td class="center">{{ r.conclusion }}</td>
+      <td>{{ r.specialist_name }}</td>
+      <td class="small">
+        {% if r.signature %}
+          {{ r.signature.serial }}<br>{{ r.signature.owner }}<br>
+          Действителен с {{ r.signature.valid_from }} по {{ r.signature.valid_to }}
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

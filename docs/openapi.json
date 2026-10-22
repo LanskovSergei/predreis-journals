@@ -1,0 +1,4953 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Электронные журналы",
+    "description": "API электронных журналов предрейсовых осмотров (смежный с Предрейс ONLINE).",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/me": {
+      "get": {
+        "tags": [
+          "Профиль и статистика"
+        ],
+        "summary": "Текущий пользователь и его права",
+        "description": "Профиль и список прав — для построения интерфейса на фронтенде.",
+        "operationId": "me_api_v1_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Me Api V1 Me Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/stats/overview": {
+      "get": {
+        "tags": [
+          "Профиль и статистика"
+        ],
+        "summary": "Плашки статистики",
+        "description": "Статистика по организациям, водителям и записям.",
+        "operationId": "overview_api_v1_stats_overview_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/stats/certificates": {
+      "get": {
+        "tags": [
+          "Профиль и статистика"
+        ],
+        "summary": "Сертификаты медиков и механиков",
+        "description": "Статусы сертификатов из Предрейса; медик и механик видят только свой.",
+        "operationId": "certificates_api_v1_stats_certificates_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response Certificates Api V1 Stats Certificates Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/medical/records": {
+      "get": {
+        "tags": [
+          "Журнал медосмотров"
+        ],
+        "summary": "Архив записей медосмотров",
+        "description": "Возвращает страницу архива с фильтрами.",
+        "operationId": "list_records_api_v1_medical_records_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          },
+          {
+            "name": "specialist_user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Specialist User Id"
+            }
+          },
+          {
+            "name": "result",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/InspectionResult"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Result"
+            }
+          },
+          {
+            "name": "has_note",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Has Note"
+            }
+          },
+          {
+            "name": "is_signed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Is Signed"
+            }
+          },
+          {
+            "name": "driver_name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 255
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Driver Name"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 10,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_Union_MedicalRecordOut__MedicalRecordClientOut__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Журнал медосмотров"
+        ],
+        "summary": "Создать запись",
+        "description": "Создаёт неподписанную запись медосмотра.",
+        "operationId": "create_record_api_v1_medical_records_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MedicalRecordCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/MedicalRecordOut"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MedicalRecordClientOut"
+                    }
+                  ],
+                  "title": "Response Create Record Api V1 Medical Records Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/medical/records/sign": {
+      "post": {
+        "tags": [
+          "Журнал медосмотров"
+        ],
+        "summary": "Подписать записи (в т.ч. массово)",
+        "description": "Подписывает записи личным сертификатом медика (через Предрейс).",
+        "operationId": "sign_records_api_v1_medical_records_sign_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignBatchResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/medical/records/{record_id}": {
+      "get": {
+        "tags": [
+          "Журнал медосмотров"
+        ],
+        "summary": "Получить запись",
+        "description": "Возвращает одну запись.",
+        "operationId": "get_record_api_v1_medical_records__record_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/MedicalRecordOut"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MedicalRecordClientOut"
+                    }
+                  ],
+                  "title": "Response Get Record Api V1 Medical Records  Record Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Журнал медосмотров"
+        ],
+        "summary": "Изменить неподписанную запись",
+        "description": "Изменяет запись типа А.",
+        "operationId": "update_record_api_v1_medical_records__record_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MedicalRecordUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/MedicalRecordOut"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MedicalRecordClientOut"
+                    }
+                  ],
+                  "title": "Response Update Record Api V1 Medical Records  Record Id  Patch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Журнал медосмотров"
+        ],
+        "summary": "Удалить неподписанную запись",
+        "description": "Удаляет запись типа А.",
+        "operationId": "delete_record_api_v1_medical_records__record_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/medical/records/{record_id}/clear-note": {
+      "post": {
+        "tags": [
+          "Журнал медосмотров"
+        ],
+        "summary": "Снять примечание",
+        "description": "Очищает поле «Примечание».",
+        "operationId": "clear_note_api_v1_medical_records__record_id__clear_note_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/MedicalRecordOut"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MedicalRecordClientOut"
+                    }
+                  ],
+                  "title": "Response Clear Note Api V1 Medical Records  Record Id  Clear Note Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/medical/records/{record_id}/deletion-request": {
+      "post": {
+        "tags": [
+          "Журнал медосмотров"
+        ],
+        "summary": "Запрос на удаление подписанной записи",
+        "description": "Формирует запрос на удаление подписанной записи (тип Б).",
+        "operationId": "request_deletion_api_v1_medical_records__record_id__deletion_request_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeletionRequestIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionRequestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/technical/records": {
+      "get": {
+        "tags": [
+          "Журнал техконтроля"
+        ],
+        "summary": "Архив записей техконтроля",
+        "description": "Возвращает страницу архива с фильтрами.",
+        "operationId": "list_records_api_v1_technical_records_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          },
+          {
+            "name": "specialist_user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Specialist User Id"
+            }
+          },
+          {
+            "name": "result",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/InspectionResult"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Result"
+            }
+          },
+          {
+            "name": "has_note",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Has Note"
+            }
+          },
+          {
+            "name": "is_signed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Is Signed"
+            }
+          },
+          {
+            "name": "plate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Plate"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 10,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_TechnicalRecordOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Журнал техконтроля"
+        ],
+        "summary": "Создать запись",
+        "description": "Создаёт неподписанную запись техконтроля.",
+        "operationId": "create_record_api_v1_technical_records_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TechnicalRecordCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TechnicalRecordOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/technical/records/sign": {
+      "post": {
+        "tags": [
+          "Журнал техконтроля"
+        ],
+        "summary": "Подписать записи (в т.ч. массово)",
+        "description": "Подписывает записи личным сертификатом механика (через Предрейс).",
+        "operationId": "sign_records_api_v1_technical_records_sign_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignBatchResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/technical/records/{record_id}": {
+      "get": {
+        "tags": [
+          "Журнал техконтроля"
+        ],
+        "summary": "Получить запись",
+        "description": "Возвращает одну запись.",
+        "operationId": "get_record_api_v1_technical_records__record_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TechnicalRecordOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Журнал техконтроля"
+        ],
+        "summary": "Изменить неподписанную запись",
+        "description": "Изменяет запись типа А.",
+        "operationId": "update_record_api_v1_technical_records__record_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TechnicalRecordUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TechnicalRecordOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Журнал техконтроля"
+        ],
+        "summary": "Удалить неподписанную запись",
+        "description": "Удаляет запись типа А.",
+        "operationId": "delete_record_api_v1_technical_records__record_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/technical/records/{record_id}/clear-note": {
+      "post": {
+        "tags": [
+          "Журнал техконтроля"
+        ],
+        "summary": "Снять примечание",
+        "description": "Очищает поле «Примечание».",
+        "operationId": "clear_note_api_v1_technical_records__record_id__clear_note_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TechnicalRecordOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/technical/records/{record_id}/deletion-request": {
+      "post": {
+        "tags": [
+          "Журнал техконтроля"
+        ],
+        "summary": "Запрос на удаление подписанной записи",
+        "description": "Формирует запрос на удаление подписанной записи (тип Б).",
+        "operationId": "request_deletion_api_v1_technical_records__record_id__deletion_request_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeletionRequestIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionRequestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deletion-requests": {
+      "get": {
+        "tags": [
+          "Удаление подписанных записей"
+        ],
+        "summary": "Запросы на удаление",
+        "description": "Список запросов на удаление (Админ/СА).",
+        "operationId": "list_requests_api_v1_deletion_requests_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status_filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/DeletionStatus",
+              "default": "pending"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DeletionRequestOut"
+                  },
+                  "title": "Response List Requests Api V1 Deletion Requests Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deletion-requests/{request_id}/approve": {
+      "post": {
+        "tags": [
+          "Удаление подписанных записей"
+        ],
+        "summary": "Подтвердить удаление",
+        "description": "Подтверждает запрос: запись удаляется.",
+        "operationId": "approve_api_v1_deletion_requests__request_id__approve_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolutionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionRequestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deletion-requests/{request_id}/reject": {
+      "post": {
+        "tags": [
+          "Удаление подписанных записей"
+        ],
+        "summary": "Отклонить удаление",
+        "description": "Отклоняет запрос: запись остаётся.",
+        "operationId": "reject_api_v1_deletion_requests__request_id__reject_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolutionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionRequestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/records/{kind}/{record_id}/signed": {
+      "delete": {
+        "tags": [
+          "Удаление подписанных записей"
+        ],
+        "summary": "Удалить подписанную запись напрямую (Админ/СА)",
+        "description": "Прямое удаление записи типа Б.",
+        "operationId": "delete_signed_api_v1_records__kind___record_id__signed_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/JournalKind"
+            }
+          },
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/catalog/organizations": {
+      "get": {
+        "tags": [
+          "Каталог"
+        ],
+        "summary": "Каталог организаций",
+        "description": "Организации (сортировка по наименованию).",
+        "operationId": "list_organizations_api_v1_catalog_organizations_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "only_active",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Only Active"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 10,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_OrganizationOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Каталог"
+        ],
+        "summary": "Добавить организацию",
+        "description": "Создаёт организацию в Предрейсе (реквизиты по ИНН) и в реплике журналов.",
+        "operationId": "create_organization_api_v1_catalog_organizations_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/catalog/drivers": {
+      "get": {
+        "tags": [
+          "Каталог"
+        ],
+        "summary": "Водители",
+        "description": "Водители (поиск по ФИО).",
+        "operationId": "list_drivers_api_v1_catalog_drivers_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 10,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_DriverOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Каталог"
+        ],
+        "summary": "Добавить водителя",
+        "description": "Создаёт водителя в Предрейсе и в реплике журналов.",
+        "operationId": "create_driver_api_v1_catalog_drivers_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DriverCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/catalog/vehicles": {
+      "get": {
+        "tags": [
+          "Каталог"
+        ],
+        "summary": "Транспортные средства",
+        "description": "ТС (поиск по госномеру).",
+        "operationId": "list_vehicles_api_v1_catalog_vehicles_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 10,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_VehicleOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Каталог"
+        ],
+        "summary": "Добавить ТС",
+        "description": "Создаёт ТС в Предрейсе и в реплике журналов.",
+        "operationId": "create_vehicle_api_v1_catalog_vehicles_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VehicleCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exports/medical": {
+      "post": {
+        "tags": [
+          "Выгрузки (PDF)"
+        ],
+        "summary": "Выгрузка журнала медосмотров в PDF",
+        "description": "PDF с отфильтрованными записями медосмотров (медданные скрыты).",
+        "operationId": "export_medical_api_v1_exports_medical_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/exports/technical": {
+      "post": {
+        "tags": [
+          "Выгрузки (PDF)"
+        ],
+        "summary": "Выгрузка журнала техконтроля в PDF",
+        "description": "PDF с отфильтрованными записями техконтроля.",
+        "operationId": "export_technical_api_v1_exports_technical_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ejournals": {
+      "get": {
+        "tags": [
+          "Электронные журналы"
+        ],
+        "summary": "Список электронных журналов",
+        "description": "Журналы по статусу и виду (СА — «ожидающие подписи»).",
+        "operationId": "list_journals_api_v1_ejournals_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status_filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/EJournalStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status Filter"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/JournalKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EJournalOut"
+                  },
+                  "title": "Response List Journals Api V1 Ejournals Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Электронные журналы"
+        ],
+        "summary": "Сформировать",
+        "description": "Создаёт черновик журнала по организации и периоду.",
+        "operationId": "create_journal_api_v1_ejournals_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EJournalCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EJournalOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ejournals/{journal_id}": {
+      "get": {
+        "tags": [
+          "Электронные журналы"
+        ],
+        "summary": "Электронный журнал",
+        "description": "Возвращает журнал.",
+        "operationId": "get_journal_api_v1_ejournals__journal_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "journal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Journal Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EJournalOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Электронные журналы"
+        ],
+        "summary": "Отмена черновика",
+        "description": "Удаляет черновик.",
+        "operationId": "cancel_journal_api_v1_ejournals__journal_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "journal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Journal Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ejournals/{journal_id}/submit": {
+      "post": {
+        "tags": [
+          "Электронные журналы"
+        ],
+        "summary": "Отправить на подпись",
+        "description": "Резервирует записи и отправляет журнал в ЛК СА.",
+        "operationId": "submit_journal_api_v1_ejournals__journal_id__submit_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "journal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Journal Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EJournalOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ejournals/{journal_id}/sign": {
+      "post": {
+        "tags": [
+          "Электронные журналы"
+        ],
+        "summary": "Подписать (СА)",
+        "description": "Подписывает журнал УКЭП организации.",
+        "operationId": "sign_journal_api_v1_ejournals__journal_id__sign_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "journal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Journal Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EJournalOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ejournals/{journal_id}/reject": {
+      "post": {
+        "tags": [
+          "Электронные журналы"
+        ],
+        "summary": "Отклонить (СА)",
+        "description": "Отклоняет журнал, контейнер расформировывается.",
+        "operationId": "reject_journal_api_v1_ejournals__journal_id__reject_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "journal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Journal Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EJournalOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ejournals/{journal_id}/download": {
+      "get": {
+        "tags": [
+          "Электронные журналы"
+        ],
+        "summary": "Скачать ZIP-контейнер",
+        "description": "Отдаёт собранный ZIP (после подписи).",
+        "operationId": "download_journal_api_v1_ejournals__journal_id__download_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "journal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Journal Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ocr/batches": {
+      "post": {
+        "tags": [
+          "Распознавание сканов"
+        ],
+        "summary": "Загрузить сканы",
+        "description": "Загружает сканы путевых листов и запускает распознавание.",
+        "operationId": "create_batch_api_v1_ocr_batches_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_create_batch_api_v1_ocr_batches_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Create Batch Api V1 Ocr Batches Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ocr/batches/{batch_id}/commit": {
+      "post": {
+        "tags": [
+          "Распознавание сканов"
+        ],
+        "summary": "Преобразовать черновики в записи архива",
+        "description": "Создаёт записи архива из проверенных черновиков.",
+        "operationId": "commit_batch_api_v1_ocr_batches__batch_id__commit_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Batch Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Commit Batch Api V1 Ocr Batches  Batch Id  Commit Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/integration/v1/events": {
+      "post": {
+        "tags": [
+          "Интеграция (служебное)"
+        ],
+        "summary": "Приём событий от Предрейса (HMAC)",
+        "description": "Проверяет подпись, валидирует и применяет событие; повторная доставка безопасна.",
+        "operationId": "receive_event_integration_v1_events_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Receive Event Integration V1 Events Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "Служебное"
+        ],
+        "summary": "Liveness",
+        "description": "Сервис запущен.",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "tags": [
+          "Служебное"
+        ],
+        "summary": "Readiness (проверка БД)",
+        "description": "Сервис готов принимать запросы: есть соединение с БД.",
+        "operationId": "ready_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Ready Ready Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_create_batch_api_v1_ocr_batches_post": {
+        "properties": {
+          "stamp_type": {
+            "$ref": "#/components/schemas/OcrStampType"
+          },
+          "files": {
+            "items": {
+              "type": "string",
+              "contentMediaType": "application/octet-stream"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stamp_type",
+          "files"
+        ],
+        "title": "Body_create_batch_api_v1_ocr_batches_post"
+      },
+      "ContractType": {
+        "type": "string",
+        "enum": [
+          "med",
+          "tech",
+          "medtech"
+        ],
+        "title": "ContractType",
+        "description": "Тип договора организации."
+      },
+      "CountPair": {
+        "properties": {
+          "active": {
+            "type": "integer",
+            "title": "Active"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "active",
+          "total"
+        ],
+        "title": "CountPair",
+        "description": "Счётчик «активно / всего»."
+      },
+      "DeletionRequestIn": {
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "title": "DeletionRequestIn",
+        "description": "Тело запроса на удаление подписанной записи."
+      },
+      "DeletionRequestOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "record_kind": {
+            "type": "string",
+            "title": "Record Kind"
+          },
+          "record_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Record Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "requested_by": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Requested By"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "resolution_comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Comment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "record_kind",
+          "record_id",
+          "status",
+          "requested_by",
+          "reason",
+          "created_at",
+          "resolved_at",
+          "resolution_comment"
+        ],
+        "title": "DeletionRequestOut",
+        "description": "Запрос на удаление."
+      },
+      "DeletionStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "approved",
+          "rejected"
+        ],
+        "title": "DeletionStatus",
+        "description": "Статус запроса на удаление подписанной записи."
+      },
+      "DriverCreate": {
+        "properties": {
+          "organization_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Organization Id"
+          },
+          "full_name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 3,
+            "title": "Full Name"
+          },
+          "gender": {
+            "$ref": "#/components/schemas/Gender"
+          },
+          "birth_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Birth Date"
+          },
+          "snils": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snils"
+          },
+          "license_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License Number"
+          },
+          "license_issued_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License Issued At"
+          },
+          "license_valid_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License Valid Until"
+          }
+        },
+        "type": "object",
+        "required": [
+          "organization_id",
+          "full_name",
+          "gender",
+          "birth_date"
+        ],
+        "title": "DriverCreate",
+        "description": "Создание водителя."
+      },
+      "DriverOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "organization_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Organization Id"
+          },
+          "full_name": {
+            "type": "string",
+            "title": "Full Name"
+          },
+          "gender": {
+            "$ref": "#/components/schemas/Gender"
+          },
+          "birth_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Birth Date"
+          },
+          "snils": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snils"
+          },
+          "license_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License Number"
+          },
+          "license_issued_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License Issued At"
+          },
+          "license_valid_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License Valid Until"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "organization_id",
+          "full_name",
+          "gender",
+          "birth_date",
+          "snils",
+          "license_number",
+          "license_issued_at",
+          "license_valid_until",
+          "is_active",
+          "note"
+        ],
+        "title": "DriverOut",
+        "description": "Водитель в каталоге."
+      },
+      "EJournalCreate": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/JournalKind"
+          },
+          "organization_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Organization Id"
+          },
+          "period_from": {
+            "type": "string",
+            "format": "date",
+            "title": "Period From"
+          },
+          "period_to": {
+            "type": "string",
+            "format": "date",
+            "title": "Period To"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "organization_id",
+          "period_from",
+          "period_to"
+        ],
+        "title": "EJournalCreate",
+        "description": "Параметры формирования электронного журнала: организация + период."
+      },
+      "EJournalOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/JournalKind"
+          },
+          "organization_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Organization Id"
+          },
+          "period_from": {
+            "type": "string",
+            "format": "date",
+            "title": "Period From"
+          },
+          "period_to": {
+            "type": "string",
+            "format": "date",
+            "title": "Period To"
+          },
+          "status": {
+            "$ref": "#/components/schemas/EJournalStatus"
+          },
+          "record_count": {
+            "type": "integer",
+            "title": "Record Count"
+          },
+          "created_by": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Created By"
+          },
+          "submitted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted At"
+          },
+          "signed_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signed By"
+          },
+          "signed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signed At"
+          },
+          "reject_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reject Reason"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "organization_id",
+          "period_from",
+          "period_to",
+          "status",
+          "record_count",
+          "created_by",
+          "submitted_at",
+          "signed_by",
+          "signed_at",
+          "reject_reason",
+          "created_at"
+        ],
+        "title": "EJournalOut",
+        "description": "Электронный журнал."
+      },
+      "EJournalStatus": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "awaiting_signature",
+          "signed",
+          "rejected"
+        ],
+        "title": "EJournalStatus",
+        "description": "Статус электронного журнала (ZIP-контейнера)."
+      },
+      "ExportRequest": {
+        "properties": {
+          "organization_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Id"
+          },
+          "date_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date From"
+          },
+          "date_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date To"
+          },
+          "record_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Ids"
+          }
+        },
+        "type": "object",
+        "title": "ExportRequest",
+        "description": "Параметры выгрузки: период/организация или явный список записей."
+      },
+      "Gender": {
+        "type": "string",
+        "enum": [
+          "M",
+          "F"
+        ],
+        "title": "Gender",
+        "description": "Пол водителя."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HarmfulFactors": {
+        "type": "string",
+        "enum": [
+          "absent",
+          "detected"
+        ],
+        "title": "HarmfulFactors",
+        "description": "Признаки воздействия вредных факторов."
+      },
+      "InspectionPhase": {
+        "type": "string",
+        "enum": [
+          "pre",
+          "post"
+        ],
+        "title": "InspectionPhase",
+        "description": "Тип медосмотра."
+      },
+      "InspectionResult": {
+        "type": "string",
+        "enum": [
+          "admitted",
+          "not_admitted"
+        ],
+        "title": "InspectionResult",
+        "description": "Результат осмотра / контроля."
+      },
+      "JournalKind": {
+        "type": "string",
+        "enum": [
+          "medical",
+          "technical"
+        ],
+        "title": "JournalKind",
+        "description": "Вид журнала."
+      },
+      "MedicalRecordClientOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RecordStatus"
+          },
+          "source": {
+            "$ref": "#/components/schemas/RecordSource"
+          },
+          "waybill_kind": {
+            "$ref": "#/components/schemas/WaybillKind"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/InspectionPhase"
+          },
+          "performed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Performed At"
+          },
+          "driver_full_name": {
+            "type": "string",
+            "title": "Driver Full Name"
+          },
+          "driver_birth_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Driver Birth Date"
+          },
+          "driver_gender": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Gender"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "specialist_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specialist Name"
+          },
+          "result": {
+            "$ref": "#/components/schemas/InspectionResult"
+          },
+          "signature": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SignatureInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "source",
+          "waybill_kind",
+          "phase",
+          "performed_at",
+          "driver_full_name",
+          "driver_birth_date",
+          "driver_gender",
+          "specialist_name",
+          "result",
+          "signature"
+        ],
+        "title": "MedicalRecordClientOut",
+        "description": "Представление для клиента/диспетчера: поля врачебной тайны отсутствуют целиком."
+      },
+      "MedicalRecordCreate": {
+        "properties": {
+          "organization_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Organization Id"
+          },
+          "driver_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Driver Id"
+          },
+          "specialist_user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specialist User Id",
+            "description": "Обязателен для менеджеров; для медика — он сам"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/InspectionPhase"
+          },
+          "performed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Performed At"
+          },
+          "complaints": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Complaints",
+            "default": "отсутствуют"
+          },
+          "bp_systolic": {
+            "type": "integer",
+            "maximum": 300.0,
+            "minimum": 50.0,
+            "title": "Bp Systolic"
+          },
+          "bp_diastolic": {
+            "type": "integer",
+            "maximum": 200.0,
+            "minimum": 30.0,
+            "title": "Bp Diastolic"
+          },
+          "pulse": {
+            "type": "integer",
+            "maximum": 250.0,
+            "minimum": 20.0,
+            "title": "Pulse"
+          },
+          "temperature": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 45.0,
+                "minimum": 30.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Temperature"
+          },
+          "alcohol_mgl": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 5.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Alcohol Mgl",
+            "default": "0.00"
+          },
+          "harmful_factors": {
+            "$ref": "#/components/schemas/HarmfulFactors",
+            "default": "absent"
+          },
+          "harmful_factors_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Harmful Factors Note"
+          },
+          "result": {
+            "$ref": "#/components/schemas/InspectionResult"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "organization_id",
+          "driver_id",
+          "phase",
+          "performed_at",
+          "bp_systolic",
+          "bp_diastolic",
+          "pulse",
+          "temperature",
+          "result"
+        ],
+        "title": "MedicalRecordCreate",
+        "description": "Создание записи медосмотра (аналог формы в ЛК Медика, ТЗ стр. 9)."
+      },
+      "MedicalRecordOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RecordStatus"
+          },
+          "source": {
+            "$ref": "#/components/schemas/RecordSource"
+          },
+          "waybill_kind": {
+            "$ref": "#/components/schemas/WaybillKind"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/InspectionPhase"
+          },
+          "organization_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Organization Id"
+          },
+          "driver_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Driver Id"
+          },
+          "specialist_user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Specialist User Id"
+          },
+          "performed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Performed At"
+          },
+          "snapshot": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Snapshot"
+          },
+          "complaints": {
+            "type": "string",
+            "title": "Complaints"
+          },
+          "bp_systolic": {
+            "type": "integer",
+            "title": "Bp Systolic"
+          },
+          "bp_diastolic": {
+            "type": "integer",
+            "title": "Bp Diastolic"
+          },
+          "pulse": {
+            "type": "integer",
+            "title": "Pulse"
+          },
+          "temperature": {
+            "type": "string",
+            "title": "Temperature"
+          },
+          "alcohol_mgl": {
+            "type": "string",
+            "title": "Alcohol Mgl"
+          },
+          "harmful_factors": {
+            "$ref": "#/components/schemas/HarmfulFactors"
+          },
+          "harmful_factors_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Harmful Factors Note"
+          },
+          "result": {
+            "$ref": "#/components/schemas/InspectionResult"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "has_note": {
+            "type": "boolean",
+            "title": "Has Note"
+          },
+          "deletion_pending": {
+            "type": "boolean",
+            "title": "Deletion Pending"
+          },
+          "in_journal_reserved": {
+            "type": "boolean",
+            "title": "In Journal Reserved"
+          },
+          "signature": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SignatureInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Actions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "source",
+          "waybill_kind",
+          "phase",
+          "organization_id",
+          "driver_id",
+          "specialist_user_id",
+          "performed_at",
+          "snapshot",
+          "complaints",
+          "bp_systolic",
+          "bp_diastolic",
+          "pulse",
+          "temperature",
+          "alcohol_mgl",
+          "harmful_factors",
+          "harmful_factors_note",
+          "result",
+          "note",
+          "has_note",
+          "deletion_pending",
+          "in_journal_reserved",
+          "signature",
+          "actions"
+        ],
+        "title": "MedicalRecordOut",
+        "description": "Полное представление записи (для медиков и менеджеров)."
+      },
+      "MedicalRecordUpdate": {
+        "properties": {
+          "organization_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Id"
+          },
+          "driver_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Driver Id"
+          },
+          "specialist_user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specialist User Id"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InspectionPhase"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "performed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performed At"
+          },
+          "complaints": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Complaints"
+          },
+          "bp_systolic": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 300.0,
+                "minimum": 50.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bp Systolic"
+          },
+          "bp_diastolic": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 200.0,
+                "minimum": 30.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bp Diastolic"
+          },
+          "pulse": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 250.0,
+                "minimum": 20.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pulse"
+          },
+          "temperature": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 45.0,
+                "minimum": 30.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature"
+          },
+          "alcohol_mgl": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 5.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alcohol Mgl"
+          },
+          "harmful_factors": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HarmfulFactors"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "harmful_factors_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Harmful Factors Note"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InspectionResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "title": "MedicalRecordUpdate",
+        "description": "Частичное изменение неподписанной записи."
+      },
+      "OcrStampType": {
+        "type": "string",
+        "enum": [
+          "pre_medical",
+          "post_medical",
+          "technical"
+        ],
+        "title": "OcrStampType",
+        "description": "Тип штампа на бумажном путевом листе."
+      },
+      "OrganizationCreate": {
+        "properties": {
+          "inn": {
+            "type": "string",
+            "pattern": "^\\d{10}(\\d{2})?$",
+            "title": "Inn"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "contract_type": {
+            "$ref": "#/components/schemas/ContractType"
+          },
+          "contract_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contract Number"
+          },
+          "contract_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contract Date"
+          },
+          "contract_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contract Until"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "inn",
+          "contract_type"
+        ],
+        "title": "OrganizationCreate",
+        "description": "Создание организации: реквизиты Предрейс подтянет по ИНН сам."
+      },
+      "OrganizationOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "inn": {
+            "type": "string",
+            "title": "Inn"
+          },
+          "legal_form": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legal Form"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "short_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Name"
+          },
+          "kpp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kpp"
+          },
+          "ogrn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ogrn"
+          },
+          "legal_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legal Address"
+          },
+          "head_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "contract_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContractType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contract_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contract Number"
+          },
+          "contract_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contract Date"
+          },
+          "contract_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contract Until"
+          },
+          "work_format": {
+            "$ref": "#/components/schemas/WorkFormat"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "inn",
+          "legal_form",
+          "name",
+          "short_name",
+          "kpp",
+          "ogrn",
+          "legal_address",
+          "head_name",
+          "email",
+          "phone",
+          "contract_type",
+          "contract_number",
+          "contract_date",
+          "contract_until",
+          "work_format",
+          "is_active",
+          "note"
+        ],
+        "title": "OrganizationOut",
+        "description": "Организация в каталоге."
+      },
+      "Page_DriverOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DriverOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "Page[DriverOut]"
+      },
+      "Page_OrganizationOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OrganizationOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "Page[OrganizationOut]"
+      },
+      "Page_TechnicalRecordOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TechnicalRecordOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "Page[TechnicalRecordOut]"
+      },
+      "Page_Union_MedicalRecordOut__MedicalRecordClientOut__": {
+        "properties": {
+          "items": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/MedicalRecordOut"
+                },
+                {
+                  "$ref": "#/components/schemas/MedicalRecordClientOut"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "Page[Union[MedicalRecordOut, MedicalRecordClientOut]]"
+      },
+      "Page_VehicleOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/VehicleOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "Page[VehicleOut]"
+      },
+      "RecordCounters": {
+        "properties": {
+          "to_sign": {
+            "type": "integer",
+            "title": "To Sign"
+          },
+          "signed": {
+            "type": "integer",
+            "title": "Signed"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "to_sign",
+          "signed",
+          "total"
+        ],
+        "title": "RecordCounters",
+        "description": "Счётчики записей: на подпись / подписанных / всего."
+      },
+      "RecordSource": {
+        "type": "string",
+        "enum": [
+          "manual",
+          "ocr",
+          "epl"
+        ],
+        "title": "RecordSource",
+        "description": "Источник записи."
+      },
+      "RecordStatus": {
+        "type": "string",
+        "enum": [
+          "unsigned",
+          "signed",
+          "in_journal"
+        ],
+        "title": "RecordStatus",
+        "description": "Статус записи архива: А — unsigned, Б — signed, В — in_journal (ТЗ, стр. 6)."
+      },
+      "RejectIn": {
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "title": "RejectIn",
+        "description": "Причина отклонения журнала."
+      },
+      "ResolutionIn": {
+        "properties": {
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          }
+        },
+        "type": "object",
+        "title": "ResolutionIn",
+        "description": "Комментарий к решению по запросу."
+      },
+      "SignBatchResult": {
+        "properties": {
+          "signed": {
+            "type": "integer",
+            "title": "Signed"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/SignOutcome"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "signed",
+          "failed",
+          "results"
+        ],
+        "title": "SignBatchResult",
+        "description": "Итог пакетной подписи."
+      },
+      "SignOutcome": {
+        "properties": {
+          "record_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Record Id"
+          },
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_id",
+          "ok"
+        ],
+        "title": "SignOutcome",
+        "description": "Результат подписи одной записи."
+      },
+      "SignRequest": {
+        "properties": {
+          "record_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Record Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_ids"
+        ],
+        "title": "SignRequest",
+        "description": "Запрос на подпись одной или нескольких записей."
+      },
+      "SignatureInfo": {
+        "properties": {
+          "cert_serial": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cert Serial"
+          },
+          "cert_subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cert Subject"
+          },
+          "cert_valid_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cert Valid From"
+          },
+          "cert_valid_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cert Valid To"
+          },
+          "signed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cert_serial",
+          "cert_subject",
+          "cert_valid_from",
+          "cert_valid_to",
+          "signed_at"
+        ],
+        "title": "SignatureInfo",
+        "description": "Данные электронной подписи записи (для таблицы архива)."
+      },
+      "StatsOut": {
+        "properties": {
+          "organizations": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CountPair"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "drivers": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CountPair"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "medical": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecordCounters"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "technical": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecordCounters"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "StatsOut",
+        "description": "Статистика для роли. Для медика и механика показывается только их журнал."
+      },
+      "TechnicalRecordCreate": {
+        "properties": {
+          "organization_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Organization Id"
+          },
+          "vehicle_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Vehicle Id"
+          },
+          "driver_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Driver Id"
+          },
+          "specialist_user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specialist User Id",
+            "description": "Обязателен для менеджеров; для механика — он сам"
+          },
+          "performed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Performed At"
+          },
+          "odometer": {
+            "type": "integer",
+            "maximum": 10000000.0,
+            "minimum": 0.0,
+            "title": "Odometer"
+          },
+          "result": {
+            "$ref": "#/components/schemas/InspectionResult"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "organization_id",
+          "vehicle_id",
+          "performed_at",
+          "odometer",
+          "result"
+        ],
+        "title": "TechnicalRecordCreate",
+        "description": "Создание записи техконтроля (аналог формы в ЛК Механика, ТЗ стр. 11)."
+      },
+      "TechnicalRecordOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RecordStatus"
+          },
+          "source": {
+            "$ref": "#/components/schemas/RecordSource"
+          },
+          "waybill_kind": {
+            "$ref": "#/components/schemas/WaybillKind"
+          },
+          "organization_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Organization Id"
+          },
+          "vehicle_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Vehicle Id"
+          },
+          "driver_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Driver Id"
+          },
+          "specialist_user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Specialist User Id"
+          },
+          "performed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Performed At"
+          },
+          "snapshot": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Snapshot"
+          },
+          "odometer": {
+            "type": "integer",
+            "title": "Odometer"
+          },
+          "result": {
+            "$ref": "#/components/schemas/InspectionResult"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "has_note": {
+            "type": "boolean",
+            "title": "Has Note"
+          },
+          "deletion_pending": {
+            "type": "boolean",
+            "title": "Deletion Pending"
+          },
+          "in_journal_reserved": {
+            "type": "boolean",
+            "title": "In Journal Reserved"
+          },
+          "signature": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SignatureInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Actions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "source",
+          "waybill_kind",
+          "organization_id",
+          "vehicle_id",
+          "driver_id",
+          "specialist_user_id",
+          "performed_at",
+          "snapshot",
+          "odometer",
+          "result",
+          "note",
+          "has_note",
+          "deletion_pending",
+          "in_journal_reserved",
+          "signature",
+          "actions"
+        ],
+        "title": "TechnicalRecordOut",
+        "description": "Представление записи техконтроля."
+      },
+      "TechnicalRecordUpdate": {
+        "properties": {
+          "organization_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Id"
+          },
+          "vehicle_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vehicle Id"
+          },
+          "driver_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Driver Id"
+          },
+          "specialist_user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specialist User Id"
+          },
+          "performed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performed At"
+          },
+          "odometer": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Odometer"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InspectionResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "title": "TechnicalRecordUpdate",
+        "description": "Частичное изменение неподписанной записи."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VehicleCreate": {
+        "properties": {
+          "organization_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Organization Id"
+          },
+          "brand": {
+            "type": "string",
+            "title": "Brand"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "vehicle_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vehicle Type"
+          },
+          "plate": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 3,
+            "title": "Plate"
+          },
+          "diag_card_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diag Card Until"
+          }
+        },
+        "type": "object",
+        "required": [
+          "organization_id",
+          "brand",
+          "model",
+          "plate"
+        ],
+        "title": "VehicleCreate",
+        "description": "Создание ТС."
+      },
+      "VehicleOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "organization_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Organization Id"
+          },
+          "brand": {
+            "type": "string",
+            "title": "Brand"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "vehicle_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vehicle Type"
+          },
+          "plate": {
+            "type": "string",
+            "title": "Plate"
+          },
+          "diag_card_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diag Card Until"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "organization_id",
+          "brand",
+          "model",
+          "vehicle_type",
+          "plate",
+          "diag_card_until",
+          "is_active",
+          "note"
+        ],
+        "title": "VehicleOut",
+        "description": "ТС в каталоге."
+      },
+      "WaybillKind": {
+        "type": "string",
+        "enum": [
+          "paper",
+          "epl"
+        ],
+        "title": "WaybillKind",
+        "description": "Вид путевого листа (производный от источника записи)."
+      },
+      "WorkFormat": {
+        "type": "string",
+        "enum": [
+          "epl",
+          "paper",
+          "hybrid"
+        ],
+        "title": "WorkFormat",
+        "description": "Формат работы организации."
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

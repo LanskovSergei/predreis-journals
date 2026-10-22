@@ -1,0 +1,52 @@
+{% extends "_base.html" %}
+{% block content %}
+<table class="data">
+  <thead>
+    <tr>
+      <th rowspan="2">№</th>
+      <th rowspan="2">Дата проведения медицинского осмотра</th>
+      <th rowspan="2">Время проведения медицинского осмотра</th>
+      <th rowspan="2">Ф.И.О. водителя</th>
+      <th rowspan="2">Дата рождения</th>
+      <th rowspan="2">Пол водителя</th>
+      <th colspan="6">Результаты исследований, указанные в п. 12 Порядка проведения предсменных, послесменных медицинских осмотров</th>
+      <th rowspan="2">Заключение о результатах медицинских осмотров в соответствии с п. 18 Порядка проведения предсменных, послесменных медицинских осмотров</th>
+      <th rowspan="2">Электронная подпись медицинского работника (№ сертификата, владелец ЭЦП, срок действия)</th>
+    </tr>
+    <tr>
+      <th>жалобы, анамнез</th>
+      <th>АД (мм рт.ст.)</th>
+      <th>PS (уд/мин)</th>
+      <th>Температура тела</th>
+      <th>Проба на алкоголь в выдыхаемом воздухе (mg/L)</th>
+      <th>Наличие/отсутствие признаков воздействия вредных и (или) опасных производственных факторов, состояний и заболеваний, препятствующих выполнению трудовых обязанностей</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td class="center">{{ r.n }}</td>
+      <td class="center">{{ r.date }}</td>
+      <td class="center">{{ r.time }}</td>
+      <td>{{ r.driver_name }}</td>
+      <td class="center">{{ r.birth_date }}</td>
+      <td class="center">{{ r.gender }}</td>
+      <td class="center">{{ r.complaints }}</td>
+      <td class="center">{{ r.blood_pressure }}</td>
+      <td class="center">{{ r.pulse }}</td>
+      <td class="center">{{ r.temperature }}</td>
+      <td class="center">{{ r.alcohol_mgl }}</td>
+      <td class="center">{{ r.harmful_factors }}</td>
+      <td class="center">{{ r.conclusion }}</td>
+      <td class="small">
+        {% if r.signature %}
+          {{ r.signature.serial }}<br>{{ r.signature.owner }}<br>
+          Действителен с {{ r.signature.valid_from }} по {{ r.signature.valid_to }}
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if privacy_notice %}<p class="notice">{{ privacy_notice }}</p>{% endif %}
+{% endblock %}
