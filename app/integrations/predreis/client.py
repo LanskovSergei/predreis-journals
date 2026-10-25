@@ -16,7 +16,8 @@ from typing import Any, Literal, Protocol
 import httpx
 
 from app.core.config import Settings, get_settings
-from app.core.errors import UpstreamError
+from app.core.errors import ForbiddenError, UnauthorizedError, UpstreamError
+from app.integrations.predreis.signature import is_placeholder
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ CatalogEntity = Literal["organizations", "drivers", "vehicles"]
 TOKEN_PATH = "/api/v1/service/token"
 CATALOG_PATH = "/api/v1/service/catalogs/{entity}"
 SIGN_PATH = "/api/v1/service/sign"
+VERIFY_PATH = "/api/v1/service/users/verify"
 TOKEN_LEEWAY_S = 60
 
 
@@ -35,6 +37,34 @@ class CertInfo:
     subject: str
     valid_from: datetime
     valid_to: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class VerifiedUser:
+    """Пользователь, чей токен подтвердил Предрейс (ответ `users/verify`)."""
+
+    id: uuid.UUID
+    email: str | None
+    last_name: str
+    first_name: str
+    middle_name: str | None
+    role: str
+    org_id: uuid.UUID | None
+    journals_access: bool
+    is_active: bool
+
+    @property
+    def full_name(self) -> str:
+        """ФИО одной строкой."""
+        return " ".join(p for p in (self.last_name, self.first_name, self.middle_name) if p)
+
+
+@dataclass(frozen=True, slots=True)
+class UserLogin:
+    """Результат входа пользователя в Предрейс."""
+
+    access_token: str
+    expires_in: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,9 +113,23 @@ class SignGateway(Protocol):
         """Возвращает состояние задач по нашим идентификаторам."""
 
 
+def _detail(resp: httpx.Response) -> Any:
+    """Текст причины из тела ответа (поле detail), если оно есть."""
+    try:
+        body = resp.json()
+    except ValueError:
+        return resp.text[:200]
+    return body.get("detail", "") if isinstance(body, dict) else ""
+
+
 def _b64(value: Any) -> bytes | None:
-    """Декодирует base64-строку (None и пустое значение — None)."""
-    return base64.b64decode(value) if value else None
+    """Декодирует base64-строку (None и пустое значение — None); мусор — ошибка интеграции."""
+    if not value:
+        return None
+    try:
+        return base64.b64decode(value, validate=True)
+    except (ValueError, TypeError) as exc:
+        raise UpstreamError("Предрейс вернул подпись в неверном формате") from exc
 
 
 def _dt(value: Any) -> datetime | None:
@@ -108,6 +152,14 @@ def parse_sign_status(item: dict[str, Any]) -> SignStatus:
     status = str(item.get("status", "")).lower()
     if status not in ("pending", "signed", "failed"):
         raise UpstreamError(f"Неизвестный статус подписи: {status!r}")
+    if status == "signed" and is_placeholder(item.get("signature_b64")):
+        # Заглушка не подпись: такой результат нельзя принять за заверение документа.
+        return SignStatus(
+            external_id=str(item.get("external_id", "")),
+            sign_id=str(item["id"]) if item.get("id") is not None else None,
+            status="failed",
+            error="Предрейс вернул подпись-заглушку (AUTO_SIGNATURE), а не подпись",
+        )
     return SignStatus(
         external_id=str(item.get("external_id", "")),
         sign_id=str(item["id"]) if item.get("id") is not None else None,
@@ -207,6 +259,85 @@ class PredreisClient:
                 raise UpstreamError("Предрейс недоступен") from exc
             return resp.json() if resp.content else None
         raise UpstreamError("Предрейс отклонил токен")  # pragma: no cover
+
+    # --- пользователи ------------------------------------------------------------------------
+    async def user_login(self, email: str, password: str) -> UserLogin:
+        """Вход теми же почтой и паролем, что в Предрейсе; возвращает токен пользователя.
+
+        Пароль уходит только в Предрейс и нигде не сохраняется и не логируется.
+        """
+        try:
+            resp = await self._http.post(
+                self._settings.predreis_user_login_path,
+                json={"email": email, "password": password},
+            )
+        except httpx.HTTPError as exc:
+            logger.warning("Вход в Предрейс не удался: %s", type(exc).__name__)
+            raise UpstreamError("Предрейс недоступен") from exc
+        if resp.status_code in (400, 401, 403, 422):
+            raise UnauthorizedError("Неверная почта или пароль", code="invalid_credentials")
+        if resp.status_code >= 400:
+            logger.warning("Вход в Предрейс: статус %s", resp.status_code)
+            raise UpstreamError(f"Предрейс вернул {resp.status_code}")
+        try:
+            data = resp.json()
+        except ValueError:
+            data = {}
+        token = (data.get("access_token") if isinstance(data, dict) else None) or resp.cookies.get(
+            "access_token"
+        )
+        if not token:
+            raise UpstreamError("Предрейс не вернул токен пользователя")
+        expires = data.get("expires_in") if isinstance(data, dict) else None
+        return UserLogin(str(token), int(expires) if isinstance(expires, int) else None)
+
+    async def verify_user(self, access_token: str) -> VerifiedUser:
+        """Спрашивает у Предрейса, действителен ли токен и открыт ли доступ к журналам.
+
+        403 — доступа к журналам нет; 401 — токен недействителен или учётная запись отключена.
+        """
+        resp: httpx.Response | None = None
+        for attempt in (1, 2):
+            service_token = await self._access_token(force=attempt == 2)
+            try:
+                resp = await self._http.post(
+                    VERIFY_PATH,
+                    json={"access_token": access_token},
+                    headers={"Authorization": f"Bearer {service_token}"},
+                )
+            except httpx.HTTPError as exc:
+                logger.warning("Проверка токена не удалась: %s", type(exc).__name__)
+                raise UpstreamError("Предрейс недоступен") from exc
+            if resp.status_code == 401 and attempt == 1:
+                continue  # возможно, истёк сервисный токен — обновляем и повторяем один раз
+            break
+        assert resp is not None
+        if resp.status_code == 401:
+            raise UnauthorizedError("Недействительный токен или учётная запись отключена")
+        if resp.status_code == 403:
+            detail = str(_detail(resp))
+            if "журнал" in detail.lower():
+                raise ForbiddenError("Доступ к журналам не предоставлен", code="journals_disabled")
+            logger.error("Предрейс отказал сервису в проверке токенов: %s", detail)
+            raise UpstreamError("У сервиса нет права проверять токены пользователей")
+        if resp.status_code != 200:
+            logger.warning("Проверка токена: статус %s", resp.status_code)
+            raise UpstreamError(f"Предрейс вернул {resp.status_code}")
+        try:
+            d = resp.json()
+            return VerifiedUser(
+                id=uuid.UUID(str(d["id"])),
+                email=d.get("email"),
+                last_name=str(d.get("last_name") or ""),
+                first_name=str(d.get("first_name") or ""),
+                middle_name=d.get("middle_name"),
+                role=str(d["role"]),
+                org_id=uuid.UUID(str(d["org_id"])) if d.get("org_id") else None,
+                journals_access=bool(d.get("journals_access")),
+                is_active=bool(d.get("is_active", True)),
+            )
+        except (KeyError, ValueError, TypeError) as exc:
+            raise UpstreamError("Неожиданный ответ проверки токена") from exc
 
     # --- справочники --------------------------------------------------------------------------
     async def list_catalog(

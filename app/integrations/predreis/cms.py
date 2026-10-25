@@ -12,6 +12,7 @@ from typing import Any
 from asn1crypto import cms, pem
 
 from app.integrations.predreis.client import CertInfo
+from app.integrations.predreis.signature import is_placeholder  # noqa: F401
 
 logger = logging.getLogger(__name__)
 

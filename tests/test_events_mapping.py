@@ -212,3 +212,28 @@ def test_pick_prefers_first_non_empty() -> None:
     assert pick(data, "a.b", "c") == 5
     assert pick(data, "x.y") == 7
     assert pick(data, "nope") is None
+
+
+# ---------- заглушка подписи (AUTO_SIGNATURE) ----------
+
+
+@pytest.mark.parametrize(
+    ("value", "state"),
+    [
+        ("AUTO_SIGNATURE", "placeholder"),
+        ("auto_signature", "placeholder"),
+        ("не base64 !!", "invalid"),
+    ],
+)
+def test_placeholder_or_broken_title_signature_is_dropped_not_fatal(
+    value: str, state: str
+) -> None:
+    """Заглушка вместо подписи титула (64 из 978) не блокирует запись: подписи просто нет."""
+    ev = map_envelope(envelope("event_medical_pre.json", signature_b64=value))
+    assert ev.signature_b64 is None and ev.signature_state == state
+
+
+def test_real_looking_signature_is_kept() -> None:
+    """Корректная base64-подпись сохраняется."""
+    ev = map_envelope(envelope("event_medical_pre.json", signature_b64="U0lH"))
+    assert ev.signature_b64 == "U0lH" and ev.signature_state is None

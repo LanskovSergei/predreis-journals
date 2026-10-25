@@ -50,7 +50,6 @@ def principal(
         journals_access=True,
         org_id=org_id,
         full_name=f"Тест {role.value}",
-        raw_token="test-token",
     )
 
 

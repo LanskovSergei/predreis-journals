@@ -8,13 +8,14 @@ from datetime import date, datetime, timezone
 from typing import Any
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import Settings
 from app.core.storage import LocalStorage
 from app.domain.enums import RecordStatus, WorkFormat
 from app.models.catalog import Driver, Organization, User, Vehicle
+from app.models.documents import RecordDocument
 from app.models.integration import InboxEvent, InboxFailure, SyncState
 from app.models.records import MedicalRecord
 from app.modules.catalog.sync import SYNC_PLAN, sync_entity
@@ -288,3 +289,105 @@ async def test_sync_does_not_overwrite_local_fields(session: AsyncSession) -> No
         await session.execute(select(Organization).where(Organization.id == w.org.id))
     ).scalar_one()
     assert org.work_format is WorkFormat.PAPER and org.short_name == "Орг 1"
+
+
+async def test_placeholder_signature_does_not_block_record(
+    session: AsyncSession, storage: LocalStorage
+) -> None:
+    """Событие с AUTO_SIGNATURE создаёт запись без файла подписи; состояние видно в epl_details."""
+    w = await seed(session)
+    raw = body(exam_payload(w, signature_b64="AUTO_SIGNATURE"), mid="auto-sig")
+    assert await process_body(raw, factory(session), storage, Settings()) is Outcome.ACK
+    rec = (await session.execute(select(MedicalRecord))).scalar_one()
+    assert rec.epl_details and rec.epl_details["signature_state"] == "placeholder"
+    doc = (await session.execute(select(RecordDocument))).scalar_one()
+    assert doc.sig_key is None and doc.cert_serial is None
+    assert (
+        await session.execute(select(func.count()).select_from(InboxFailure))
+    ).scalar_one() == 0
+
+
+async def test_real_title_signature_gives_certificate_data(
+    session: AsyncSession, storage: LocalStorage
+) -> None:
+    """Настоящая подпись титула: серийный номер, владелец и срок берутся из неё."""
+    import base64
+
+    from tests.test_cms import make_signature
+
+    w = await seed(session)
+    cms_bytes, cert = make_signature()
+    raw = body(exam_payload(w, signature_b64=base64.b64encode(cms_bytes).decode()), mid="real-sig")
+    assert await process_body(raw, factory(session), storage, Settings()) is Outcome.ACK
+    doc = (await session.execute(select(RecordDocument))).scalar_one()
+    assert doc.sig_key and doc.cert_serial == cert.serial_number.to_bytes(16, "big").hex()
+    assert doc.cert_subject == "Абдуллаева Гульзана Абутдиновна"
+    assert await storage.get(doc.sig_key) == cms_bytes
+
+
+async def test_replay_resolves_failures_after_catalog_arrives(
+    session: AsyncSession, storage: LocalStorage
+) -> None:
+    """Справочник пришёл позже сообщения: replay создаёт запись и убирает отказ из таблицы."""
+    from app.workers.replay import replay_failures
+
+    w = await seed(session)
+    payload = exam_payload(w, ids=False)
+    payload["driver"]["last_name"] = "Позже"  # водителя в справочнике ещё нет
+    attempts = {"late-1": MAX_DEPENDENCY_ATTEMPTS - 1}
+    raw = body(payload, mid="late-1")
+    assert await process_body(raw, factory(session), storage, Settings(), attempts) is Outcome.ACK
+    failure = (await session.execute(select(InboxFailure))).scalar_one()
+    assert failure.reason == "dependency_missing"
+
+    report = await replay_failures(factory(session), storage, Settings())
+    assert (report.checked, report.resolved, report.still_failing) == (1, 0, 1)
+
+    # Водитель появился в справочнике (синхронизация): повтор успешен.
+    await session.execute(
+        update(Driver)
+        .where(Driver.id == w.driver.id)
+        .values(full_name="Позже Андрей Константинович")
+    )
+    await session.commit()
+    report = await replay_failures(factory(session), storage, Settings())
+    assert (report.checked, report.resolved, report.still_failing) == (1, 1, 0)
+    assert (
+        await session.execute(select(func.count()).select_from(MedicalRecord))
+    ).scalar_one() == 1
+    assert (
+        await session.execute(select(func.count()).select_from(InboxFailure))
+    ).scalar_one() == 0
+
+
+async def test_replay_dry_run_and_reason_filter(
+    session: AsyncSession, storage: LocalStorage
+) -> None:
+    """--dry-run ничего не удаляет; фильтр по причине отсекает лишнее."""
+    from app.workers.replay import replay_failures
+
+    w = await seed(session)
+    payload = exam_payload(w)  # привязка по id пройдёт, но в отказ положим вручную
+    session.add(
+        InboxFailure(
+            message_id="manual-1",
+            event_type="journal.medical_exam",
+            reason="dependency_missing",
+            payload=payload,
+        )
+    )
+    await session.commit()
+    dry = await replay_failures(factory(session), storage, Settings(), dry_run=True)
+    assert dry.resolved == 1
+    assert (
+        await session.execute(select(func.count()).select_from(InboxFailure))
+    ).scalar_one() == 1
+    other = await replay_failures(factory(session), storage, Settings(), reasons=["phase_unknown"])
+    assert other.checked == 0
+    real = await replay_failures(
+        factory(session), storage, Settings(), reasons=["dependency_missing"]
+    )
+    assert real.resolved == 1
+    assert (
+        await session.execute(select(func.count()).select_from(InboxFailure))
+    ).scalar_one() == 0

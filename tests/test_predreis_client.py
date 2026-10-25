@@ -11,7 +11,7 @@ import httpx
 import pytest
 
 from app.core.config import Settings
-from app.core.errors import UpstreamError
+from app.core.errors import ForbiddenError, UnauthorizedError, UpstreamError
 from app.integrations.predreis.client import PredreisClient, parse_sign_status
 from tests.samples.predreis import load
 
@@ -181,3 +181,141 @@ def test_real_token_response_shape() -> None:
     """Ответ токена: access_token и expires_in, как в образце."""
     sample = load("token.json")
     assert sample["token_type"] == "bearer" and sample["expires_in"] == 1800
+
+
+# ---------- вход и проверка пользователя ----------
+
+VERIFIED = {
+    "id": "13a3aa8c-8d2c-4509-8676-9955f8e332d4",
+    "email": "user@example.ru",
+    "last_name": "Иванов",
+    "first_name": "Иван",
+    "middle_name": "Иванович",
+    "role": "superadmin",
+    "org_id": None,
+    "journals_access": True,
+    "is_active": True,
+}
+
+
+class UsersServer(Server):
+    """Подставной Предрейс с проверкой пользователей и входом."""
+
+    def __init__(self) -> None:
+        """Сценарии ответов."""
+        super().__init__()
+        self.verify_status = 200
+        self.verify_detail = "Доступ к журналам не предоставлен"
+        self.login_response: httpx.Response | None = None
+        self.verify_requests: list[httpx.Request] = []
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        """Обрабатывает запрос."""
+        if request.url.path == "/api/v1/service/users/verify":
+            self.requests.append(request)
+            self.verify_requests.append(request)
+            if self.reject_next:
+                self.reject_next = False
+                return httpx.Response(401, json={"detail": "service token expired"})
+            if self.verify_status == 200:
+                return httpx.Response(200, json=VERIFIED)
+            return httpx.Response(self.verify_status, json={"detail": self.verify_detail})
+        if request.url.path == "/api/v1/auth/login":
+            self.requests.append(request)
+            return self.login_response or httpx.Response(200, json={"access_token": "user-token"})
+        return super().__call__(request)
+
+
+async def test_verify_user_success_sends_service_token_and_user_token() -> None:
+    """Проверка: сервисный токен в заголовке, токен пользователя в теле; ответ разобран."""
+    srv = UsersServer()
+    user = await make_client(httpx.MockTransport(srv)).verify_user("user-token-xyz")
+    req = srv.verify_requests[-1]
+    assert req.headers["authorization"] == "Bearer tok1"
+    assert json.loads(req.content) == {"access_token": "user-token-xyz"}
+    assert user.role == "superadmin" and user.full_name == "Иванов Иван Иванович"
+    assert user.org_id is None and user.journals_access is True
+
+
+async def test_verify_user_refreshes_service_token_once() -> None:
+    """401 из-за истёкшего сервисного токена: берём новый и повторяем, пользователь не страдает."""
+    srv = UsersServer()
+    client = make_client(httpx.MockTransport(srv))
+    await client.verify_user("t")
+    srv.reject_next = True
+    assert (await client.verify_user("t")).journals_access is True
+    assert srv.tokens == 2
+
+
+async def test_verify_user_invalid_token_is_unauthorized() -> None:
+    """401 и после обновления сервисного токена — токен пользователя недействителен."""
+    srv = UsersServer()
+    srv.verify_status = 401
+    with pytest.raises(UnauthorizedError):
+        await make_client(httpx.MockTransport(srv)).verify_user("bad")
+    assert srv.tokens == 2  # один раз попробовали обновить сервисный токен
+
+
+async def test_verify_user_without_journals_access_is_forbidden() -> None:
+    """403 «Доступ к журналам не предоставлен» → отказ с кодом journals_disabled."""
+    srv = UsersServer()
+    srv.verify_status = 403
+    with pytest.raises(ForbiddenError) as exc:
+        await make_client(httpx.MockTransport(srv)).verify_user("t")
+    assert exc.value.code == "journals_disabled"
+
+
+async def test_verify_user_403_for_other_reason_is_service_misconfiguration() -> None:
+    """403 по другой причине (у сервиса нет права users:verify) — ошибка интеграции, не отказ пользователю."""
+    srv = UsersServer()
+    srv.verify_status, srv.verify_detail = 403, "Недостаточно прав: users:verify"
+    with pytest.raises(UpstreamError):
+        await make_client(httpx.MockTransport(srv)).verify_user("t")
+
+
+async def test_user_login_returns_token_and_never_sends_service_token() -> None:
+    """Вход: почта и пароль уходят в Предрейс без сервисного токена; пароль не попадает в ошибки."""
+    srv = UsersServer()
+    login = await make_client(httpx.MockTransport(srv)).user_login("a@e.ru", SECRET)
+    req = srv.requests[-1]
+    assert login.access_token == "user-token" and "authorization" not in req.headers
+    assert json.loads(req.content) == {"email": "a@e.ru", "password": SECRET}
+
+    srv.login_response = httpx.Response(401, json={"detail": "bad"})
+    with pytest.raises(UnauthorizedError) as exc:
+        await make_client(httpx.MockTransport(srv)).user_login("a@e.ru", SECRET)
+    assert exc.value.code == "invalid_credentials" and SECRET not in str(exc.value)
+
+
+async def test_user_login_token_from_cookie_and_server_errors() -> None:
+    """Токен может прийти в cookie; 5xx — ошибка интеграции."""
+    srv = UsersServer()
+    srv.login_response = httpx.Response(
+        200, json={}, headers={"set-cookie": "access_token=cookie-tok; Path=/"}
+    )
+    assert (
+        await make_client(httpx.MockTransport(srv)).user_login("a@e.ru", "p")
+    ).access_token == "cookie-tok"
+    srv.login_response = httpx.Response(500)
+    with pytest.raises(UpstreamError):
+        await make_client(httpx.MockTransport(srv)).user_login("a@e.ru", "p")
+    srv.login_response = httpx.Response(200, json={"foo": 1})
+    with pytest.raises(UpstreamError):
+        await make_client(httpx.MockTransport(srv)).user_login("a@e.ru", "p")
+
+
+def test_placeholder_signature_in_sign_result_is_a_refusal() -> None:
+    """Заглушка AUTO_SIGNATURE в результате подписи не принимается за подпись."""
+    status = parse_sign_status(
+        {"id": "1", "external_id": "e", "status": "signed", "signature_b64": "AUTO_SIGNATURE"}
+    )
+    assert status.status == "failed" and status.signature is None
+    assert "AUTO_SIGNATURE" in (status.error or "")
+
+
+def test_garbage_signature_in_sign_result_is_upstream_error() -> None:
+    """Подпись не в base64 — ошибка интеграции, а не необработанное исключение."""
+    with pytest.raises(UpstreamError):
+        parse_sign_status(
+            {"id": "1", "external_id": "e", "status": "signed", "signature_b64": "%%%"}
+        )

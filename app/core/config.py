@@ -31,12 +31,13 @@ class Settings(BaseSettings):
     # Сервисный клиент (client credentials). Секрет хранить только в .env на сервере.
     predreis_client_id: str = "journals"
     predreis_client_secret: str = ""
-    # Вход пользователей: токены Предрейса проверяются по JWKS (механизм входа уточняется).
-    predreis_jwks_url: str | None = None
-    predreis_issuer: str = "predreis-online"
-    jwt_audience: str = "journals"
-    jwt_algorithms: list[str] = Field(default_factory=lambda: ["RS256"])
-    jwks_cache_ttl_s: int = 600
+    # Вход пользователей: токен выдаёт Предрейс, журналы только спрашивают, действителен ли он.
+    predreis_user_login_path: str = "/api/v1/auth/login"  # уточнить у Предрейса
+    auth_cache_ttl_s: int = 30
+    auth_negative_cache_ttl_s: int = 5
+    auth_cache_max: int = 10_000
+    login_max_attempts: int = 10
+    login_window_s: int = 300
 
     # --- Очередь событий осмотров (RabbitMQ Предрейса) ---
     rabbitmq_url: str = "amqp://guest:guest@localhost:5672/"
@@ -86,13 +87,6 @@ class Settings(BaseSettings):
     )
     executor_phone: str = "+7 (925) 028-87-55"
     executor_email: str = "predreis@predreis.online"
-
-    @property
-    def jwks_url(self) -> str:
-        """Возвращает URL набора ключей JWKS Предрейса."""
-        return (
-            self.predreis_jwks_url or f"{self.predreis_base_url.rstrip('/')}/.well-known/jwks.json"
-        )
 
 
 @lru_cache

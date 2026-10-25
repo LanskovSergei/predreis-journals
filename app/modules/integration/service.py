@@ -225,6 +225,8 @@ class IntegrationService:
 
         details_fields = TECHNICAL_DETAIL_FIELDS if is_technical else MEDICAL_DETAIL_FIELDS
         details = ev.model_dump(mode="json", include=set(details_fields), exclude_none=True)
+        if ev.signature_state:
+            details["signature_state"] = ev.signature_state
         common: dict[str, Any] = {
             "status": RecordStatus.SIGNED,
             "source": RecordSource.EPL,

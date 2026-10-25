@@ -6,6 +6,48 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "Вход"
+        ],
+        "summary": "Вход теми же почтой и паролем, что в Предрейсе",
+        "description": "Проверяет учётные данные в Предрейсе и открыт ли доступ к журналам; возвращает токен.\n\nПароль передаётся только в Предрейс и не сохраняется. Попытки ограничены по адресу и по почте.",
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/me": {
       "get": {
         "tags": [
@@ -2944,6 +2986,73 @@
         "title": "JournalKind",
         "description": "Вид журнала."
       },
+      "LoginIn": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 3,
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "format": "password",
+            "title": "Password",
+            "writeOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "LoginIn",
+        "description": "Почта и пароль пользователя Предрейса."
+      },
+      "LoginOut": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "default": "bearer"
+          },
+          "expires_in": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires In"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserOut"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Permissions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "user",
+          "permissions"
+        ],
+        "title": "LoginOut",
+        "description": "Токен (выдан Предрейсом), профиль и права для построения интерфейса."
+      },
       "MedicalRecordClientOut": {
         "properties": {
           "id": {
@@ -3987,6 +4096,20 @@
         "title": "ResolutionIn",
         "description": "Комментарий к решению по запросу."
       },
+      "Role": {
+        "type": "string",
+        "enum": [
+          "client",
+          "dispatcher",
+          "medic",
+          "mechanic",
+          "predreis",
+          "admin",
+          "superadmin"
+        ],
+        "title": "Role",
+        "description": "Роли пользователей платформы (значения согласовать с Предрейсом)."
+      },
       "SignBatchResult": {
         "properties": {
           "signed": {
@@ -4515,6 +4638,43 @@
         "type": "object",
         "title": "TechnicalRecordUpdate",
         "description": "Частичное изменение неподписанной записи."
+      },
+      "UserOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "full_name": {
+            "type": "string",
+            "title": "Full Name"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "organization_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "full_name",
+          "role",
+          "organization_id"
+        ],
+        "title": "UserOut",
+        "description": "Пользователь в ответе входа."
       },
       "ValidationError": {
         "properties": {

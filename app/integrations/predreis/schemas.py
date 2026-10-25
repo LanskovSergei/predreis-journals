@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import base64
 import re
 import uuid
 from datetime import date, datetime, timedelta, timezone
@@ -17,6 +18,7 @@ from typing import Any, Literal
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.domain.enums import ContractType, Gender, HarmfulFactors, Role, WorkFormat
+from app.integrations.predreis.signature import is_placeholder
 
 _OFFSET_RE = re.compile(r"^([+-])(\d{2}):?(\d{2})$")
 _MALE = {"m", "male", "м", "муж", "мужской", "man"}
@@ -223,6 +225,8 @@ class EplRecordEvent(BaseModel):
     signature_valid_to: datetime | None = None
     signature_b64: str | None = None
     tsp_b64: str | None = None
+    # placeholder — вместо подписи заглушка (AUTO_SIGNATURE); invalid — подпись не в base64.
+    signature_state: Literal["placeholder", "invalid"] | None = None
 
     notes: str | None = None
 
@@ -260,6 +264,26 @@ class EplRecordEvent(BaseModel):
     odometer: int | None = None
     released: bool | None = None
     mechanic_position: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_signature(cls, data: Any) -> Any:
+        """Заглушка и испорченная подпись не блокируют запись: подпись отбрасывается."""
+        if not isinstance(data, dict):
+            return data
+        data = dict(data)
+        for field in ("signature_b64", "tsp_b64"):
+            value = data.get(field)
+            if not value:
+                continue
+            if is_placeholder(value):
+                data[field], data["signature_state"] = None, "placeholder"
+                continue
+            try:
+                base64.b64decode(value, validate=True)
+            except (ValueError, TypeError):
+                data[field], data["signature_state"] = None, "invalid"
+        return data
 
     @model_validator(mode="after")
     def _check_consistency(self) -> EplRecordEvent:

@@ -195,6 +195,10 @@ def map_envelope(env: Envelope) -> EplRecordEvent:
         "signature_owner": pick(p, "signature.owner", "signature_owner"),
         "signature_valid_from": pick(p, "signature.valid_from", "signature_valid_from"),
         "signature_valid_to": pick(p, "signature.valid_to", "signature_valid_to"),
+        "signature_b64": pick(
+            p, "signature_b64", "title_signature_b64", "title_signature", "signature.b64"
+        ),
+        "tsp_b64": pick(p, "tsp_b64", "signature.tsp_b64"),
         "notes": pick(p, "notes", "note", "inspection.notes"),
         "recorded_at": pick(p, "recorded_at", "inspection.recorded_at"),
         "approved": pick(p, "approved", "admitted", "допуск", "inspection.approved"),

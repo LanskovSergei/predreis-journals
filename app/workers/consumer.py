@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from dataclasses import dataclass
 from enum import Enum
 
 import aio_pika
@@ -39,6 +40,45 @@ class Outcome(str, Enum):
     REQUEUE = "requeue"
 
 
+@dataclass(frozen=True, slots=True)
+class Handled:
+    """Итог обработки конверта: исход для очереди, статус или причина отказа."""
+
+    outcome: Outcome
+    status: str | None = None
+    failure: tuple[str, str | None] | None = None
+
+
+async def handle_envelope(
+    envelope: Envelope,
+    session_factory: async_sessionmaker[AsyncSession],
+    storage: Storage,
+    settings: Settings,
+    attempts: dict[str, int],
+) -> Handled:
+    """Превращает конверт в запись; отказы возвращает значением, не записывая их."""
+    try:
+        event = map_envelope(envelope)
+    except UnmappableEventError as exc:
+        return Handled(Outcome.ACK, failure=(exc.reason, exc.detail))
+    try:
+        async with session_factory() as session:
+            result = await IntegrationService(session, storage, settings).handle(event)
+        logger.info("Сообщение %s: %s", envelope.id, result)
+        attempts.pop(envelope.id, None)
+        return Handled(Outcome.ACK, status=result)
+    except AppError as exc:
+        if exc.code == "dependency_missing":
+            attempts[envelope.id] = attempts.get(envelope.id, 0) + 1
+            if attempts[envelope.id] < MAX_DEPENDENCY_ATTEMPTS:
+                return Handled(Outcome.REQUEUE, failure=(exc.code, exc.message))
+        attempts.pop(envelope.id, None)
+        return Handled(Outcome.ACK, failure=(exc.code, exc.message))
+    except (DBAPIError, SQLAlchemyError, OSError) as exc:
+        logger.error("Временный сбой при обработке %s: %s", envelope.id, type(exc).__name__)
+        return Handled(Outcome.REQUEUE)
+
+
 async def process_body(
     body: bytes,
     session_factory: async_sessionmaker[AsyncSession],
@@ -46,7 +86,7 @@ async def process_body(
     settings: Settings,
     attempts: dict[str, int] | None = None,
 ) -> Outcome:
-    """Обрабатывает тело сообщения; не бросает исключений для «плохих» данных."""
+    """Обрабатывает тело сообщения; «плохие» данные уходят в inbox_failures, очередь не падает."""
     attempts = attempts if attempts is not None else {}
     try:
         envelope = Envelope.model_validate(json.loads(body))
@@ -60,44 +100,19 @@ async def process_body(
                 detail=str(exc)[:500],
             )
         return Outcome.ACK
-    try:
-        event = map_envelope(envelope)
-    except UnmappableEventError as exc:
+    handled = await handle_envelope(envelope, session_factory, storage, settings, attempts)
+    if handled.failure is not None and handled.outcome is Outcome.ACK:
+        reason, detail = handled.failure
         async with session_factory() as session:
             await record_failure(
                 session,
                 message_id=envelope.id,
                 event_type=envelope.event_type,
-                reason=exc.reason,
-                detail=exc.detail,
+                reason=reason,
+                detail=detail,
                 payload=envelope.payload,
             )
-        return Outcome.ACK
-    try:
-        async with session_factory() as session:
-            result = await IntegrationService(session, storage, settings).handle(event)
-        logger.info("Сообщение %s: %s", envelope.id, result)
-        attempts.pop(envelope.id, None)
-        return Outcome.ACK
-    except AppError as exc:
-        if exc.code == "dependency_missing":
-            attempts[envelope.id] = attempts.get(envelope.id, 0) + 1
-            if attempts[envelope.id] < MAX_DEPENDENCY_ATTEMPTS:
-                return Outcome.REQUEUE
-        async with session_factory() as session:
-            await record_failure(
-                session,
-                message_id=envelope.id,
-                event_type=envelope.event_type,
-                reason=exc.code,
-                detail=exc.message,
-                payload=envelope.payload,
-            )
-        attempts.pop(envelope.id, None)
-        return Outcome.ACK
-    except (DBAPIError, SQLAlchemyError, OSError) as exc:
-        logger.error("Временный сбой при обработке %s: %s", envelope.id, type(exc).__name__)
-        return Outcome.REQUEUE
+    return handled.outcome
 
 
 class EventConsumer:

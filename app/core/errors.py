@@ -63,6 +63,13 @@ class ValidationFailedError(AppError):
     code = "validation_failed"
 
 
+class TooManyRequestsError(AppError):
+    """Слишком много попыток (вход)."""
+
+    status_code = 429
+    code = "too_many_requests"
+
+
 class NotImplementedYetError(AppError):
     """Функциональность предусмотрена ТЗ, но ещё не реализована."""
 

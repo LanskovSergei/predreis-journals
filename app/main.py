@@ -15,6 +15,7 @@ from app.core.errors import register_exception_handlers
 from app.core.logging import setup_logging
 from app.integrations.predreis.client import get_predreis_client
 from app.modules import health
+from app.modules.auth.router import router as auth_router
 from app.modules.catalog.router import router as catalog_router
 from app.modules.deletion.router import router as deletion_router
 from app.modules.ejournal.router import router as ejournal_router
@@ -59,6 +60,7 @@ def create_app() -> FastAPI:
 
     api = APIRouter(prefix="/api/v1")
     for r in (
+        auth_router,
         stats_router,
         medical_router,
         technical_router,
