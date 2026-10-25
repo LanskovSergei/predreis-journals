@@ -27,8 +27,8 @@ def build_snapshot(
     if driver is not None:
         snap["driver"] = {
             "full_name": driver.full_name,
-            "birth_date": driver.birth_date.isoformat(),
-            "gender": driver.gender.value,
+            "birth_date": driver.birth_date.isoformat() if driver.birth_date else None,
+            "gender": driver.gender.value if driver.gender else None,
         }
     if vehicle is not None:
         snap["vehicle"] = {

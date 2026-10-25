@@ -103,7 +103,7 @@ class MedicalRecordOut(BaseModel):
     pulse: int
     temperature: Decimal
     alcohol_mgl: Decimal
-    harmful_factors: HarmfulFactors
+    harmful_factors: HarmfulFactors | None
     harmful_factors_note: str | None
     result: InspectionResult
     note: str | None
@@ -111,6 +111,8 @@ class MedicalRecordOut(BaseModel):
     deletion_pending: bool
     in_journal_reserved: bool
     signature: SignatureInfo | None
+    signing_status: str | None = None
+    signing_error: str | None = None
     actions: list[str]
 
 

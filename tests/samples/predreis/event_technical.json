@@ -1,0 +1,54 @@
+{
+  "id": "e5a77c10-9b42-4d8e-b6c1-3f0a2d7e9b55",
+  "event_type": "journal.technical_exam",
+  "entity_id": "ae5ca99a-5ae4-413e-85a9-1ceffefb285d",
+  "created_at": "2026-09-25T09:21:10.118744+00:00",
+  "payload": {
+    "waybill_id": "ae5ca99a-5ae4-413e-85a9-1ceffefb285d",
+    "waybill_number": "AE5CA99A",
+    "gis_uid": "5860a3c7-ca83-4b1e-bb5b-5096851ab098",
+    "organization": {
+      "id": "83770066-a33c-4894-8cfc-90eef5e086da",
+      "inn": "770000000000",
+      "kpp": null,
+      "ogrn": "300000000000000",
+      "name_short": "ИП ИВАНОВ ИВАН ИВАНОВИЧ",
+      "name_full": "Индивидуальный предприниматель Иванов Иван Иванович",
+      "legal_address": null
+    },
+    "driver": {
+      "id": "bd8a9b05-c07c-4aa7-9f73-3ef2924d41ec",
+      "last_name": "Петров",
+      "first_name": "Пётр",
+      "middle_name": "Петрович",
+      "gender": null,
+      "birth_date": "2000-09-09",
+      "license_series": null,
+      "license_number": "9900000000"
+    },
+    "vehicle": {
+      "id": "26a36da0-8699-4324-9d83-17e58ee8f7e4",
+      "plate_number": "О231ТА790",
+      "brand": "VOLKSWAGEN",
+      "model": "TOURAN",
+      "category": "B"
+    },
+    "specialist_user_id": "f5944b49-eae5-4559-b081-17f4618a74bb",
+    "specialist": {
+      "last_name": "Механиков",
+      "first_name": "Дмитрий",
+      "middle_name": "Юрьевич"
+    },
+    "exam_datetime": null,
+    "checks": {
+      "brakes_ok": true,
+      "lighting_ok": true,
+      "tires_ok": true
+    },
+    "odometer": 11880,
+    "approved": true,
+    "notes": "Автоматический техосмотр (Водитель+)",
+    "title_number": 3,
+    "title_doc_id": "1458087842"
+  }
+}

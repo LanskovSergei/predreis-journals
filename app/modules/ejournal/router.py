@@ -79,13 +79,17 @@ async def submit_journal(
     return EJournalOut.model_validate(await _service(session).submit(principal, journal_id))
 
 
-@router.post("/{journal_id}/sign", response_model=EJournalOut, summary="Подписать (СА)")
+@router.post(
+    "/{journal_id}/sign",
+    response_model=EJournalOut,
+    summary="Подписать (СА): постановка в очередь подписи",
+)
 async def sign_journal(
     journal_id: uuid.UUID,
     principal: Principal = Depends(get_principal),
     session: AsyncSession = Depends(get_session),
 ) -> EJournalOut:
-    """Подписывает журнал УКЭП организации."""
+    """Ставит журнал в очередь подписи организации; статус «signing», затем «signed»."""
     return EJournalOut.model_validate(await _service(session).sign(principal, journal_id))
 
 

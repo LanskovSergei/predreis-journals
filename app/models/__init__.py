@@ -3,8 +3,14 @@
 from app.models.audit import AuditLog
 from app.models.base import Base
 from app.models.catalog import Driver, Organization, User, Vehicle
-from app.models.documents import DeletionRequest, EJournal, EJournalItem, RecordDocument
-from app.models.integration import InboxEvent, OutboxEvent, SyncState
+from app.models.documents import (
+    DeletionRequest,
+    EJournal,
+    EJournalItem,
+    RecordDocument,
+    SignJob,
+)
+from app.models.integration import InboxEvent, InboxFailure, OutboxEvent, SyncState
 from app.models.ocr import OcrBatch, OcrItem
 from app.models.records import MedicalRecord, TechnicalRecord
 
@@ -16,12 +22,14 @@ __all__ = [
     "EJournal",
     "EJournalItem",
     "InboxEvent",
+    "InboxFailure",
     "MedicalRecord",
     "OcrBatch",
     "OcrItem",
     "Organization",
     "OutboxEvent",
     "RecordDocument",
+    "SignJob",
     "SyncState",
     "TechnicalRecord",
     "User",

@@ -62,9 +62,11 @@ def medical_row(n: int, rec: MedicalRecord, doc: RecordDocument | None) -> dict[
         "pulse": rec.pulse,
         "temperature": fmt_decimal(rec.temperature),
         "alcohol_mgl": fmt_decimal(rec.alcohol_mgl),
-        "harmful_factors": (
-            "отсутствуют" if rec.harmful_factors is HarmfulFactors.ABSENT else "выявлены"
-        ),
+        "harmful_factors": {
+            HarmfulFactors.ABSENT: "отсутствуют",
+            HarmfulFactors.DETECTED: "выявлены",
+            None: "не определялись",
+        }[rec.harmful_factors],
         "conclusion": "допущен" if rec.result is InspectionResult.ADMITTED else "не допущен",
         "phase": pre,
         "signature": signature_view(doc),

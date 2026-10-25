@@ -96,6 +96,7 @@ class EJournalStatus(str, Enum):
 
     DRAFT = "draft"
     AWAITING_SIGNATURE = "awaiting_signature"
+    SIGNING = "signing"
     SIGNED = "signed"
     REJECTED = "rejected"
 
@@ -131,3 +132,19 @@ class SignatureKind(str, Enum):
 
     PERSONAL = "personal"
     ORGANIZATION = "organization"
+
+
+class SignTarget(str, Enum):
+    """Что подписывается."""
+
+    RECORD = "record"
+    JOURNAL = "journal"
+
+
+class SignJobStatus(str, Enum):
+    """Состояние задачи подписи: queued (не принята Предрейсом), pending, signed, failed."""
+
+    QUEUED = "queued"
+    PENDING = "pending"
+    SIGNED = "signed"
+    FAILED = "failed"

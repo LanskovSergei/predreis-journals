@@ -85,6 +85,16 @@ def test_epl_record_has_waybill_and_note() -> None:
     assert b"<Waybill>" not in manual and b"<Note>" not in manual
 
 
+def test_harmful_factors_are_optional_for_automatic_exams() -> None:
+    """У автоматического осмотра «Водителя+» признака вредных факторов нет — элемент опускается."""
+    data = build_record_xml(JournalKind.MEDICAL, samples.medical(harmful_factors=None))
+    assert b"<HarmfulFactors>" not in data
+    assert validate_xml(data, "record") == []
+    # Если признак определён, он обязан быть корректным значением.
+    with_flag = build_record_xml(JournalKind.MEDICAL, samples.medical())
+    assert b"<HarmfulFactors>absent</HarmfulFactors>" in with_flag
+
+
 def test_technical_without_driver_is_valid() -> None:
     """Водитель в техконтроле необязателен."""
     snap = {k: v for k, v in samples.SNAPSHOT.items() if k != "driver"}

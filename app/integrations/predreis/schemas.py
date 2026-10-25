@@ -1,4 +1,10 @@
-"""Контракт входящих событий Предрейс → журналы (черновик, см. docs/integration-contract.md)."""
+"""Схемы данных Предрейса: справочники и нормализованное ЭПЛ-событие.
+
+Справочники читаются по pull (changed_after), поля принимают несколько вариантов названий
+(`validation_alias`), потому что точный формат ответа сверяется по образцам Предрейса.
+Нормализованное событие `EplRecordEvent` — внутренний формат; из сообщений очереди его строит
+`events.map_envelope`.
+"""
 
 from __future__ import annotations
 
@@ -6,73 +12,121 @@ import re
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Annotated, Any, Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.domain.enums import (
-    ContractType,
-    Gender,
-    Role,
-    WorkFormat,
-)
+from app.domain.enums import ContractType, Gender, HarmfulFactors, Role, WorkFormat
+
+_OFFSET_RE = re.compile(r"^([+-])(\d{2}):?(\d{2})$")
+_MALE = {"m", "male", "м", "муж", "мужской", "man"}
+_FEMALE = {"f", "female", "ж", "жен", "женский", "woman"}
 
 
-class OrganizationPayload(BaseModel):
-    """Организация."""
+def normalize_gender(value: Any) -> Gender | None:
+    """Приводит пол из разных обозначений к M/F; неизвестное значение — None (пол не угадываем)."""
+    if isinstance(value, Gender):
+        return value
+    if value is None:
+        return None
+    text = str(value).strip().lower()
+    if text in _MALE:
+        return Gender.MALE
+    if text in _FEMALE:
+        return Gender.FEMALE
+    return None
+
+
+class _CatalogBase(BaseModel):
+    """Общие настройки схем справочников: допускаем и имена полей, и их синонимы."""
+
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
+
+class OrganizationPayload(_CatalogBase):
+    """Организация. Договорных данных Предрейс не отдаёт — они необязательны."""
 
     id: uuid.UUID
     inn: str
-    legal_form: str | None = None
-    name: str
-    short_name: str | None = None
     kpp: str | None = None
     ogrn: str | None = None
-    legal_address: str | None = None
+    name: str = Field(validation_alias=AliasChoices("name", "full_name", "name_full"))
+    short_name: str | None = Field(
+        default=None, validation_alias=AliasChoices("short_name", "name_short")
+    )
+    legal_address: str | None = Field(
+        default=None, validation_alias=AliasChoices("legal_address", "address")
+    )
+    is_active: bool = Field(default=True, validation_alias=AliasChoices("is_active", "active"))
+    updated_at: datetime | None = None
+    # Не приходят из Предрейса; задаются в журналах/тестах и не затираются синхронизацией.
+    work_format: WorkFormat | None = None
+    contract_type: ContractType | None = None
+    legal_form: str | None = None
     head_name: str | None = None
     email: str | None = None
     phone: str | None = None
-    contract_type: ContractType | None = None
-    contract_number: str | None = None
-    contract_date: date | None = None
-    contract_until: date | None = None
-    work_format: WorkFormat
-    is_active: bool = True
     note: str | None = None
 
 
-class DriverPayload(BaseModel):
-    """Водитель. Пол (gender) — новое поле, которое нужно добавить в Предрейс."""
+class DriverPayload(_CatalogBase):
+    """Водитель. Пол и права могут быть пустыми или в одном поле («9910 915125»)."""
 
     id: uuid.UUID
-    organization_id: uuid.UUID
+    organization_id: uuid.UUID = Field(validation_alias=AliasChoices("organization_id", "org_id"))
     full_name: str
-    gender: Gender
-    birth_date: date
+    gender: Gender | None = Field(default=None, validation_alias=AliasChoices("gender", "sex"))
+    birth_date: date | None = Field(
+        default=None, validation_alias=AliasChoices("birth_date", "birthday", "date_of_birth")
+    )
+    license_number: str | None = Field(
+        default=None, validation_alias=AliasChoices("license_number", "license", "driver_license")
+    )
     snils: str | None = None
-    license_number: str | None = None
-    license_issued_at: date | None = None
-    license_valid_until: date | None = None
-    is_active: bool = True
-    note: str | None = None
+    is_active: bool = Field(default=True, validation_alias=AliasChoices("is_active", "active"))
+    updated_at: datetime | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _compose(cls, data: Any) -> Any:
+        """Собирает ФИО из частей и права из серии и номера, если они пришли раздельно."""
+        if not isinstance(data, dict):
+            return data
+        data = dict(data)
+        if not data.get("full_name"):
+            parts = (data.get("last_name"), data.get("first_name"), data.get("middle_name"))
+            data["full_name"] = " ".join(str(p) for p in parts if p) or data.get("name")
+        series, number = data.get("license_series"), data.get("license_number")
+        if series and number and not data.get("license"):
+            data["license_number"] = f"{series} {number}"
+        return data
+
+    @field_validator("gender", mode="before")
+    @classmethod
+    def _gender(cls, value: Any) -> Gender | None:
+        """Нормализует пол."""
+        return normalize_gender(value)
 
 
-class VehiclePayload(BaseModel):
+class VehiclePayload(_CatalogBase):
     """Транспортное средство."""
 
     id: uuid.UUID
-    organization_id: uuid.UUID
-    brand: str
+    organization_id: uuid.UUID = Field(validation_alias=AliasChoices("organization_id", "org_id"))
+    plate: str = Field(
+        validation_alias=AliasChoices("plate_number", "plate", "license_plate", "gos_number")
+    )
+    brand: str = Field(validation_alias=AliasChoices("brand", "make"))
     model: str
-    vehicle_type: str | None = None
-    plate: str
-    diag_card_until: date | None = None
-    is_active: bool = True
-    note: str | None = None
+    vehicle_type: str | None = Field(
+        default=None, validation_alias=AliasChoices("vehicle_type", "type")
+    )
+    is_active: bool = Field(default=True, validation_alias=AliasChoices("is_active", "active"))
+    updated_at: datetime | None = None
 
 
 class UserPayload(BaseModel):
-    """Пользователь платформы."""
+    """Специалист или пользователь для реплики `users` (из событий и токена, не из справочника)."""
 
     id: uuid.UUID
     role: Role
@@ -82,43 +136,6 @@ class UserPayload(BaseModel):
     journals_access: bool = False
     is_active: bool = True
 
-
-class _EventBase(BaseModel):
-    """Общие поля события."""
-
-    event_id: uuid.UUID
-    occurred_at: datetime
-
-
-class OrganizationUpserted(_EventBase):
-    """Организация создана или изменена."""
-
-    event_type: Literal["organization.upserted"]
-    organization: OrganizationPayload
-
-
-class DriverUpserted(_EventBase):
-    """Водитель создан или изменён."""
-
-    event_type: Literal["driver.upserted"]
-    driver: DriverPayload
-
-
-class VehicleUpserted(_EventBase):
-    """ТС создано или изменено."""
-
-    event_type: Literal["vehicle.upserted"]
-    vehicle: VehiclePayload
-
-
-class UserUpserted(_EventBase):
-    """Пользователь создан или изменён (в т.ч. включён/выключен доступ к журналам)."""
-
-    event_type: Literal["user.upserted"]
-    user: UserPayload
-
-
-_OFFSET_RE = re.compile(r"^([+-])(\d{2}):?(\d{2})$")
 
 MEDICAL_DETAIL_FIELDS = (
     "alcohol_detected",
@@ -133,15 +150,18 @@ MEDICAL_DETAIL_FIELDS = (
     "vid_mo",
     "is_pre_trip",
     "is_post_trip",
+    "edweb_document_id",
 )
 TECHNICAL_DETAIL_FIELDS = (
     "vehicle_type",
+    "vehicle_category",
     "brakes_ok",
     "lighting_ok",
     "tires_ok",
     "released",
     "mechanic_position",
     "recorded_at",
+    "edweb_document_id",
 )
 
 
@@ -157,11 +177,7 @@ def parse_tz_offset(value: str | int) -> timedelta:
 
 
 class EplRecordEvent(BaseModel):
-    """Запись из ЭПЛ: Т2/Т6 (медосмотр), Т3 (техконтроль). Плоский формат Предрейса.
-
-    Отправляется только после получения QR. Идентификаторы организации, водителя и ТС
-    (`organization_id`, `driver_id`, `vehicle_id`) и `event_id` — дополнения к списку полей.
-    """
+    """Нормализованное событие осмотра: T2/T6 — медосмотр, T3 — техконтроль."""
 
     event_type: Literal["T2", "T3", "T6"]
     event_id: uuid.UUID
@@ -169,10 +185,12 @@ class EplRecordEvent(BaseModel):
     waybill_id: uuid.UUID
     waybill_number: str
     gis_uid: str
-    qr_issued: bool
+    qr_issued: bool = True
+    edweb_document_id: str | None = None
 
-    organization_id: uuid.UUID
-    driver_id: uuid.UUID
+    # Идентификаторы Предрейса; если их нет, привязка по реквизитам (ИНН, ФИО, госномер).
+    organization_id: uuid.UUID | None = None
+    driver_id: uuid.UUID | None = None
     vehicle_id: uuid.UUID | None = None
     specialist_user_id: uuid.UUID
 
@@ -180,33 +198,35 @@ class EplRecordEvent(BaseModel):
     org_kpp: str | None = None
     org_ogrn: str | None = None
     org_name: str
-    org_address: str
+    org_short_name: str | None = None
+    org_address: str | None = None
 
     driver_last_name: str
     driver_first_name: str
     driver_middle_name: str | None = None
     driver_birth_date: date
     driver_gender: Gender | None = None
-    driver_license_series: str
-    driver_license_number: str
+    driver_license: str | None = None
+    driver_license_series: str | None = None
+    driver_license_number: str | None = None
 
     specialist_last_name: str
     specialist_first_name: str
     specialist_middle_name: str | None = None
 
     exam_datetime: datetime
-    exam_tz_offset: str | int
+    exam_tz_offset: str | int | None = None
 
-    signature_serial: str
-    signature_owner: str
-    signature_valid_from: datetime
-    signature_valid_to: datetime
+    signature_serial: str | None = None
+    signature_owner: str | None = None
+    signature_valid_from: datetime | None = None
+    signature_valid_to: datetime | None = None
     signature_b64: str | None = None
     tsp_b64: str | None = None
 
     notes: str | None = None
 
-    # --- только медосмотр (Т2/Т6): epl_details.inspection.medic / medic_post ---
+    # --- только медосмотр (Т2/Т6) ---
     blood_pressure_systolic: int | None = None
     blood_pressure_diastolic: int | None = None
     pulse: int | None = None
@@ -228,7 +248,7 @@ class EplRecordEvent(BaseModel):
     is_pre_trip: bool | None = None
     is_post_trip: bool | None = None
 
-    # --- только техконтроль (Т3): inspection.mechanic + титул и рейс ---
+    # --- только техконтроль (Т3) ---
     brakes_ok: bool | None = None
     lighting_ok: bool | None = None
     tires_ok: bool | None = None
@@ -236,35 +256,21 @@ class EplRecordEvent(BaseModel):
     vehicle_brand: str | None = None
     vehicle_model: str | None = None
     vehicle_type: str | None = None
+    vehicle_category: str | None = None
     odometer: int | None = None
     released: bool | None = None
     mechanic_position: str | None = None
 
-    @model_validator(mode="before")
-    @classmethod
-    def _default_event_id(cls, data: Any) -> Any:
-        """Если Предрейс не прислал event_id, он выводится детерминированно из рейса и титула."""
-        if isinstance(data, dict) and not data.get("event_id"):
-            key = f"epl/{data.get('waybill_id')}/{data.get('event_type')}"
-            return {**data, "event_id": str(uuid.uuid5(uuid.NAMESPACE_URL, key))}
-        return data
-
     @model_validator(mode="after")
     def _check_consistency(self) -> EplRecordEvent:
-        """Проверяет QR, часовой пояс и комплектность полей для вида титула."""
+        """Проверяет QR, смещение пояса и комплектность полей для вида титула."""
         if not self.qr_issued:
             raise ValueError("Запись создаётся только после получения QR (qr_issued=true)")
-        parse_tz_offset(self.exam_tz_offset)
+        if self.exam_tz_offset is not None:
+            parse_tz_offset(self.exam_tz_offset)
         required: tuple[str, ...]
         if self.event_type == "T3":
-            required = (
-                "vehicle_id",
-                "vehicle_plate",
-                "vehicle_brand",
-                "vehicle_model",
-                "odometer",
-                "approved",
-            )
+            required = ("vehicle_plate", "vehicle_brand", "vehicle_model", "odometer", "approved")
         else:
             required = (
                 "blood_pressure_systolic",
@@ -272,7 +278,6 @@ class EplRecordEvent(BaseModel):
                 "pulse",
                 "temperature",
                 "alcohol_ppm",
-                "harmful_factors_detected",
                 "approved",
             )
         missing = [f for f in required if getattr(self, f) is None]
@@ -280,37 +285,39 @@ class EplRecordEvent(BaseModel):
             raise ValueError(f"Для {self.event_type} обязательны поля: {', '.join(missing)}")
         return self
 
-    @property
-    def performed_at(self) -> datetime:
-        """Момент осмотра с часовым поясом (из exam_tz_offset, если время «наивное»)."""
+    def performed_at(self, default_tz: timezone | Any) -> datetime:
+        """Момент осмотра с часовым поясом (из времени, смещения или местный по умолчанию)."""
         if self.exam_datetime.tzinfo is not None:
             return self.exam_datetime
-        return self.exam_datetime.replace(tzinfo=timezone(parse_tz_offset(self.exam_tz_offset)))
+        if self.exam_tz_offset is not None:
+            return self.exam_datetime.replace(
+                tzinfo=timezone(parse_tz_offset(self.exam_tz_offset))
+            )
+        return self.exam_datetime.replace(tzinfo=default_tz)
 
     @property
     def driver_full_name(self) -> str:
         """ФИО водителя полностью."""
-        return " ".join(
-            p
-            for p in (self.driver_last_name, self.driver_first_name, self.driver_middle_name)
-            if p
-        )
+        parts = (self.driver_last_name, self.driver_first_name, self.driver_middle_name)
+        return " ".join(p for p in parts if p)
 
     @property
     def specialist_full_name(self) -> str:
         """ФИО специалиста полностью."""
-        return " ".join(
-            p
-            for p in (
-                self.specialist_last_name,
-                self.specialist_first_name,
-                self.specialist_middle_name,
-            )
-            if p
+        parts = (
+            self.specialist_last_name,
+            self.specialist_first_name,
+            self.specialist_middle_name,
         )
+        return " ".join(p for p in parts if p)
+
+    @property
+    def license_text(self) -> str | None:
+        """Права водителя одной строкой (как пришли, без разбора на серию и номер)."""
+        if self.driver_license:
+            return self.driver_license
+        parts = (self.driver_license_series, self.driver_license_number)
+        return " ".join(p for p in parts if p) or None
 
 
-IntegrationEvent = Annotated[
-    OrganizationUpserted | DriverUpserted | VehicleUpserted | UserUpserted | EplRecordEvent,
-    Field(discriminator="event_type"),
-]
+_ = HarmfulFactors  # используется в сервисе приёма при сопоставлении признака вредных факторов

@@ -22,10 +22,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
 from app.core.errors import ConflictError
-from app.core.security import Principal
 from app.core.storage import Storage, get_storage
-from app.domain.enums import JournalKind, RecordSource, SignatureKind
-from app.integrations.predreis.client import Signer
+from app.domain.enums import JournalKind, RecordSource
+from app.integrations.predreis.client import SignResult
 from app.models.catalog import Organization
 from app.models.documents import EJournal, RecordDocument
 from app.models.records import AnyRecord, record_model
@@ -66,8 +65,8 @@ class PackageBuilder(Protocol):
     async def build_package(self, journal: EJournal, records: Sequence[AnyRecord]) -> None:
         """Готовит пакет при отправке журнала на подпись."""
 
-    async def finalize(self, journal: EJournal, signer: Signer, principal: Principal) -> None:
-        """Подписывает журнал и собирает итоговый ZIP."""
+    async def finalize(self, journal: EJournal, result: SignResult) -> None:
+        """Собирает итоговый ZIP из готовой подписи journal.xml."""
 
     def discard(self, journal: EJournal) -> list[str]:
         """Сбрасывает подготовленный пакет; возвращает ключи файлов для удаления после коммита."""
@@ -310,8 +309,8 @@ class ContainerBuilder:
         journal.record_count = len(records)
 
     # --- шаг 2: подпись СА -------------------------------------------------------------------
-    async def finalize(self, journal: EJournal, signer: Signer, principal: Principal) -> None:
-        """Подписывает journal.xml УКЭП организации и собирает итоговый ZIP."""
+    async def finalize(self, journal: EJournal, result: SignResult) -> None:
+        """Собирает итоговый ZIP из готовой подписи journal.xml (УКЭП организации)."""
         if not journal.package or not journal.xml_key or not journal.xml_sha256:
             raise ConflictError("Пакет журнала не подготовлен", code="package_missing")
         plan = [PlanEntry.from_dict(d) for d in journal.package]
@@ -333,13 +332,11 @@ class ContainerBuilder:
         if sha256_hex(journal_xml) != journal.xml_sha256:
             raise ConflictError("journal.xml изменился после отправки", code="storage_integrity")
 
-        result = await signer.sign_detached(
-            content=journal_xml,
-            filename=JOURNAL_XML,
-            kind=SignatureKind.ORGANIZATION,
-            signer_user_id=principal.user_id,
-            on_behalf_token=principal.raw_token,
-        )
+        cert = result.certificate
+        if cert is None:
+            raise ConflictError(
+                "В подписи журнала нет сведений о сертификате", code="signature_meta_missing"
+            )
         org = await self._organization(journal)
         records = await self._records(journal)
         docs = await self._documents(journal)
@@ -353,10 +350,10 @@ class ContainerBuilder:
             period_to=period_to,
             title=JOURNAL_TITLES[journal.kind],
             stamp={
-                "serial": result.cert_serial,
-                "subject": result.cert_subject,
-                "valid_from": fmt_date(result.cert_valid_from),
-                "valid_to": fmt_date(result.cert_valid_to),
+                "serial": cert.serial,
+                "subject": cert.subject,
+                "valid_from": fmt_date(cert.valid_from),
+                "valid_to": fmt_date(cert.valid_to),
             },
         )
         created = datetime.now(timezone.utc)
@@ -408,10 +405,10 @@ class ContainerBuilder:
         journal.pdf_key = await self.storage.put(f"{base}/journal.pdf", pdf)
         journal.zip_key = await self.storage.put(f"{base}/journal.zip", zip_bytes)
         journal.zip_sha256 = sha256_hex(zip_bytes)
-        journal.cert_serial = result.cert_serial
-        journal.cert_subject = result.cert_subject
-        journal.cert_valid_from = result.cert_valid_from
-        journal.cert_valid_to = result.cert_valid_to
+        journal.cert_serial = cert.serial
+        journal.cert_subject = cert.subject
+        journal.cert_valid_from = cert.valid_from
+        journal.cert_valid_to = cert.valid_to
         journal.ocsp_status = result.ocsp_status
 
     # --- отклонение --------------------------------------------------------------------------

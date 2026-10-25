@@ -1,0 +1,14 @@
+[
+  {
+    "id": "a0ce852e-a230-4e57-b38e-f6d312919cef",
+    "org_id": "1ebdb311-c1d4-46f1-b526-a475562bec9a",
+    "plate_number": "А123ВС77",
+    "brand": "КАМАЗ",
+    "model": "65115",
+    "type": "грузовой",
+    "category": "C",
+    "is_active": true,
+    "created_at": "2026-06-04T06:29:56.962981Z",
+    "updated_at": "2026-06-04T06:29:56.962981Z"
+  }
+]

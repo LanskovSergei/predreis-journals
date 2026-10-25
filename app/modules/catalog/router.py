@@ -4,20 +4,12 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
 from app.core.security import Principal, get_principal
-from app.integrations.predreis.client import get_predreis_client
-from app.modules.catalog.schemas import (
-    DriverCreate,
-    DriverOut,
-    OrganizationCreate,
-    OrganizationOut,
-    VehicleCreate,
-    VehicleOut,
-)
+from app.modules.catalog.schemas import DriverOut, OrganizationOut, VehicleOut
 from app.modules.catalog.service import CatalogService
 from app.modules.records.schemas import Page, PageParams, page_params
 
@@ -26,7 +18,7 @@ router = APIRouter(prefix="/catalog", tags=["Каталог"])
 
 def _service(session: AsyncSession) -> CatalogService:
     """Создаёт сервис каталога."""
-    return CatalogService(session, get_predreis_client())
+    return CatalogService(session)
 
 
 @router.get("/organizations", response_model=Page[OrganizationOut], summary="Каталог организаций")
@@ -44,23 +36,6 @@ async def list_organizations(
         total=page.total,
         page=page.page,
         page_size=page.page_size,
-    )
-
-
-@router.post(
-    "/organizations",
-    response_model=OrganizationOut,
-    status_code=status.HTTP_201_CREATED,
-    summary="Добавить организацию",
-)
-async def create_organization(
-    body: OrganizationCreate,
-    principal: Principal = Depends(get_principal),
-    session: AsyncSession = Depends(get_session),
-) -> OrganizationOut:
-    """Создаёт организацию в Предрейсе (реквизиты по ИНН) и в реплике журналов."""
-    return OrganizationOut.model_validate(
-        await _service(session).create_organization(principal, body)
     )
 
 
@@ -82,21 +57,6 @@ async def list_drivers(
     )
 
 
-@router.post(
-    "/drivers",
-    response_model=DriverOut,
-    status_code=status.HTTP_201_CREATED,
-    summary="Добавить водителя",
-)
-async def create_driver(
-    body: DriverCreate,
-    principal: Principal = Depends(get_principal),
-    session: AsyncSession = Depends(get_session),
-) -> DriverOut:
-    """Создаёт водителя в Предрейсе и в реплике журналов."""
-    return DriverOut.model_validate(await _service(session).create_driver(principal, body))
-
-
 @router.get("/vehicles", response_model=Page[VehicleOut], summary="Транспортные средства")
 async def list_vehicles(
     organization_id: uuid.UUID | None = None,
@@ -113,18 +73,3 @@ async def list_vehicles(
         page=page.page,
         page_size=page.page_size,
     )
-
-
-@router.post(
-    "/vehicles",
-    response_model=VehicleOut,
-    status_code=status.HTTP_201_CREATED,
-    summary="Добавить ТС",
-)
-async def create_vehicle(
-    body: VehicleCreate,
-    principal: Principal = Depends(get_principal),
-    session: AsyncSession = Depends(get_session),
-) -> VehicleOut:
-    """Создаёт ТС в Предрейсе и в реплике журналов."""
-    return VehicleOut.model_validate(await _service(session).create_vehicle(principal, body))

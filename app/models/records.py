@@ -94,7 +94,8 @@ class MedicalRecord(RecordMixin, Base):
     pulse: Mapped[int] = mapped_column(SmallInteger)
     temperature: Mapped[Decimal] = mapped_column(Numeric(3, 1))
     alcohol_mgl: Mapped[Decimal] = mapped_column(Numeric(4, 2))
-    harmful_factors: Mapped[HarmfulFactors] = mapped_column(enum_col(HarmfulFactors))
+    # None — признак не определялся (автоматический осмотр «Водителя+» без живого медика).
+    harmful_factors: Mapped[HarmfulFactors | None] = mapped_column(enum_col(HarmfulFactors))
     harmful_factors_note: Mapped[str | None] = mapped_column(Text)
     result: Mapped[InspectionResult] = mapped_column(enum_col(InspectionResult))
 

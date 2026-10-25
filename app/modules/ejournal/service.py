@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 from datetime import date, datetime, timezone
 from typing import Any
@@ -13,16 +14,23 @@ from app.core.config import get_settings
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationFailedError
 from app.core.security import Principal
 from app.core.storage import Storage, get_storage
-from app.domain.enums import EJournalStatus, JournalKind, RecordStatus
+from app.domain.enums import (
+    EJournalStatus,
+    JournalKind,
+    RecordStatus,
+    SignJobStatus,
+    SignTarget,
+)
 from app.domain.permissions import RECORD_PERMS, Permission, has_permission
-from app.integrations.predreis.client import Signer
+from app.integrations.predreis.client import SignGateway, SignResult
 from app.models.catalog import Organization
-from app.models.documents import EJournal, EJournalItem
+from app.models.documents import EJournal, EJournalItem, SignJob
 from app.models.records import AnyRecord, record_model
 from app.modules.audit.service import append_audit
 from app.modules.ejournal.builder import ContainerBuilder, PackageBuilder
 from app.modules.ejournal.schemas import EJournalCreate
 from app.modules.integration import outbox
+from app.modules.signing.service import SigningService
 
 
 def _eligible(model: Any, organization_id: uuid.UUID, start: date, end: date) -> list[Any]:
@@ -44,13 +52,13 @@ class EJournalService:
     def __init__(
         self,
         session: AsyncSession,
-        signer: Signer,
+        gateway: SignGateway,
         builder: PackageBuilder | None = None,
         storage: Storage | None = None,
     ) -> None:
-        """Принимает сессию, подписанта, строителя контейнера и хранилище файлов."""
+        """Принимает сессию, шлюз подписи, строителя контейнера и хранилище файлов."""
         self.session = session
-        self.signer = signer
+        self.gateway = gateway
         self.storage = storage or get_storage()
         self.builder: PackageBuilder = builder or ContainerBuilder(session, self.storage)
 
@@ -192,12 +200,55 @@ class EJournalService:
         return journal
 
     async def sign(self, principal: Principal, journal_id: uuid.UUID) -> EJournal:
-        """Подпись СА: УКЭП организации, записи становятся типа В (неизменяемыми)."""
+        """Кнопка «Подписать» (СА): ставит journal.xml на подпись организации в Предрейсе.
+
+        Дальнейшее (сборка ZIP, переход записей в статус В) выполняет воркер по готовности подписи.
+        """
         journal = await self._get(journal_id, for_update=True)
         self._require(principal, journal.kind, build=False)
         if journal.status is not EJournalStatus.AWAITING_SIGNATURE:
             raise ConflictError("Журнал не ожидает подписи", code="invalid_status")
-        await self.builder.finalize(journal, self.signer, principal)
+        if not journal.xml_key or not journal.xml_sha256:
+            raise ConflictError("Пакет журнала не подготовлен", code="package_missing")
+        content = await self.storage.get(journal.xml_key)
+        if hashlib.sha256(content).hexdigest() != journal.xml_sha256:
+            raise ConflictError("journal.xml изменился после отправки", code="storage_integrity")
+        settings = get_settings()
+        job = SignJob(
+            id=uuid.uuid4(),
+            target=SignTarget.JOURNAL,
+            journal_kind=journal.kind,
+            subject_id=journal.id,
+            signer_user_id=settings.org_signer_user_id or principal.user_id,
+            requested_by=principal.user_id,
+            document_type=settings.journal_sign_document_type,
+            content_key=journal.xml_key,
+            content_sha256=journal.xml_sha256,
+            status=SignJobStatus.QUEUED,
+            external_id="",
+        )
+        job.external_id = str(job.id)
+        self.session.add(job)
+        journal.status = EJournalStatus.SIGNING
+        journal.sign_error = None
+        await append_audit(
+            self.session,
+            principal,
+            action="ejournal.sign_requested",
+            entity_type="ejournal",
+            entity_id=str(journal.id),
+            payload={"job": job.external_id},
+        )
+        await self.session.commit()
+        await SigningService(self.session, self.gateway, self.storage).dispatch_queued()
+        return journal
+
+    async def finish_signing(self, job: SignJob, result: SignResult) -> None:
+        """Завершает подпись журнала: собирает ZIP, записи становятся неизменяемыми (тип В)."""
+        journal = await self._get(job.subject_id, for_update=True)
+        if journal.status is not EJournalStatus.SIGNING:
+            raise ConflictError("Журнал не в состоянии подписи", code="invalid_status")
+        await self.builder.finalize(journal, result)
         model = record_model(journal.kind)
         await self.session.execute(
             update(model)
@@ -205,19 +256,17 @@ class EJournalService:
             .values(status=RecordStatus.IN_JOURNAL)
         )
         journal.status = EJournalStatus.SIGNED
-        journal.signed_by = principal.user_id
-        journal.signed_at = datetime.now(timezone.utc)
+        journal.signed_by = job.requested_by
+        journal.signed_at = result.signed_at
+        journal.sign_error = None
         await outbox.enqueue(self.session, "ejournal.signed", {"journal_id": str(journal.id)})
-        await append_audit(
-            self.session,
-            principal,
-            action="ejournal.sign",
-            entity_type="ejournal",
-            entity_id=str(journal.id),
-            payload={"records": journal.record_count},
-        )
-        await self.session.commit()
-        return journal
+
+    async def fail_signing(self, job: SignJob, error: str) -> None:
+        """Подпись не удалась: журнал снова ждёт подписи, причина видна СА."""
+        journal = await self._get(job.subject_id, for_update=True)
+        if journal.status is EJournalStatus.SIGNING:
+            journal.status = EJournalStatus.AWAITING_SIGNATURE
+            journal.sign_error = error
 
     async def reject(
         self, principal: Principal, journal_id: uuid.UUID, reason: str | None

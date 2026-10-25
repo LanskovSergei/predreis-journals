@@ -10,8 +10,8 @@
 ## Быстрый старт
 
 ```bash
-cp .env.example .env            # заполнить секреты (JOURNALS_PREDREIS_*)
-docker compose up -d --build    # postgres, redis, миграции, api (127.0.0.1:8000), worker
+cp .env.example .env            # заполнить JOURNALS_PREDREIS_CLIENT_SECRET и JOURNALS_RABBITMQ_URL
+docker compose up -d --build    # postgres, redis, миграции, api (127.0.0.1:8000), worker, consumer
 open http://127.0.0.1:8000/docs
 ```
 
@@ -22,7 +22,8 @@ python -m venv .venv && . .venv/bin/activate
 make install                    # pip install -e ".[dev]"
 alembic upgrade head
 make run                        # uvicorn с автоперезагрузкой
-make worker                     # ARQ: outbox и сверка справочников
+make worker                     # ARQ: справочники и задачи подписи
+python -m app.workers.consumer  # потребитель очереди осмотров (RabbitMQ)
 ```
 
 Для WeasyPrint нужны системные библиотеки (`libpango-1.0-0`, `libpangoft2-1.0-0`) и шрифты с кириллицей
@@ -45,13 +46,13 @@ make lint typecheck
 | FSM записи А → Б → В, триггеры БД, неизменяемость | ✅ |
 | Матрица прав (сверена с ТЗ тестом) | ✅ |
 | Маскирование медданных (API и PDF, 323-ФЗ) | ✅ |
-| Подпись записи / массовая подпись через Предрейс | ✅ (клиент по контракту, проверено на заглушке) |
+| Асинхронная подпись записей и журнала через Предрейс (задачи, опрос, отказ, таймаут) | ✅ |
 | Отчётные PDF «Выгрузка» (медосмотры, техконтроль) | ✅ |
-| Приём ЭПЛ Т2/Т3/Т6 и справочников (HMAC, идемпотентность) | ✅ |
+| Приём осмотров из очереди RabbitMQ (идемпотентно, привязка по реквизитам, `inbox_failures`) | ✅ (формат сообщений сверяется по образцам) |
 | Запросы на удаление, подтверждение Админ/СА | ✅ |
 | Audit log (хеш-цепочка, append-only) | ✅ |
 | Статистика стартовой страницы | ✅ |
-| Outbox → Предрейс, ночная сверка справочников | ✅ (ждёт эндпоинтов Предрейса) |
+| Синхронизация справочников из Предрейса (инкрементально) | ✅ (формат ответа сверяется по образцу) |
 | Электронный журнал: статусы, резервирование, подпись/отклонение СА | ✅ |
 | Электронный журнал: сборка ZIP, `journal.xml`/`manifest.xml`, audit log, PDF с плашкой, самопроверка | ✅ |
 | **OCR сканов** (`ocr/service.py`, клиент Yandex Vision готов) | ⏳ заглушка |
@@ -63,8 +64,8 @@ make lint typecheck
 ## Документы
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — архитектура, модель данных, FSM, безопасность
-- [docs/integration-contract.md](docs/integration-contract.md) — контракт с Предрейсом и список его доработок
 - [docs/xml-schema.md](docs/xml-schema.md) — форматы XML (XSD) и образцы
+- [docs/predreis-integration.md](docs/predreis-integration.md) — интеграция с Предрейсом: справочники, очередь, подпись, разбор сбоев
 - [docs/container-format.md](docs/container-format.md) — состав ZIP-контейнера журнала и порядок его проверки
 - [docs/openapi.json](docs/openapi.json) — контракт API для фронтенда (`make openapi`)
 
@@ -77,8 +78,8 @@ app/
   models/          SQLAlchemy 2 (async)
   modules/         medical, technical, catalog, signing, reports, ejournal,
                    deletion, ocr, stats, audit, integration — router/service/schemas
-  integrations/    predreis (клиент, схемы событий), yandex_vision
-  workers/         ARQ: outbox, сверка справочников
+  integrations/    predreis (клиент, схемы, сообщения очереди, разбор CMS), yandex_vision
+  workers/         ARQ (справочники, подпись) и потребитель очереди
   templates/pdf/   Jinja2-шаблоны отчётов
 alembic/           0001 схема, 0002 триггеры неизменяемости
 tests/             юнит и интеграционные (PostgreSQL)

@@ -3,14 +3,19 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
+from app.core.errors import UpstreamError
 from app.core.security import Principal
-from app.domain.enums import Gender, Role, SignatureKind, WorkFormat
-from app.integrations.predreis.client import SignResult
+from app.core.storage import Storage
+from app.domain.enums import Gender, JournalKind, Role, WorkFormat
+from app.integrations.predreis.client import CertInfo, SignStatus, SignTicket
 from app.integrations.predreis.schemas import (
     DriverPayload,
     OrganizationPayload,
@@ -23,6 +28,9 @@ from app.modules.catalog.service import (
     upsert_user,
     upsert_vehicle,
 )
+from app.modules.ejournal.service import EJournalService
+from app.modules.records.schemas import SignBatchResult
+from app.modules.signing.service import SigningService
 
 MSK = timezone(timedelta(hours=3))
 
@@ -125,39 +133,104 @@ async def seed(session: AsyncSession, work_format: WorkFormat = WorkFormat.EPL) 
     return w
 
 
+@dataclass
+class SubmitCall:
+    """Вызов отправки на подпись, записанный заглушкой."""
+
+    document_type: str
+    signer_user_id: uuid.UUID
+    external_id: str
+    content: bytes
+
+
 class FakeSigner:
-    """Заглушка Предрейса: возвращает фиктивную подпись и сертификат."""
+    """Заглушка шлюза подписи Предрейса: принимает задачи и подписывает при опросе."""
 
-    def __init__(self) -> None:
-        """Запоминает вызовы."""
-        self.calls: list[tuple[str, SignatureKind]] = []
-
-    async def sign_detached(
+    def __init__(
         self,
         *,
-        content: bytes,
-        filename: str,
-        kind: SignatureKind,
-        signer_user_id: uuid.UUID | None,
-        on_behalf_token: str | None,
-    ) -> SignResult:
-        """Возвращает фиктивный результат подписи."""
-        self.calls.append((filename, kind))
+        cert: bool = True,
+        fail: str | None = None,
+        hold: bool = False,
+        submit_error: bool = False,
+    ) -> None:
+        """cert — отдавать сведения о сертификате; fail — причина отказа; hold — не подписывать."""
+        self.cert, self.fail, self.hold, self.submit_error = cert, fail, hold, submit_error
+        self.calls: list[SubmitCall] = []
+        self._jobs: dict[str, SubmitCall] = {}
+
+    async def submit(
+        self, *, signer_user_id: uuid.UUID, document_type: str, content: bytes, external_id: str
+    ) -> SignTicket:
+        """Принимает документ; при submit_error имитирует недоступность Предрейса."""
+        if self.submit_error:
+            raise UpstreamError("Предрейс недоступен")
+        call = SubmitCall(document_type, signer_user_id, external_id, content)
+        self.calls.append(call)
+        self._jobs[external_id] = call
+        return SignTicket(sign_id=str(uuid.uuid4()), status="pending")
+
+    async def fetch(self, external_ids: Sequence[str]) -> list[SignStatus]:
+        """Отдаёт состояния: pending, failed или signed (с подписью и сертификатом)."""
         now = datetime.now(timezone.utc)
-        return SignResult(
-            signature=b"SIG:" + content[:16],
-            tsp=b"TSP",
-            cert_serial="f18dd73747eccc4ab0d2b1ee00d4040e",
-            cert_subject=(
-                "ООО «ПРЕДРЕЙС»"
-                if kind is SignatureKind.ORGANIZATION
-                else "Абдуллаева Гульзана Абутдиновна"
-            ),
-            cert_valid_from=now - timedelta(days=365),
-            cert_valid_to=now + timedelta(days=365),
-            ocsp_status="good",
-            signed_at=now,
-        )
+        out: list[SignStatus] = []
+        for ext in external_ids:
+            call = self._jobs.get(ext)
+            if call is None:
+                continue
+            if self.hold:
+                out.append(SignStatus(ext, None, "pending"))
+            elif self.fail:
+                out.append(SignStatus(ext, None, "failed", error=self.fail))
+            else:
+                org = call.document_type == get_settings().journal_sign_document_type
+                cert = CertInfo(
+                    "f18dd73747eccc4ab0d2b1ee00d4040e",
+                    "ООО «ПРЕДРЕЙС»" if org else "Абдуллаева Гульзана Абутдиновна",
+                    now - timedelta(days=365),
+                    now + timedelta(days=365),
+                )
+                out.append(
+                    SignStatus(
+                        ext,
+                        None,
+                        "signed",
+                        signature=b"SIG:" + call.content[:16],
+                        tsp=b"TSP",
+                        certificate=cert if self.cert else None,
+                        ocsp_status="good",
+                        signed_at=now,
+                    )
+                )
+        return out
+
+
+async def sign_records_now(
+    session: AsyncSession,
+    gateway: FakeSigner,
+    storage: Storage,
+    who: Principal,
+    kind: JournalKind,
+    ids: list[uuid.UUID],
+) -> SignBatchResult:
+    """Ставит записи на подпись и сразу прогоняет воркер: итог — подписанные записи."""
+    svc = SigningService(session, gateway, storage)
+    result = await svc.request_signing(who, kind, ids)
+    await svc.process_jobs()
+    return result
+
+
+async def sign_journal_now(
+    session: AsyncSession,
+    gateway: FakeSigner,
+    storage: Storage,
+    ejournals: EJournalService,
+    who: Principal,
+    journal_id: uuid.UUID,
+) -> None:
+    """Подпись журнала: СА нажимает «Подписать», воркер завершает подпись."""
+    await ejournals.sign(who, journal_id)
+    await SigningService(session, gateway, storage, journal_finisher=ejournals).process_jobs()
 
 
 EXAM = datetime(2026, 10, 14, 8, 20)

@@ -54,3 +54,19 @@ class SyncState(Base):
     entity: Mapped[str] = mapped_column(String(32), primary_key=True)
     cursor: Mapped[str | None] = mapped_column(String(255))
     synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class InboxFailure(Base):
+    """Сообщение очереди, которое не удалось превратить в запись (для разбора оператором)."""
+
+    __tablename__ = "inbox_failures"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    message_id: Mapped[str] = mapped_column(String(128), index=True)
+    event_type: Mapped[str | None] = mapped_column(String(64))
+    reason: Mapped[str] = mapped_column(String(64), index=True)
+    detail: Mapped[str | None] = mapped_column(Text)
+    payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

@@ -81,7 +81,8 @@ def build_record_xml(kind: JournalKind, record: AnyRecord) -> bytes:
         _sub(exam, "Pulse", record.pulse)
         _sub(exam, "Temperature", _decimal(record.temperature))
         _sub(exam, "Alcohol", _decimal(record.alcohol_mgl))
-        _sub(exam, "HarmfulFactors", record.harmful_factors.value)
+        if record.harmful_factors is not None:
+            _sub(exam, "HarmfulFactors", record.harmful_factors.value)
         _sub_opt(exam, "HarmfulFactorsNote", record.harmful_factors_note)
         _sub(exam, "Result", record.result.value)
     else:

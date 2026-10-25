@@ -32,7 +32,9 @@ class Organization(TimestampMixin, Base):
     contract_number: Mapped[str | None] = mapped_column(String(128))
     contract_date: Mapped[date | None] = mapped_column(Date)
     contract_until: Mapped[date | None] = mapped_column(Date)
-    work_format: Mapped[WorkFormat] = mapped_column(enum_col(WorkFormat))
+    work_format: Mapped[WorkFormat] = mapped_column(
+        enum_col(WorkFormat), default=WorkFormat.EPL, server_default="epl"
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     note: Mapped[str | None] = mapped_column(Text)
     synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -46,8 +48,8 @@ class Driver(TimestampMixin, Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
     organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
     full_name: Mapped[str] = mapped_column(String(255), index=True)
-    gender: Mapped[Gender] = mapped_column(enum_col(Gender, 1))
-    birth_date: Mapped[date] = mapped_column(Date)
+    gender: Mapped[Gender | None] = mapped_column(enum_col(Gender, 1))
+    birth_date: Mapped[date | None] = mapped_column(Date)
     snils: Mapped[str | None] = mapped_column(String(14))
     license_number: Mapped[str | None] = mapped_column(String(32))
     license_issued_at: Mapped[date | None] = mapped_column(Date)

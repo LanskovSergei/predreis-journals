@@ -62,38 +62,6 @@
         ]
       }
     },
-    "/api/v1/stats/certificates": {
-      "get": {
-        "tags": [
-          "Профиль и статистика"
-        ],
-        "summary": "Сертификаты медиков и механиков",
-        "description": "Статусы сертификатов из Предрейса; медик и механик видят только свой.",
-        "operationId": "certificates_api_v1_stats_certificates_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "additionalProperties": true,
-                    "type": "object"
-                  },
-                  "type": "array",
-                  "title": "Response Certificates Api V1 Stats Certificates Get"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
     "/api/v1/medical/records": {
       "get": {
         "tags": [
@@ -347,8 +315,8 @@
         "tags": [
           "Журнал медосмотров"
         ],
-        "summary": "Подписать записи (в т.ч. массово)",
-        "description": "Подписывает записи личным сертификатом медика (через Предрейс).",
+        "summary": "Отправить записи на подпись (в т.ч. массово)",
+        "description": "Ставит записи в очередь на подпись сертификатом медика (подписывает Предрейс).",
         "operationId": "sign_records_api_v1_medical_records_sign_post",
         "requestBody": {
           "content": {
@@ -912,8 +880,8 @@
         "tags": [
           "Журнал техконтроля"
         ],
-        "summary": "Подписать записи (в т.ч. массово)",
-        "description": "Подписывает записи личным сертификатом механика (через Предрейс).",
+        "summary": "Отправить записи на подпись (в т.ч. массово)",
+        "description": "Ставит записи в очередь на подпись сертификатом механика (подписывает Предрейс).",
         "operationId": "sign_records_api_v1_technical_records_sign_post",
         "requestBody": {
           "content": {
@@ -1520,51 +1488,6 @@
             }
           }
         }
-      },
-      "post": {
-        "tags": [
-          "Каталог"
-        ],
-        "summary": "Добавить организацию",
-        "description": "Создаёт организацию в Предрейсе (реквизиты по ИНН) и в реплике журналов.",
-        "operationId": "create_organization_api_v1_catalog_organizations_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OrganizationCreate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OrganizationOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
       }
     },
     "/api/v1/catalog/drivers": {
@@ -1660,51 +1583,6 @@
             }
           }
         }
-      },
-      "post": {
-        "tags": [
-          "Каталог"
-        ],
-        "summary": "Добавить водителя",
-        "description": "Создаёт водителя в Предрейсе и в реплике журналов.",
-        "operationId": "create_driver_api_v1_catalog_drivers_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DriverCreate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DriverOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
       }
     },
     "/api/v1/catalog/vehicles": {
@@ -1785,51 +1663,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Page_VehicleOut_"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Каталог"
-        ],
-        "summary": "Добавить ТС",
-        "description": "Создаёт ТС в Предрейсе и в реплике журналов.",
-        "operationId": "create_vehicle_api_v1_catalog_vehicles_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/VehicleCreate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/VehicleOut"
                 }
               }
             }
@@ -2200,8 +2033,8 @@
         "tags": [
           "Электронные журналы"
         ],
-        "summary": "Подписать (СА)",
-        "description": "Подписывает журнал УКЭП организации.",
+        "summary": "Подписать (СА): постановка в очередь подписи",
+        "description": "Ставит журнал в очередь подписи организации; статус «signing», затем «signed».",
         "operationId": "sign_journal_api_v1_ejournals__journal_id__sign_post",
         "security": [
           {
@@ -2501,32 +2334,6 @@
         }
       }
     },
-    "/integration/v1/events": {
-      "post": {
-        "tags": [
-          "Интеграция (служебное)"
-        ],
-        "summary": "Приём событий от Предрейса (HMAC)",
-        "description": "Проверяет подпись, валидирует и применяет событие; повторная доставка безопасна.",
-        "operationId": "receive_event_integration_v1_events_post",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "type": "object",
-                  "title": "Response Receive Event Integration V1 Events Post"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/health": {
       "get": {
         "tags": [
@@ -2741,84 +2548,6 @@
         "title": "DeletionStatus",
         "description": "Статус запроса на удаление подписанной записи."
       },
-      "DriverCreate": {
-        "properties": {
-          "organization_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Organization Id"
-          },
-          "full_name": {
-            "type": "string",
-            "maxLength": 255,
-            "minLength": 3,
-            "title": "Full Name"
-          },
-          "gender": {
-            "$ref": "#/components/schemas/Gender"
-          },
-          "birth_date": {
-            "type": "string",
-            "format": "date",
-            "title": "Birth Date"
-          },
-          "snils": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Snils"
-          },
-          "license_number": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "License Number"
-          },
-          "license_issued_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "License Issued At"
-          },
-          "license_valid_until": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "License Valid Until"
-          }
-        },
-        "type": "object",
-        "required": [
-          "organization_id",
-          "full_name",
-          "gender",
-          "birth_date"
-        ],
-        "title": "DriverCreate",
-        "description": "Создание водителя."
-      },
       "DriverOut": {
         "properties": {
           "id": {
@@ -2836,11 +2565,25 @@
             "title": "Full Name"
           },
           "gender": {
-            "$ref": "#/components/schemas/Gender"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Gender"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "birth_date": {
-            "type": "string",
-            "format": "date",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Birth Date"
           },
           "snils": {
@@ -3037,6 +2780,17 @@
             ],
             "title": "Reject Reason"
           },
+          "sign_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sign Error"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -3067,6 +2821,7 @@
         "enum": [
           "draft",
           "awaiting_signature",
+          "signing",
           "signed",
           "rejected"
         ],
@@ -3480,7 +3235,14 @@
             "title": "Alcohol Mgl"
           },
           "harmful_factors": {
-            "$ref": "#/components/schemas/HarmfulFactors"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HarmfulFactors"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "harmful_factors_note": {
             "anyOf": [
@@ -3528,6 +3290,28 @@
                 "type": "null"
               }
             ]
+          },
+          "signing_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signing Status"
+          },
+          "signing_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signing Error"
           },
           "actions": {
             "items": {
@@ -3767,93 +3551,6 @@
         ],
         "title": "OcrStampType",
         "description": "Тип штампа на бумажном путевом листе."
-      },
-      "OrganizationCreate": {
-        "properties": {
-          "inn": {
-            "type": "string",
-            "pattern": "^\\d{10}(\\d{2})?$",
-            "title": "Inn"
-          },
-          "email": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Email"
-          },
-          "phone": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Phone"
-          },
-          "contract_type": {
-            "$ref": "#/components/schemas/ContractType"
-          },
-          "contract_number": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Contract Number"
-          },
-          "contract_date": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Contract Date"
-          },
-          "contract_until": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Contract Until"
-          },
-          "note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Note"
-          }
-        },
-        "type": "object",
-        "required": [
-          "inn",
-          "contract_type"
-        ],
-        "title": "OrganizationCreate",
-        "description": "Создание организации: реквизиты Предрейс подтянет по ИНН сам."
       },
       "OrganizationOut": {
         "properties": {
@@ -4664,6 +4361,28 @@
               }
             ]
           },
+          "signing_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signing Status"
+          },
+          "signing_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signing Error"
+          },
           "actions": {
             "items": {
               "type": "string"
@@ -4836,61 +4555,6 @@
           "type"
         ],
         "title": "ValidationError"
-      },
-      "VehicleCreate": {
-        "properties": {
-          "organization_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Organization Id"
-          },
-          "brand": {
-            "type": "string",
-            "title": "Brand"
-          },
-          "model": {
-            "type": "string",
-            "title": "Model"
-          },
-          "vehicle_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Vehicle Type"
-          },
-          "plate": {
-            "type": "string",
-            "maxLength": 16,
-            "minLength": 3,
-            "title": "Plate"
-          },
-          "diag_card_until": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Diag Card Until"
-          }
-        },
-        "type": "object",
-        "required": [
-          "organization_id",
-          "brand",
-          "model",
-          "plate"
-        ],
-        "title": "VehicleCreate",
-        "description": "Создание ТС."
       },
       "VehicleOut": {
         "properties": {

@@ -1,78 +1,40 @@
-"""Фоновые задачи (ARQ): доставка outbox и сверка справочников с Предрейсом."""
+"""Фоновые задачи (ARQ): синхронизация справочников и подпись документов в Предрейсе."""
 
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
 from typing import Any
 
-from pydantic import BaseModel
-from sqlalchemy import select
-
+from app.core.config import get_settings
 from app.core.db import get_sessionmaker
 from app.integrations.predreis.client import get_predreis_client
-from app.integrations.predreis.schemas import (
-    DriverPayload,
-    OrganizationPayload,
-    UserPayload,
-    VehiclePayload,
-)
-from app.models.catalog import Driver, Organization, User, Vehicle
-from app.models.integration import SyncState
-from app.modules.catalog.service import (
-    upsert_driver,
-    upsert_organization,
-    upsert_user,
-    upsert_vehicle,
-)
-from app.modules.integration.outbox import dispatch_pending
+from app.modules.catalog.sync import SYNC_PLAN, sync_entity
+from app.modules.ejournal.service import EJournalService
+from app.modules.signing.service import SigningService
 
 logger = logging.getLogger(__name__)
 
-# Порядок важен: сначала организации и пользователи, затем зависящие от них сущности.
-SYNC_PLAN: list[tuple[str, type[BaseModel], Any]] = [
-    ("organizations", OrganizationPayload, upsert_organization),
-    ("users", UserPayload, upsert_user),
-    ("drivers", DriverPayload, upsert_driver),
-    ("vehicles", VehiclePayload, upsert_vehicle),
-]
-_ = (Driver, Organization, User, Vehicle)  # модели нужны Alembic/metadata
 
-
-async def process_outbox(ctx: dict[str, Any]) -> int:
-    """Отправляет накопленные уведомления в Предрейс."""
-    async with get_sessionmaker()() as session:
-        sent = await dispatch_pending(session, get_predreis_client())
-    if sent:
-        logger.info("Outbox: отправлено %s событий", sent)
-    return sent
-
-
-async def reconcile_catalog(ctx: dict[str, Any]) -> dict[str, int]:
-    """Ночная сверка: подтягивает изменения справочников по курсору и применяет к репликам."""
-    client = get_predreis_client()
+async def sync_catalogs(ctx: dict[str, Any]) -> dict[str, int]:
+    """Подтягивает изменения организаций, водителей и ТС из Предрейса."""
+    client, settings = get_predreis_client(), get_settings()
     counts: dict[str, int] = {}
     async with get_sessionmaker()() as session:
         for entity, payload_cls, upsert in SYNC_PLAN:
-            state = (
-                await session.execute(select(SyncState).where(SyncState.entity == entity))
-            ).scalar_one_or_none()
-            if state is None:
-                state = SyncState(entity=entity)
-                session.add(state)
-            cursor = state.cursor
-            applied = 0
-            while True:
-                page = await client.list_changes(entity, cursor=cursor)
-                for item in page.get("items", []):
-                    await upsert(session, payload_cls.model_validate(item))
-                    applied += 1
-                cursor = page.get("next_cursor") or cursor
-                state.cursor = cursor
-                state.synced_at = datetime.now(timezone.utc)
-                await session.commit()
-                if not page.get("next_cursor"):
-                    break
-            counts[entity] = applied
-    logger.info("Сверка справочников: %s", counts)
+            counts[entity] = await sync_entity(
+                session, client, entity, payload_cls, upsert, settings
+            )
+    if any(counts.values()):
+        logger.info("Синхронизация справочников: %s", counts)
+    return counts
+
+
+async def process_sign_jobs(ctx: dict[str, Any]) -> dict[str, int]:
+    """Отправляет задачи подписи в Предрейс и завершает готовые (записи и электронные журналы)."""
+    client = get_predreis_client()
+    async with get_sessionmaker()() as session:
+        journals = EJournalService(session, client)
+        counts = await SigningService(session, client, journal_finisher=journals).process_jobs()
+    if any(counts.values()):
+        logger.info("Задачи подписи: %s", counts)
     return counts

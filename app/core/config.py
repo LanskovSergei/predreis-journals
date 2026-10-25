@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import uuid
+from datetime import date
 from functools import lru_cache
 from pathlib import Path
 
@@ -25,15 +27,37 @@ class Settings(BaseSettings):
 
     # --- Интеграция с Предрейс ONLINE ---
     predreis_base_url: str = "https://predreis-online.ru"
+    predreis_timeout_s: float = 20.0
+    # Сервисный клиент (client credentials). Секрет хранить только в .env на сервере.
+    predreis_client_id: str = "journals"
+    predreis_client_secret: str = ""
+    # Вход пользователей: токены Предрейса проверяются по JWKS (механизм входа уточняется).
     predreis_jwks_url: str | None = None
     predreis_issuer: str = "predreis-online"
     jwt_audience: str = "journals"
     jwt_algorithms: list[str] = Field(default_factory=lambda: ["RS256"])
     jwks_cache_ttl_s: int = 600
-    predreis_service_token: str = ""
-    predreis_hmac_secret: str = ""
-    predreis_timeout_s: float = 20.0
-    hmac_tolerance_s: int = 300
+
+    # --- Очередь событий осмотров (RabbitMQ Предрейса) ---
+    rabbitmq_url: str = "amqp://guest:guest@localhost:5672/"
+    rabbitmq_queue: str = "journal.events.outgoing"
+    rabbitmq_requeue_delay_s: float = 30.0
+    # Осмотры раньше этой даты не импортируются (журнал ведётся «с даты»); None — всё.
+    epl_import_from: date | None = None
+
+    # --- Асинхронная подпись через Предрейс ---
+    sign_poll_batch: int = 20
+    sign_submit_max_attempts: int = 10
+    sign_pending_timeout_s: int = 3600
+    journal_sign_document_type: str = "journal.ejournal"
+    # Чей сертификат подписывает журнал; пусто — сертификат СА, нажавшего «Подписать».
+    org_signer_user_id: uuid.UUID | None = None
+
+    # --- Синхронизация справочников ---
+    catalog_page_size: int = 500
+    catalog_sync_overlap_s: int = 5
+    # Предрейс не имеет API уведомлений; включать, когда он появится.
+    predreis_notify_enabled: bool = False
 
     # --- Хранилище файлов ---
     storage_dir: Path = Path("./var/storage")

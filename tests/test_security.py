@@ -1,8 +1,7 @@
-"""Проверка JWT (RS256/JWKS) и HMAC входящих событий."""
+"""Проверка JWT (RS256/JWKS) и входа в API."""
 
 from __future__ import annotations
 
-import json
 import time
 import uuid
 from collections.abc import Iterator
@@ -18,7 +17,6 @@ from app.core.config import Settings, get_settings
 from app.core.errors import UnauthorizedError
 from app.core.security import JwksCache, decode_token, principal_from_claims
 from app.domain.enums import Role
-from app.modules.integration.security import sign_body, verify_request
 
 KID = "test-key"
 KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -90,32 +88,6 @@ async def test_alg_none_rejected(settings: Settings) -> None:
         await decode_token(forged, settings, StaticJwks())
 
 
-def test_hmac_roundtrip() -> None:
-    """Подписанный запрос проходит проверку; подделка, чужое тело и старый запрос — нет."""
-    settings = Settings(predreis_hmac_secret="s3cret")
-    body = json.dumps({"a": 1}).encode()
-    ts = str(int(time.time()))
-    good = {"x-timestamp": ts, "x-signature": sign_body("s3cret", ts, body)}
-    verify_request(body, good, settings)
-    with pytest.raises(UnauthorizedError):
-        verify_request(body + b" ", good, settings)
-    with pytest.raises(UnauthorizedError):
-        verify_request(body, {**good, "x-signature": "0" * 64}, settings)
-    old = str(int(time.time()) - 3600)
-    with pytest.raises(UnauthorizedError):
-        verify_request(
-            body, {"x-timestamp": old, "x-signature": sign_body("s3cret", old, body)}, settings
-        )
-
-
-def test_hmac_disabled_without_secret() -> None:
-    """Без секрета канал интеграции закрыт."""
-    with pytest.raises(UnauthorizedError):
-        verify_request(
-            b"{}", {"x-timestamp": "1", "x-signature": "x"}, Settings(predreis_hmac_secret="")
-        )
-
-
 @pytest.fixture
 def client(monkeypatch: pytest.MonkeyPatch) -> Iterator[httpx.AsyncClient]:
     """HTTP-клиент поверх ASGI-приложения с подменой JWKS."""
@@ -145,18 +117,3 @@ async def test_api_me_and_journals_flag(client: httpx.AsyncClient) -> None:
     )
     assert denied.status_code == 403
     assert denied.json()["error"]["code"] == "journals_disabled"
-
-
-async def test_events_endpoint_rejects_bad_signature(
-    client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Событие с неверной подписью не принимается."""
-    monkeypatch.setenv("JOURNALS_PREDREIS_HMAC_SECRET", "s3cret")
-    get_settings.cache_clear()
-    resp = await client.post(
-        "/integration/v1/events",
-        content=b"{}",
-        headers={"x-timestamp": str(int(time.time())), "x-signature": "deadbeef"},
-    )
-    assert resp.status_code == 401
-    assert resp.json()["error"]["code"] == "bad_signature"

@@ -10,10 +10,10 @@ import zipfile
 from datetime import timedelta
 
 import pytest
-from pydantic import TypeAdapter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.errors import ConflictError
 from app.core.storage import LocalStorage
 from app.domain.enums import (
@@ -23,9 +23,8 @@ from app.domain.enums import (
     RecordSource,
     RecordStatus,
     Role,
-    SignatureKind,
 )
-from app.integrations.predreis.schemas import IntegrationEvent
+from app.integrations.predreis.schemas import EplRecordEvent
 from app.models.documents import RecordDocument
 from app.models.records import MedicalRecord, TechnicalRecord
 from app.modules.audit.service import verify_audit_export
@@ -36,7 +35,15 @@ from app.modules.integration.service import IntegrationService
 from app.modules.signing.service import SigningService
 from app.modules.technical.schemas import TechnicalRecordCreate
 from app.modules.technical.service import TechnicalService
-from tests.factories import FakeSigner, World, epl_event, principal, seed
+from tests.factories import (
+    FakeSigner,
+    World,
+    epl_event,
+    principal,
+    seed,
+    sign_journal_now,
+    sign_records_now,
+)
 from tests.integration.test_flows import PERFORMED, _signed_record
 
 pytestmark = pytest.mark.asyncio
@@ -47,9 +54,7 @@ async def _ingest(
 ) -> None:
     """Принимает ЭПЛ-событие."""
     raw = epl_event(event_type, w, **over)
-    await IntegrationService(session, storage).handle(
-        TypeAdapter(IntegrationEvent).validate_python(raw)
-    )
+    await IntegrationService(session, storage).handle(EplRecordEvent.model_validate(raw))
 
 
 def _create_data(w: World, kind: JournalKind) -> EJournalCreate:
@@ -104,11 +109,15 @@ async def test_full_journal_lifecycle_produces_valid_container(
     staged_xml = await storage.get(awaiting.xml_key or "")
     assert sha256_hex(staged_xml) == awaiting.xml_sha256
 
-    signed = await svc.sign(sa, draft.id)
+    signing = await svc.sign(sa, draft.id)
+    assert signing.status is EJournalStatus.SIGNING
+    await SigningService(session, signer, storage, journal_finisher=svc).process_jobs()
+    signed = await svc.get(sa, draft.id)
     assert signed.status is EJournalStatus.SIGNED
     # СА подписывает ровно тот journal.xml, который был подготовлен при отправке.
-    name, kind = signer.calls[-1]
-    assert (name, kind) == ("journal.xml", SignatureKind.ORGANIZATION)
+    call = signer.calls[-1]
+    assert call.document_type == get_settings().journal_sign_document_type
+    assert call.content == staged_xml
     assert signed.cert_subject == "ООО «ПРЕДРЕЙС»" and signed.cert_serial
 
     zip_bytes = await storage.get(signed.zip_key or "")
@@ -163,8 +172,8 @@ async def test_technical_journal_container(session: AsyncSession, storage: Local
             result=InspectionResult.ADMITTED,
         ),
     )
-    res = await SigningService(session, FakeSigner(), storage).sign_records(
-        mech, JournalKind.TECHNICAL, [out.id]
+    res = await sign_records_now(
+        session, FakeSigner(), storage, mech, JournalKind.TECHNICAL, [out.id]
     )
     assert res.signed == 1
     await _ingest(
@@ -178,7 +187,10 @@ async def test_technical_journal_container(session: AsyncSession, storage: Local
     svc = EJournalService(session, FakeSigner(), storage=storage)
     draft = await svc.create(manager, _create_data(w, JournalKind.TECHNICAL))
     await svc.submit(manager, draft.id)
-    signed = await svc.sign(sa, draft.id)
+    gateway = FakeSigner()
+    svc = EJournalService(session, gateway, storage=storage)
+    await sign_journal_now(session, gateway, storage, svc, sa, draft.id)
+    signed = await svc.get(sa, draft.id)
     zip_bytes = await storage.get(signed.zip_key or "")
     assert verify_container(zip_bytes) == []
     techs = (await session.execute(select(TechnicalRecord))).scalars().all()

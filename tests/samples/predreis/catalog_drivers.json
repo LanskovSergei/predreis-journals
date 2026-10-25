@@ -1,0 +1,16 @@
+[
+  {
+    "id": "46e1e6c2-c42e-442d-a6ef-8e36a3134f95",
+    "org_id": "1ebdb311-c1d4-46f1-b526-a475562bec9a",
+    "gender": null,
+    "last_name": "Водителев",
+    "first_name": "Василий",
+    "middle_name": "Васильевич",
+    "birth_date": "1985-05-20T00:00:00",
+    "license_series": "7700",
+    "license_number": "7700123456",
+    "is_active": true,
+    "created_at": "2026-06-04T06:29:56.962981Z",
+    "updated_at": "2026-06-04T06:29:56.962981Z"
+  }
+]

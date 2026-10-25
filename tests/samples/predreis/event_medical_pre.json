@@ -1,0 +1,61 @@
+{
+  "id": "0b2b9f64-3e8c-4a55-9f1a-2c4d6e8a1b33",
+  "event_type": "journal.medical_exam",
+  "entity_id": "ae5ca99a-5ae4-413e-85a9-1ceffefb285d",
+  "created_at": "2026-09-25T09:21:10.114221+00:00",
+  "payload": {
+    "waybill_id": "ae5ca99a-5ae4-413e-85a9-1ceffefb285d",
+    "waybill_number": "AE5CA99A",
+    "gis_uid": "5860a3c7-ca83-4b1e-bb5b-5096851ab098",
+    "organization": {
+      "id": "83770066-a33c-4894-8cfc-90eef5e086da",
+      "inn": "770000000000",
+      "kpp": null,
+      "ogrn": "300000000000000",
+      "name_short": "ИП ИВАНОВ ИВАН ИВАНОВИЧ",
+      "name_full": "Индивидуальный предприниматель Иванов Иван Иванович",
+      "legal_address": null
+    },
+    "driver": {
+      "id": "bd8a9b05-c07c-4aa7-9f73-3ef2924d41ec",
+      "last_name": "Петров",
+      "first_name": "Пётр",
+      "middle_name": "Петрович",
+      "gender": null,
+      "birth_date": "2000-09-09",
+      "license_series": null,
+      "license_number": "9900000000"
+    },
+    "vehicle": {
+      "id": "26a36da0-8699-4324-9d83-17e58ee8f7e4",
+      "plate_number": "О231ТА790",
+      "brand": "VOLKSWAGEN",
+      "model": "TOURAN",
+      "category": "B"
+    },
+    "specialist_user_id": "32b933cf-f31a-4e55-b0be-39a221a64ed7",
+    "specialist": {
+      "last_name": "Сидорова",
+      "first_name": "Анна",
+      "middle_name": "Сергеевна"
+    },
+    "exam_type": "pre_trip",
+    "exam_datetime": "2026-09-25T09:20:32.859899+00:00",
+    "vitals": {
+      "blood_pressure_systolic": 116,
+      "blood_pressure_diastolic": 80,
+      "pulse": 78,
+      "temperature": 36.5,
+      "alcohol_detected": false,
+      "alcohol_ppm": 0.0
+    },
+    "complaints": "отсутствуют",
+    "harmful_factors_detected": null,
+    "harmful_factors": null,
+    "approved": true,
+    "critical_flag": false,
+    "notes": "Автоматический предрейсовый осмотр (Водитель+)",
+    "title_number": 2,
+    "title_doc_id": "1458084322"
+  }
+}

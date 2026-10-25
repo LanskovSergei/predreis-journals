@@ -35,7 +35,7 @@
 - `Note` — только если примечание не пусто. У записей, подписанных специалистом, его нет: запись с
   примечанием подписать нельзя. У записей из ЭПЛ оно может быть.
 - `MedicalExamination`: `Phase` (`pre|post`), `Driver`, `Complaints`, `BloodPressure/Systolic|Diastolic`,
-  `Pulse`, `Temperature`, `Alcohol`, `HarmfulFactors` (`absent|detected`), `HarmfulFactorsNote`?, `Result`.
+  `Pulse`, `Temperature`, `Alcohol`, `HarmfulFactors`? (`absent|detected`; опускается, если признак не определялся, например при автоматическом осмотре «Водителя+»), `HarmfulFactorsNote`?, `Result`.
 - `TechnicalInspection`: `Vehicle` (`Brand`, `Model`, `Type`?, `Plate`), `Driver`?, `Odometer`, `Result`.
 - Диапазоны значений совпадают с валидацией API: АД 50–300 / 30–200, пульс 20–250, температура 30–45 (один
   знак), алкоголь 0–5 (два знака).

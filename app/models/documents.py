@@ -15,12 +15,19 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    func,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.domain.enums import DeletionStatus, EJournalStatus, JournalKind
+from app.domain.enums import (
+    DeletionStatus,
+    EJournalStatus,
+    JournalKind,
+    SignJobStatus,
+    SignTarget,
+)
 from app.models.base import Base, TimestampMixin, enum_col
 
 
@@ -83,6 +90,7 @@ class EJournal(TimestampMixin, Base):
     cert_valid_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     ocsp_status: Mapped[str | None] = mapped_column(String(32))
     package: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
+    sign_error: Mapped[str | None] = mapped_column(Text)
     filters: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
 
@@ -125,3 +133,40 @@ class DeletionRequest(TimestampMixin, Base):
     resolved_by: Mapped[uuid.UUID | None] = mapped_column()
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     resolution_comment: Mapped[str | None] = mapped_column(Text)
+
+
+class SignJob(TimestampMixin, Base):
+    """Задача подписи в Предрейсе (асинхронная): запись специалиста или журнал организации."""
+
+    __tablename__ = "sign_jobs"
+    __table_args__ = (
+        Index(
+            "uq_sign_jobs_active_subject",
+            "subject_id",
+            unique=True,
+            postgresql_where=text("status IN ('queued', 'pending')"),
+        ),
+        Index("ix_sign_jobs_status_next", "status", "next_attempt_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    target: Mapped[SignTarget] = mapped_column(enum_col(SignTarget))
+    journal_kind: Mapped[JournalKind] = mapped_column(enum_col(JournalKind))
+    subject_id: Mapped[uuid.UUID] = mapped_column()
+    external_id: Mapped[str] = mapped_column(String(64), unique=True)
+    predreis_sign_id: Mapped[str | None] = mapped_column(String(64))
+    status: Mapped[SignJobStatus] = mapped_column(
+        enum_col(SignJobStatus), default=SignJobStatus.QUEUED
+    )
+    signer_user_id: Mapped[uuid.UUID] = mapped_column()
+    requested_by: Mapped[uuid.UUID] = mapped_column()
+    document_type: Mapped[str] = mapped_column(String(64))
+    content_key: Mapped[str] = mapped_column(Text)
+    content_sha256: Mapped[str] = mapped_column(String(64))
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    next_attempt_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text)

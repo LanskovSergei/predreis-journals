@@ -53,6 +53,17 @@ services:
     volumes:
       - storage:/var/lib/journals/storage
 
+  consumer:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    command: ["python", "-m", "app.workers.consumer"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - storage:/var/lib/journals/storage
+
 volumes:
   pgdata:
   storage:

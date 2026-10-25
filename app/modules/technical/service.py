@@ -13,7 +13,7 @@ from app.domain import fsm
 from app.domain.enums import JournalKind, RecordSource, RecordStatus, Role
 from app.domain.validators import merge_auto_note, odometer_issues
 from app.models.catalog import Driver, User
-from app.models.documents import RecordDocument
+from app.models.documents import RecordDocument, SignJob
 from app.models.records import TechnicalRecord
 from app.modules.audit.service import append_audit
 from app.modules.records.base import AnyRecord, BaseRecordService, contains_pattern
@@ -34,9 +34,14 @@ class TechnicalService(BaseRecordService):
     specialist_role = Role.MECHANIC
 
     def build_out(
-        self, principal: Principal, record: TechnicalRecord, doc: RecordDocument | None
+        self,
+        principal: Principal,
+        record: TechnicalRecord,
+        doc: RecordDocument | None,
+        job: SignJob | None = None,
     ) -> TechnicalRecordOut:
         """Формирует ответ API (поля техконтроля врачебной тайны не содержат)."""
+        signing = self.signing_view(record, job)
         return TechnicalRecordOut(
             id=record.id,
             status=record.status,
@@ -55,14 +60,17 @@ class TechnicalService(BaseRecordService):
             deletion_pending=record.deletion_pending,
             in_journal_reserved=record.reserved_journal_id is not None,
             signature=self.signature_info(doc),
-            actions=self.actions(record, principal),
+            signing_status=signing[0],
+            signing_error=signing[1],
+            actions=self.actions(record, principal, job),
         )
 
     async def out(self, principal: Principal, record: AnyRecord) -> TechnicalRecordOut:
         """Формирует ответ API для одной записи (с подгрузкой подписи)."""
         assert isinstance(record, TechnicalRecord)
         docs = await self.signatures([record.id])
-        return self.build_out(principal, record, docs.get(record.id))
+        jobs = await self.signing_jobs([record.id])
+        return self.build_out(principal, record, docs.get(record.id), jobs.get(record.id))
 
     async def get_out(self, principal: Principal, record_id: uuid.UUID) -> TechnicalRecordOut:
         """Возвращает одну запись в виде ответа API."""
@@ -102,7 +110,8 @@ class TechnicalService(BaseRecordService):
             .all()
         )
         docs = await self.signatures([r.id for r in rows])
-        items = [self.build_out(principal, r, docs.get(r.id)) for r in rows]
+        jobs = await self.signing_jobs([r.id for r in rows])
+        items = [self.build_out(principal, r, docs.get(r.id), jobs.get(r.id)) for r in rows]
         return Page[TechnicalRecordOut](
             items=items, total=total, page=params.page, page_size=params.page_size
         )
@@ -191,6 +200,7 @@ class TechnicalService(BaseRecordService):
         record = await self.get(principal, record_id, for_update=True)
         assert isinstance(record, TechnicalRecord)
         fsm.ensure_editable(record.status, record.source)
+        await self._ensure_idle(record.id)
         changes = data.model_dump(exclude_unset=True)
         specialist_requested = "specialist_user_id" in changes
         requested_specialist = changes.pop("specialist_user_id", None)

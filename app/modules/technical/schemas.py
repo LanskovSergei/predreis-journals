@@ -67,4 +67,6 @@ class TechnicalRecordOut(BaseModel):
     deletion_pending: bool
     in_journal_reserved: bool
     signature: SignatureInfo | None
+    signing_status: str | None = None
+    signing_error: str | None = None
     actions: list[str]

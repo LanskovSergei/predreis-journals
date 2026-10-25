@@ -171,7 +171,7 @@
       <xs:element name="Pulse" type="rec:PulseType"/>
       <xs:element name="Temperature" type="rec:TemperatureType"/>
       <xs:element name="Alcohol" type="rec:AlcoholType"/>
-      <xs:element name="HarmfulFactors" type="rec:HarmfulFactorsType"/>
+      <xs:element name="HarmfulFactors" type="rec:HarmfulFactorsType" minOccurs="0"/>
       <xs:element name="HarmfulFactorsNote" type="rec:NonEmptyStringType" minOccurs="0"/>
       <xs:element name="Result" type="rec:ResultType"/>
     </xs:sequence>

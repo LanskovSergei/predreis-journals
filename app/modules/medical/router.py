@@ -52,14 +52,16 @@ async def create_record(
     return await MedicalService(session).create(principal, body)
 
 
-@router.post("/sign", response_model=SignBatchResult, summary="Подписать записи (в т.ч. массово)")
+@router.post(
+    "/sign", response_model=SignBatchResult, summary="Отправить записи на подпись (в т.ч. массово)"
+)
 async def sign_records(
     body: SignRequest,
     principal: Principal = Depends(get_principal),
     session: AsyncSession = Depends(get_session),
 ) -> SignBatchResult:
-    """Подписывает записи личным сертификатом медика (через Предрейс)."""
-    return await SigningService(session, get_predreis_client()).sign_records(
+    """Ставит записи в очередь на подпись сертификатом медика (подписывает Предрейс)."""
+    return await SigningService(session, get_predreis_client()).request_signing(
         principal, JournalKind.MEDICAL, body.record_ids
     )
 

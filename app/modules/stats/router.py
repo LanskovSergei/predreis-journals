@@ -8,11 +8,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
-from app.core.errors import ForbiddenError
 from app.core.security import Principal, get_principal
-from app.domain.enums import Role
-from app.domain.permissions import PERMISSION_ROLES, Permission, has_permission
-from app.integrations.predreis.client import get_predreis_client
+from app.domain.permissions import PERMISSION_ROLES, has_permission
 from app.modules.stats.service import StatsOut, StatsService
 
 router = APIRouter(tags=["Профиль и статистика"])
@@ -39,12 +36,3 @@ async def overview(
 ) -> StatsOut:
     """Статистика по организациям, водителям и записям."""
     return await StatsService(session).overview(principal)
-
-
-@router.get("/stats/certificates", summary="Сертификаты медиков и механиков")
-async def certificates(principal: Principal = Depends(get_principal)) -> list[dict[str, Any]]:
-    """Статусы сертификатов из Предрейса; медик и механик видят только свой."""
-    if not has_permission(principal.role, Permission.STATS_VIEW):
-        raise ForbiddenError("Недостаточно прав", code="permission_denied")
-    own = principal.user_id if principal.role in {Role.MEDIC, Role.MECHANIC} else None
-    return await get_predreis_client().list_certificates(own)

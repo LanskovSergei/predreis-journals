@@ -41,6 +41,7 @@ class EJournalOut(BaseModel):
     signed_by: uuid.UUID | None
     signed_at: datetime | None
     reject_reason: str | None
+    sign_error: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

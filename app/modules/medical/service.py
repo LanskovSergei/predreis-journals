@@ -21,7 +21,7 @@ from app.domain.enums import (
 from app.domain.permissions import CLIENT_ROLES
 from app.domain.validators import birth_date_issue, merge_auto_note
 from app.models.catalog import User
-from app.models.documents import RecordDocument
+from app.models.documents import RecordDocument, SignJob
 from app.models.records import MedicalRecord
 from app.modules.audit.service import append_audit
 from app.modules.medical.schemas import (
@@ -45,10 +45,15 @@ class MedicalService(BaseRecordService):
     specialist_role = Role.MEDIC
 
     def build_out(
-        self, principal: Principal, record: MedicalRecord, doc: RecordDocument | None
+        self,
+        principal: Principal,
+        record: MedicalRecord,
+        doc: RecordDocument | None,
+        job: SignJob | None = None,
     ) -> MedicalOut:
         """Формирует ответ API: для клиента — без медицинских показателей."""
         signature = self.signature_info(doc)
+        signing = self.signing_view(record, job)
         if principal.role in CLIENT_ROLES:
             driver = record.snapshot.get("driver", {})
             birth = driver.get("birth_date")
@@ -92,14 +97,17 @@ class MedicalService(BaseRecordService):
             deletion_pending=record.deletion_pending,
             in_journal_reserved=record.reserved_journal_id is not None,
             signature=signature,
-            actions=self.actions(record, principal),
+            signing_status=signing[0],
+            signing_error=signing[1],
+            actions=self.actions(record, principal, job),
         )
 
     async def out(self, principal: Principal, record: AnyRecord) -> MedicalOut:
         """Формирует ответ API для одной записи (с подгрузкой подписи)."""
         assert isinstance(record, MedicalRecord)
         docs = await self.signatures([record.id])
-        return self.build_out(principal, record, docs.get(record.id))
+        jobs = await self.signing_jobs([record.id])
+        return self.build_out(principal, record, docs.get(record.id), jobs.get(record.id))
 
     async def get_out(self, principal: Principal, record_id: uuid.UUID) -> MedicalOut:
         """Возвращает одну запись в виде ответа API."""
@@ -137,7 +145,8 @@ class MedicalService(BaseRecordService):
             .all()
         )
         docs = await self.signatures([r.id for r in rows])
-        items = [self.build_out(principal, r, docs.get(r.id)) for r in rows]
+        jobs = await self.signing_jobs([r.id for r in rows])
+        items = [self.build_out(principal, r, docs.get(r.id), jobs.get(r.id)) for r in rows]
         return Page[MedicalOut](
             items=items, total=total, page=params.page, page_size=params.page_size
         )
@@ -154,7 +163,11 @@ class MedicalService(BaseRecordService):
         org = await self._get_org(data.organization_id)
         driver = await self._get_driver(data.driver_id, org.id)
         specialist = await self._resolve_specialist(principal, data.specialist_user_id)
-        issue = birth_date_issue(driver.birth_date, local_date(data.performed_at))
+        issue = (
+            birth_date_issue(driver.birth_date, local_date(data.performed_at))
+            if driver.birth_date
+            else None
+        )
         record = MedicalRecord(
             status=RecordStatus.UNSIGNED,
             source=source,
@@ -197,6 +210,7 @@ class MedicalService(BaseRecordService):
         record = await self.get(principal, record_id, for_update=True)
         assert isinstance(record, MedicalRecord)
         fsm.ensure_editable(record.status, record.source)
+        await self._ensure_idle(record.id)
         changes = data.model_dump(exclude_unset=True)
         specialist_requested = "specialist_user_id" in changes
         requested_specialist = changes.pop("specialist_user_id", None)
@@ -220,7 +234,11 @@ class MedicalService(BaseRecordService):
                 record.snapshot = build_snapshot(
                     organization=org, specialist=specialist, driver=driver
                 )
-            issue = birth_date_issue(driver.birth_date, local_date(record.performed_at))
+            issue = (
+                birth_date_issue(driver.birth_date, local_date(record.performed_at))
+                if driver.birth_date
+                else None
+            )
             record.note = merge_auto_note(record.note, [issue] if issue else [])
         await append_audit(
             self.session,

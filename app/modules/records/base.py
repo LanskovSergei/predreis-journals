@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any, ClassVar
 
 from sqlalchemy import Select, and_, func, select
@@ -18,31 +18,29 @@ from app.core.errors import (
     ValidationFailedError,
 )
 from app.core.security import Principal
+from app.core.sqlutil import contains_pattern
 from app.domain import fsm
 from app.domain.enums import (
     JournalKind,
     RecordSource,
     RecordStatus,
     Role,
+    SignJobStatus,
+    SignTarget,
     WorkFormat,
 )
 from app.domain.permissions import CLIENT_ROLES, RECORD_PERMS, Permission, has_permission
 from app.models.catalog import Driver, Organization, User, Vehicle
-from app.models.documents import DeletionRequest, RecordDocument
+from app.models.documents import DeletionRequest, RecordDocument, SignJob
 from app.models.records import MedicalRecord, TechnicalRecord
 from app.modules.audit.service import append_audit
+from app.modules.catalog.service import ensure_principal_user
 from app.modules.integration import outbox
 from app.modules.records.schemas import RecordFilters, SignatureInfo
 
 logger = logging.getLogger(__name__)
 
 AnyRecord = MedicalRecord | TechnicalRecord
-
-
-def contains_pattern(value: str) -> str:
-    """Готовит шаблон LIKE «содержит» с экранированием спецсимволов."""
-    escaped = value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-    return f"%{escaped}%"
 
 
 def _allowed(check: Callable[..., None], **kwargs: Any) -> bool:
@@ -127,6 +125,7 @@ class BaseRecordService:
                     code="specialist_mismatch",
                 )
             specialist_id = principal.user_id
+            await ensure_principal_user(self.session, principal)
         else:
             if requested is None:
                 raise ValidationFailedError(
@@ -211,10 +210,50 @@ class BaseRecordService:
             signed_at=doc.signed_at,
         )
 
+    # --- состояние подписи -----------------------------------------------------------------
+    async def signing_jobs(self, record_ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, SignJob]:
+        """Последняя задача подписи по каждой записи (для статуса в таблице архива)."""
+        if not record_ids:
+            return {}
+        rows = await self.session.execute(
+            select(SignJob)
+            .where(SignJob.target == SignTarget.RECORD, SignJob.subject_id.in_(list(record_ids)))
+            .order_by(SignJob.created_at)
+        )
+        return {j.subject_id: j for j in rows.scalars()}
+
+    async def _ensure_idle(self, record_id: uuid.UUID) -> None:
+        """Запись, отправленную на подпись, нельзя менять: подписывается конкретное содержимое."""
+        active = (
+            await self.session.execute(
+                select(SignJob.id).where(
+                    SignJob.subject_id == record_id,
+                    SignJob.status.in_([SignJobStatus.QUEUED, SignJobStatus.PENDING]),
+                )
+            )
+        ).first()
+        if active is not None:
+            raise ConflictError("Запись отправлена на подпись", code="signing_in_progress")
+
+    @staticmethod
+    def signing_view(record: AnyRecord, job: SignJob | None) -> tuple[str | None, str | None]:
+        """Статус подписи для ответа API: queued/pending — в работе, failed — отказ и причина."""
+        if job is None or record.status is not RecordStatus.UNSIGNED:
+            return None, None
+        if job.status in (SignJobStatus.QUEUED, SignJobStatus.PENDING):
+            return "pending" if job.status is SignJobStatus.PENDING else "queued", None
+        if job.status is SignJobStatus.FAILED:
+            return "failed", job.last_error
+        return None, None
+
     # --- доступные действия (подсказка для фронтенда) --------------------------------------
-    def actions(self, record: AnyRecord, principal: Principal) -> list[str]:
+    def actions(
+        self, record: AnyRecord, principal: Principal, job: SignJob | None = None
+    ) -> list[str]:
         """Список действий, доступных пользователю над записью (кнопки в строке архива)."""
         if principal.role in CLIENT_ROLES:
+            return []
+        if job is not None and job.status in (SignJobStatus.QUEUED, SignJobStatus.PENDING):
             return []
         role, perms = principal.role, self.perms
         acts: list[str] = []
@@ -256,6 +295,7 @@ class BaseRecordService:
         self._require(principal, self.perms.delete_unsigned)
         record = await self.get(principal, record_id, for_update=True)
         fsm.ensure_deletable_unsigned(record.status, record.source)
+        await self._ensure_idle(record.id)
         await self.session.delete(record)
         await append_audit(
             self.session,
@@ -271,6 +311,7 @@ class BaseRecordService:
         self._require(principal, self.perms.edit)
         record = await self.get(principal, record_id, for_update=True)
         fsm.ensure_editable(record.status, record.source)
+        await self._ensure_idle(record.id)
         record.note = None
         await append_audit(
             self.session,
@@ -321,3 +362,5 @@ class BaseRecordService:
 
 
 __all__ = ["AnyRecord", "AppError", "BaseRecordService", "RecordSource", "contains_pattern"]
+
+__all__ = ["AnyRecord", "BaseRecordService", "contains_pattern"]
