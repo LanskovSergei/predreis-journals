@@ -11,7 +11,7 @@ import pytest
 
 from app.core.config import Settings
 from app.core.errors import ForbiddenError, UnauthorizedError
-from app.core.ratelimit import SlidingWindowLimiter
+from app.core.ratelimit import LoginGuard, SlidingWindowLimiter
 from app.core.security import UserVerifier, get_user_verifier, parse_role, principal_from_user
 from app.domain.enums import Role
 from app.integrations.predreis.client import UserLogin, VerifiedUser, get_predreis_client
@@ -198,7 +198,7 @@ def api(monkeypatch: pytest.MonkeyPatch) -> Any:
     fake, clock = FakePredreis(), Clock()
     app = create_app()
     verifier = make_verifier(fake, clock)
-    limiter = SlidingWindowLimiter(3, 60, clock)
+    limiter = LoginGuard(per_email=3, per_ip=6, window_s=60, now=clock)
     app.dependency_overrides[get_predreis_client] = lambda: fake
     app.dependency_overrides[get_user_verifier] = lambda: verifier
     app.dependency_overrides[get_login_limiter] = lambda: limiter
@@ -313,3 +313,64 @@ def test_sliding_window_limiter() -> None:
     assert limiter.allow("k")
     limiter.reset("k")
     assert limiter.allow("k") and limiter.allow("k")
+
+
+async def test_many_successful_logins_from_one_address_are_not_blocked(api: Any) -> None:
+    """Смена диспетчеров за одним адресом (NAT): успешные входы лимит не расходуют."""
+    client, _fake, _ = api
+    for _ in range(20):
+        resp = await client.post("/api/v1/auth/login", json={"email": "u@e.ru", "password": "pw"})
+        assert resp.status_code == 200
+
+
+async def test_failures_per_address_have_a_higher_threshold(api: Any) -> None:
+    """Подбор с одного адреса по разным почтам блокируется позже, чем по одной почте."""
+    client, fake, _ = api
+    fake.password_ok = False
+    codes = [
+        (
+            await client.post(
+                "/api/v1/auth/login", json={"email": f"user{i}@e.ru", "password": "bad"}
+            )
+        ).status_code
+        for i in range(9)
+    ]
+    assert codes == [401] * 6 + [429] * 3  # порог адреса в тесте — 6 неудач
+    fake.password_ok = True
+    blocked = await client.post(
+        "/api/v1/auth/login", json={"email": "fine@e.ru", "password": "ok"}
+    )
+    assert blocked.status_code == 429  # пока окно не прошло, адрес блокируется целиком
+
+
+async def test_success_resets_failures_for_that_email(api: Any) -> None:
+    """Опечатался и вошёл: счётчик неудач по почте сбрасывается."""
+    client, fake, _ = api
+    fake.password_ok = False
+    for _ in range(2):
+        await client.post("/api/v1/auth/login", json={"email": "typo@e.ru", "password": "bad"})
+    fake.password_ok = True
+    assert (
+        await client.post("/api/v1/auth/login", json={"email": "typo@e.ru", "password": "ok"})
+    ).status_code == 200
+    fake.password_ok = False
+    after = [
+        (
+            await client.post("/api/v1/auth/login", json={"email": "typo@e.ru", "password": "bad"})
+        ).status_code
+        for _ in range(3)
+    ]
+    assert after == [401, 401, 401]  # снова три неудачи подряд до блокировки
+
+
+def test_login_guard_counts_only_failures() -> None:
+    """Проверка и учёт раздельны: is_blocked сама попыток не считает."""
+    clock = Clock()
+    guard = LoginGuard(per_email=2, per_ip=10, window_s=10, now=clock)
+    for _ in range(5):
+        assert not guard.is_blocked("1.1.1.1", "a@e.ru")
+    guard.failure("1.1.1.1", "a@e.ru")
+    guard.failure("1.1.1.1", "a@e.ru")
+    assert guard.is_blocked("1.1.1.1", "a@e.ru") and not guard.is_blocked("1.1.1.1", "b@e.ru")
+    clock.now += 11
+    assert not guard.is_blocked("1.1.1.1", "a@e.ru")

@@ -12,7 +12,7 @@
           "Вход"
         ],
         "summary": "Вход теми же почтой и паролем, что в Предрейсе",
-        "description": "Проверяет учётные данные в Предрейсе и открыт ли доступ к журналам; возвращает токен.\n\nПароль передаётся только в Предрейс и не сохраняется. Попытки ограничены по адресу и по почте.",
+        "description": "Проверяет учётные данные в Предрейсе и открыт ли доступ к журналам; возвращает токен.\n\nПароль передаётся только в Предрейс и не сохраняется. Считаются только неудачные попытки.",
         "operationId": "login_api_v1_auth_login_post",
         "requestBody": {
           "content": {
@@ -235,6 +235,25 @@
             }
           },
           {
+            "name": "driver_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Записи одного водителя (быстро)",
+              "title": "Driver Id"
+            },
+            "description": "Записи одного водителя (быстро)"
+          },
+          {
             "name": "driver_name",
             "in": "query",
             "required": false,
@@ -242,14 +261,17 @@
               "anyOf": [
                 {
                   "type": "string",
+                  "minLength": 3,
                   "maxLength": 255
                 },
                 {
                   "type": "null"
                 }
               ],
+              "description": "Поиск по подстроке ФИО, от 3 символов",
               "title": "Driver Name"
-            }
+            },
+            "description": "Поиск по подстроке ФИО, от 3 символов"
           },
           {
             "name": "page",
@@ -808,6 +830,25 @@
             }
           },
           {
+            "name": "vehicle_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Записи одного ТС (быстро)",
+              "title": "Vehicle Id"
+            },
+            "description": "Записи одного ТС (быстро)"
+          },
+          {
             "name": "plate",
             "in": "query",
             "required": false,
@@ -815,14 +856,17 @@
               "anyOf": [
                 {
                   "type": "string",
+                  "minLength": 3,
                   "maxLength": 16
                 },
                 {
                   "type": "null"
                 }
               ],
+              "description": "Поиск по подстроке госномера, от 3 символов",
               "title": "Plate"
-            }
+            },
+            "description": "Поиск по подстроке госномера, от 3 символов"
           },
           {
             "name": "page",

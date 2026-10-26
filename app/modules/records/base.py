@@ -7,7 +7,7 @@ import uuid
 from collections.abc import Callable, Sequence
 from typing import Any, ClassVar
 
-from sqlalchemy import Select, and_, func, select
+from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import (
@@ -19,6 +19,7 @@ from app.core.errors import (
 )
 from app.core.security import Principal
 from app.core.sqlutil import contains_pattern
+from app.core.timeutils import local_day_bounds
 from app.domain import fsm
 from app.domain.enums import (
     JournalKind,
@@ -141,22 +142,22 @@ class BaseRecordService:
 
     # --- выборки ---------------------------------------------------------------------------
     def _apply_common_filters(self, stmt: Select[Any], f: RecordFilters) -> Select[Any]:
-        """Применяет общие фильтры архива."""
+        """Применяет общие фильтры архива (даты — диапазоном, чтобы работал индекс по времени)."""
         m = self.model
-        local_date = func.date(func.timezone(self._tz_name(), m.performed_at))
+        lower, upper = local_day_bounds(f.date_from, f.date_to)
         if f.organization_id:
             stmt = stmt.where(m.organization_id == f.organization_id)
-        if f.date_from:
-            stmt = stmt.where(local_date >= f.date_from)
-        if f.date_to:
-            stmt = stmt.where(local_date <= f.date_to)
+        if lower is not None:
+            stmt = stmt.where(m.performed_at >= lower)
+        if upper is not None:
+            stmt = stmt.where(m.performed_at < upper)
         if f.specialist_user_id:
             stmt = stmt.where(m.specialist_user_id == f.specialist_user_id)
         if f.result:
             stmt = stmt.where(m.result == f.result)
         if f.has_note is not None:
-            has_note = and_(m.note.is_not(None), func.length(func.trim(m.note)) > 0)
-            stmt = stmt.where(has_note if f.has_note else ~has_note)
+            # Пустое примечание всегда NULL (ограничение БД), поэтому достаточно IS [NOT] NULL.
+            stmt = stmt.where(m.note.is_not(None) if f.has_note else m.note.is_(None))
         if f.is_signed is not None:
             stmt = stmt.where(
                 m.status != RecordStatus.UNSIGNED
@@ -164,13 +165,6 @@ class BaseRecordService:
                 else m.status == RecordStatus.UNSIGNED
             )
         return stmt
-
-    @staticmethod
-    def _tz_name() -> str:
-        """Имя часового пояса бизнеса для SQL-выражений."""
-        from app.core.config import get_settings
-
-        return get_settings().business_timezone
 
     async def get(
         self, principal: Principal, record_id: uuid.UUID, *, for_update: bool = False

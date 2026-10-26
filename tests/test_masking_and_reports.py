@@ -19,9 +19,8 @@ from app.domain.enums import (
 from app.domain.masking import NOT_AVAILABLE, redact_medical
 from app.models.documents import RecordDocument
 from app.models.records import MedicalRecord, TechnicalRecord
-from app.modules.reports.render import render_html
 from app.modules.reports.rows import medical_row, technical_row
-from app.modules.reports.service import render_single_record_pdf
+from app.modules.reports.service import render_registry_pdf, render_single_record_pdf
 
 MSK = timezone(timedelta(hours=3))
 SNAP = {
@@ -96,36 +95,88 @@ def test_medical_row_never_contains_vitals() -> None:
     assert row["conclusion"] == "допущен"
 
 
-def test_html_has_privacy_notice_and_no_signature_stamp() -> None:
-    """В выгрузке — дисклеймер 323-ФЗ и нет плашек, имитирующих ЭЦП (ТЗ, стр. 19)."""
+def _text(pdf: bytes) -> str:
+    """Весь текст PDF (для проверок содержимого)."""
+    from io import BytesIO
+
+    from pypdf import PdfReader
+
+    return "\n".join(page.extract_text() for page in PdfReader(BytesIO(pdf)).pages)
+
+
+async def test_registry_pdf_hides_medical_data_and_has_privacy_notice() -> None:
+    """В выгрузке — дисклеймер 323-ФЗ, показатели скрыты (N/A), ФИО и заключение на месте."""
     rec = _medical()
-    html = render_html(
-        "medical_report.html",
-        title="Отчёт",
-        rows=[medical_row(1, rec, _doc(rec.id, JournalKind.MEDICAL))],
+    pdf = await render_registry_pdf(
+        kind=JournalKind.MEDICAL,
         customer={"name": "Тест", "inn": "7707083893", "address": "Москва"},
-        executor={
-            "name": "ООО «ПРЕДРЕЙС»",
-            "inn": "5027236147",
-            "address": "-",
-            "phone": "-",
-            "email": "-",
-        },
-        executor_license="№ Л041",
-        privacy_notice="323-ФЗ",
+        records=[rec],
+        docs={rec.id: _doc(rec.id, JournalKind.MEDICAL)},
         period_from="01.10.2026",
-        period_to="14.10.2026",
-        stamp=None,
+        period_to="31.10.2026",
     )
-    assert "323-ФЗ" in html
-    assert "N/A" in html
-    assert "Файл подписан" not in html
-    assert "page-break-inside: avoid" in html
+    text = _text(pdf)
+    assert pdf.startswith(b"%PDF")
+    for visible in ("323-ФЗ", "N/A", "Ефимов", "допущен", "14.10.2026", "08:20", "стр. 1 из 1"):
+        assert visible in text, visible
+    for secret in ("137/84", "36,6", "жалоб-нет-секрет"):
+        assert secret not in text, secret
+    assert "Файл подписан" not in text  # без плашки, пока журнал не подписан
+
+
+async def test_signed_registry_pdf_has_stamp_on_last_page() -> None:
+    """Подписанный журнал: плашка с данными сертификата на последней странице."""
+    recs = [_medical() for _ in range(40)]
+    for r in recs:
+        r.id = uuid.uuid4()
+    stamp = {
+        "serial": "0f18dd73747eccc4ab0d2b1ee00d4040",
+        "subject": "ООО «ПРЕДРЕЙС»",
+        "valid_from": "17.09.2024",
+        "valid_to": "19.06.2039",
+    }
+    pdf = await render_registry_pdf(
+        kind=JournalKind.MEDICAL,
+        customer={"name": "Тест", "inn": "7707083893", "address": None},
+        records=recs,
+        docs={r.id: _doc(r.id, JournalKind.MEDICAL) for r in recs},
+        period_from="01.10.2026",
+        period_to="31.10.2026",
+        stamp=stamp,
+    )
+    from io import BytesIO
+
+    from pypdf import PdfReader
+
+    pages = PdfReader(BytesIO(pdf)).pages
+    assert len(pages) > 1
+    last = pages[-1].extract_text()
+    assert "Файл подписан электронной цифровой подписью" in last and stamp["serial"] in last
+    assert "Файл подписан" not in pages[0].extract_text()
+    assert f"стр. {len(pages)} из {len(pages)}" in last
+    # Шапка таблицы повторяется на каждой странице.
+    assert all("Ф.И.О. водителя" in p.extract_text() for p in pages[:-1])
+
+
+async def test_long_words_and_empty_values_do_not_break_layout() -> None:
+    """Очень длинные слова режутся, пустые значения (нет адреса ИП, нет подписи) не мешают."""
+    rec = _medical()
+    snap = {**SNAP, "driver": {**SNAP["driver"], "full_name": "Ы" * 120}}
+    rec.snapshot = snap
+    pdf = await render_registry_pdf(
+        kind=JournalKind.MEDICAL,
+        customer={"name": "ИП " + "Я" * 90, "inn": "770000000000", "address": None},
+        records=[rec],
+        docs={},
+        period_from="01.10.2026",
+        period_to="31.10.2026",
+    )
+    assert pdf.startswith(b"%PDF") and "—" in _text(pdf)
 
 
 @pytest.mark.parametrize("kind", [JournalKind.MEDICAL, JournalKind.TECHNICAL])
 async def test_single_record_pdf_is_generated(kind: JournalKind) -> None:
-    """PDF электронной записи формируется WeasyPrint без ошибок."""
+    """PDF электронной записи формируется без ошибок."""
     if kind is JournalKind.MEDICAL:
         rec: MedicalRecord | TechnicalRecord = _medical()
     else:

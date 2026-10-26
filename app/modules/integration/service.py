@@ -273,10 +273,15 @@ class IntegrationService:
                 "temperature": ev.temperature,
                 # ЭПЛ присылает промилле; единицы (mg/L или ‰) уточняются, значение как есть.
                 "alcohol_mgl": ev.alcohol_ppm,
+                # None: признак не определялся («Водитель+»), это не то же, что «отсутствуют».
                 "harmful_factors": (
-                    HarmfulFactors.DETECTED
-                    if ev.harmful_factors_detected
-                    else HarmfulFactors.ABSENT
+                    None
+                    if ev.harmful_factors_detected is None
+                    else (
+                        HarmfulFactors.DETECTED
+                        if ev.harmful_factors_detected
+                        else HarmfulFactors.ABSENT
+                    )
                 ),
                 "harmful_factors_note": factors_note or None,
                 "result": result,

@@ -119,3 +119,17 @@ def test_openapi_builds_and_has_core_paths() -> None:
         "/health",
     ):
         assert p in paths
+
+
+def test_openapi_json_for_frontend_is_up_to_date() -> None:
+    """docs/openapi.json совпадает с кодом (если упал — выполните `python scripts/dump_openapi.py`)."""
+    import json
+    from pathlib import Path
+
+    from app.main import create_app
+
+    path = Path(__file__).resolve().parents[1] / "docs" / "openapi.json"
+    committed = json.loads(path.read_text("utf-8"))
+    assert committed == create_app().openapi(), (
+        "docs/openapi.json устарел: запустите scripts/dump_openapi.py"
+    )

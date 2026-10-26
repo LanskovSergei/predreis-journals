@@ -18,8 +18,7 @@ dependencies = [
     "pydantic-settings>=2.3",
     "httpx>=0.27",
     "arq>=0.26",
-    "jinja2>=3.1",
-    "weasyprint>=62",
+    "reportlab>=4.0",
     "python-multipart>=0.0.9",
     "tzdata>=2024.1",
     "lxml>=5.0",
@@ -34,13 +33,14 @@ dev = [
     "ruff>=0.5",
     "mypy>=1.10",
     "cryptography>=42",
+    "pypdf>=4.0",
 ]
 
 [tool.setuptools.packages.find]
 include = ["app*"]
 
 [tool.setuptools.package-data]
-app = ["templates/**/*.html", "xmlschemas/*.xsd"]
+app = ["xmlschemas/*.xsd", "assets/fonts/*"]
 
 [tool.ruff]
 line-length = 99
@@ -53,6 +53,8 @@ ignore = ["RUF001", "RUF002", "RUF003", "B008"]
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["E501"]
 "alembic/*" = ["E501"]
+"scripts/*" = ["E501"]
+"tools/*" = ["E501"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

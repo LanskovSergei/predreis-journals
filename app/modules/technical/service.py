@@ -14,7 +14,7 @@ from app.domain.enums import JournalKind, RecordSource, RecordStatus, Role
 from app.domain.validators import merge_auto_note, odometer_issues
 from app.models.catalog import Driver, User
 from app.models.documents import RecordDocument, SignJob
-from app.models.records import TechnicalRecord
+from app.models.records import TECHNICAL_PLATE, TechnicalRecord
 from app.modules.audit.service import append_audit
 from app.modules.records.base import AnyRecord, BaseRecordService, contains_pattern
 from app.modules.records.schemas import Page, PageParams, TechnicalFilters
@@ -89,12 +89,10 @@ class TechnicalService(BaseRecordService):
         self._ensure_view(principal)
         stmt: Any = await self._scope(select(TechnicalRecord), principal)
         stmt = self._apply_common_filters(stmt, f)
+        if f.vehicle_id:
+            stmt = stmt.where(TechnicalRecord.vehicle_id == f.vehicle_id)
         if f.plate:
-            stmt = stmt.where(
-                TechnicalRecord.snapshot["vehicle"]["plate"].astext.ilike(
-                    contains_pattern(f.plate), escape="\\"
-                )
-            )
+            stmt = stmt.where(TECHNICAL_PLATE.ilike(contains_pattern(f.plate), escape="\\"))
         total = (
             await self.session.execute(select(func.count()).select_from(stmt.subquery()))
         ).scalar_one()

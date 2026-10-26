@@ -12,12 +12,11 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import Settings, get_settings
+from app.core.config import get_settings
 from app.core.errors import NotFoundError, ValidationFailedError
 from app.core.security import Principal
 from app.core.timeutils import local_date
 from app.domain.enums import JournalKind
-from app.domain.masking import MEDICAL_PRIVACY_NOTICE
 from app.domain.permissions import CLIENT_ROLES
 from app.models.catalog import Organization
 from app.models.documents import RecordDocument
@@ -26,7 +25,8 @@ from app.modules.audit.service import append_audit
 from app.modules.medical.service import MedicalService
 from app.modules.records.base import BaseRecordService
 from app.modules.records.schemas import RecordFilters
-from app.modules.reports.render import html_to_pdf, render_html
+from app.modules.reports.layouts import build_spec
+from app.modules.reports.pdf import render_pdf_async
 from app.modules.reports.rows import fmt_date, medical_row, technical_row
 from app.modules.technical.service import TechnicalService
 
@@ -61,56 +61,35 @@ def content_disposition(filename: str) -> str:
     return f"attachment; filename=\"report.pdf\"; filename*=UTF-8''{quote(filename)}"
 
 
-def _executor(settings: Settings) -> dict[str, str]:
-    """Реквизиты исполнителя из настроек."""
-    return {
-        "name": settings.executor_name,
-        "inn": settings.executor_inn,
-        "address": settings.executor_address,
-        "phone": settings.executor_phone,
-        "email": settings.executor_email,
-    }
-
-
 async def render_single_record_pdf(
     kind: JournalKind, record: MedicalRecord | TechnicalRecord, doc: RecordDocument | None
 ) -> bytes:
     """PDF одной записи (человекочитаемая часть электронного документа типа 1)."""
-    settings = get_settings()
     org = record.snapshot.get("organization", {})
     customer = {
         "name": org.get("short_name") or org.get("name", ""),
         "inn": org.get("inn", ""),
         "address": org.get("legal_address"),
     }
-    common: dict[str, Any] = {
-        "customer": customer,
-        "executor": _executor(settings),
-        "period_from": None,
-        "period_to": None,
-        "stamp": None,
-    }
     if kind is JournalKind.MEDICAL:
         assert isinstance(record, MedicalRecord)
-        html = render_html(
-            "medical_report.html",
+        spec = build_spec(
+            medical=True,
             title=MEDICAL_RECORD_TITLE,
             rows=[medical_row(1, record, doc)],
-            executor_license=settings.executor_license,
-            privacy_notice=MEDICAL_PRIVACY_NOTICE,
-            **common,
+            customer=customer,
+            settings=get_settings(),
         )
     else:
         assert isinstance(record, TechnicalRecord)
-        html = render_html(
-            "technical_report.html",
+        spec = build_spec(
+            medical=False,
             title=TECHNICAL_RECORD_TITLE,
             rows=[technical_row(1, record, doc)],
-            executor_license=None,
-            privacy_notice=None,
-            **common,
+            customer=customer,
+            settings=get_settings(),
         )
-    return await html_to_pdf(html)
+    return await render_pdf_async(spec)
 
 
 JOURNAL_TITLES = {
@@ -136,43 +115,29 @@ async def render_registry_pdf(
     stamp: dict[str, str] | None = None,
 ) -> bytes:
     """Рендерит PDF-реестр записей (Выгрузка или человекочитаемая версия электронного журнала)."""
-    settings = get_settings()
-    common: dict[str, Any] = {
-        "customer": customer,
-        "executor": _executor(settings),
-        "period_from": period_from,
-        "period_to": period_to,
-        "stamp": stamp,
-    }
-    if kind is JournalKind.MEDICAL:
+    medical = kind is JournalKind.MEDICAL
+    if medical:
         rows = [
             medical_row(i, r, docs.get(r.id))
             for i, r in enumerate(records, 1)
             if isinstance(r, MedicalRecord)
         ]
-        html = render_html(
-            "medical_report.html",
-            title=title or MEDICAL_TITLE,
-            rows=rows,
-            executor_license=settings.executor_license,
-            privacy_notice=MEDICAL_PRIVACY_NOTICE,
-            **common,
-        )
     else:
         rows = [
             technical_row(i, r, docs.get(r.id))
             for i, r in enumerate(records, 1)
             if isinstance(r, TechnicalRecord)
         ]
-        html = render_html(
-            "technical_report.html",
-            title=title or TECHNICAL_TITLE,
-            rows=rows,
-            executor_license=None,
-            privacy_notice=None,
-            **common,
-        )
-    return await html_to_pdf(html)
+    spec = build_spec(
+        medical=medical,
+        title=title or (MEDICAL_TITLE if medical else TECHNICAL_TITLE),
+        rows=rows,
+        customer=customer,
+        settings=get_settings(),
+        period=(period_from, period_to),
+        stamp=stamp,
+    )
+    return await render_pdf_async(spec)
 
 
 class ReportService:

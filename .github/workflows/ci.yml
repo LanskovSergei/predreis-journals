@@ -29,10 +29,49 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - name: Системные библиотеки для WeasyPrint
-        run: sudo apt-get update && sudo apt-get install -y libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-dejavu-core
       - run: pip install -e ".[dev]"
       - run: ruff check .
       - run: ruff format --check .
       - run: mypy app
       - run: pytest -q
+
+  e2e:
+    # Сквозная проверка на настоящих процессах (подставной ПРЕДРЕЙС, RabbitMQ, Redis).
+    # Не блокирует слияние, пока не отлажена на GitHub: `continue-on-error`.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: journals
+          POSTGRES_PASSWORD: journals
+          POSTGRES_DB: journals_e2e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U journals"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+      rabbitmq:
+        image: rabbitmq:3.12
+        ports: ["5672:5672"]
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 10s
+          --health-retries 10
+    env:
+      JOURNALS_E2E: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: pytest tests/e2e -q
+

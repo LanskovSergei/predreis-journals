@@ -1,0 +1,116 @@
+# Стенд разработчика: подставной ПРЕДРЕЙС + весь контур журналов в Docker.
+# Запуск: docker compose -f docker-compose.dev.yml up --build
+# API: http://127.0.0.1:8000/docs, подставной ПРЕДРЕЙС: http://127.0.0.1:9000/_dev/users (пароль: password).
+# ВНИМАНИЕ: файл написан без возможности проверить его в Docker; при проблемах пришлите вывод `docker compose logs`.
+
+x-journals: &journals
+  build:
+    context: .
+    args:
+      EXTRAS: "[dev]"
+  restart: unless-stopped
+  environment: &env
+    JOURNALS_ENV: dev
+    JOURNALS_DATABASE_URL: postgresql+asyncpg://journals:journals@postgres:5432/journals
+    JOURNALS_REDIS_URL: redis://redis:6379/0
+    JOURNALS_STORAGE_DIR: /var/lib/journals/storage
+    JOURNALS_PREDREIS_BASE_URL: http://fake-predreis:9000
+    JOURNALS_PREDREIS_CLIENT_SECRET: dev-secret
+    JOURNALS_RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    JOURNALS_RABBITMQ_REQUEUE_DELAY_S: "2"
+    JOURNALS_CORS_ORIGINS: '["http://localhost:3000","http://localhost:5173"]'
+  volumes:
+    - storage:/var/lib/journals/storage
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: journals
+      POSTGRES_PASSWORD: journals
+      POSTGRES_DB: journals
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U journals"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    ports: ["127.0.0.1:15672:15672"]  # интерфейс: guest / guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  fake-predreis:
+    <<: *journals
+    command: ["uvicorn", "tools.fake_predreis.app:app", "--host", "0.0.0.0", "--port", "9000"]
+    environment:
+      FAKE_CLIENT_SECRET: dev-secret
+      FAKE_RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      FAKE_SIGN_DELAY: "3"
+    volumes:
+      - ./tools:/srv/tools:ro
+    ports: ["127.0.0.1:9000:9000"]
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9000/_dev/users')"]
+      interval: 5s
+      retries: 12
+
+  migrate:
+    <<: *journals
+    restart: "no"
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *journals
+    ports: ["127.0.0.1:8000:8000"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      fake-predreis:
+        condition: service_healthy
+
+  worker:
+    <<: *journals
+    command: ["arq", "app.workers.settings.WorkerSettings"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      fake-predreis:
+        condition: service_healthy
+
+  consumer:
+    <<: *journals
+    command: ["python", "-m", "app.workers.consumer"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      fake-predreis:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  storage:

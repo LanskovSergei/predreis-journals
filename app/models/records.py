@@ -9,6 +9,7 @@ from typing import Any
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
@@ -18,6 +19,8 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    literal_column,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column
@@ -84,6 +87,18 @@ class MedicalRecord(RecordMixin, Base):
         Index("ix_medical_records_org_performed", "organization_id", "performed_at"),
         Index("ix_medical_records_status", "status"),
         Index("ix_medical_records_specialist", "specialist_user_id", "status"),
+        Index("ix_medical_records_performed", text("performed_at DESC"), text("id DESC")),
+        Index(
+            "ix_medical_records_with_note",
+            text("performed_at DESC"),
+            postgresql_where=text("note IS NOT NULL"),
+        ),
+        Index(
+            "ix_medical_records_driver_name_trgm",
+            text("((snapshot -> 'driver') ->> 'full_name') gin_trgm_ops"),
+            postgresql_using="gin",
+        ),
+        CheckConstraint("note IS NULL OR length(btrim(note)) > 0", name="note_not_blank"),
     )
 
     phase: Mapped[InspectionPhase] = mapped_column(enum_col(InspectionPhase))
@@ -110,6 +125,18 @@ class TechnicalRecord(RecordMixin, Base):
         Index("ix_technical_records_status", "status"),
         Index("ix_technical_records_specialist", "specialist_user_id", "status"),
         Index("ix_technical_records_vehicle_performed", "vehicle_id", "performed_at"),
+        Index("ix_technical_records_performed", text("performed_at DESC"), text("id DESC")),
+        Index(
+            "ix_technical_records_with_note",
+            text("performed_at DESC"),
+            postgresql_where=text("note IS NOT NULL"),
+        ),
+        Index(
+            "ix_technical_records_plate_trgm",
+            text("((snapshot -> 'vehicle') ->> 'plate') gin_trgm_ops"),
+            postgresql_using="gin",
+        ),
+        CheckConstraint("note IS NULL OR length(btrim(note)) > 0", name="note_not_blank"),
     )
 
     vehicle_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("vehicles.id"))
@@ -124,3 +151,13 @@ AnyRecord = MedicalRecord | TechnicalRecord
 def record_model(kind: JournalKind) -> type[MedicalRecord] | type[TechnicalRecord]:
     """Возвращает модель записи по виду журнала."""
     return MedicalRecord if kind is JournalKind.MEDICAL else TechnicalRecord
+
+
+# Выражения поиска по подстроке записаны литералами, а не параметрами: только так их использует
+# триграммный индекс (параметры пути `snapshot -> $1 ->> $2` индексу не соответствуют).
+MEDICAL_DRIVER_NAME = literal_column(
+    "((medical_records.snapshot -> 'driver') ->> 'full_name')", type_=String
+)
+TECHNICAL_PLATE = literal_column(
+    "((technical_records.snapshot -> 'vehicle') ->> 'plate')", type_=String
+)

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, time, timedelta
 from functools import lru_cache
 from zoneinfo import ZoneInfo
 
@@ -23,3 +23,16 @@ def to_local(value: datetime) -> datetime:
 def local_date(value: datetime) -> date:
     """Возвращает календарную дату момента в часовом поясе бизнеса."""
     return to_local(value).date()
+
+
+def local_day_bounds(
+    start: date | None, end: date | None
+) -> tuple[datetime | None, datetime | None]:
+    """Границы местных суток: [начало первого дня; начало дня после последнего).
+
+    Диапазон по `timestamptz` использует индекс, в отличие от выражения «дата по местному времени».
+    """
+    tz = business_tz()
+    lower = datetime.combine(start, time.min, tzinfo=tz) if start else None
+    upper = datetime.combine(end + timedelta(days=1), time.min, tzinfo=tz) if end else None
+    return lower, upper

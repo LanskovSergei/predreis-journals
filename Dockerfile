@@ -4,16 +4,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
 
-# Библиотеки для WeasyPrint и шрифты с кириллицей для PDF
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b libharfbuzz-subset0 shared-mime-info \
-        fonts-dejavu-core fonts-liberation \
-    && rm -rf /var/lib/apt/lists/*
+# PDF рисует ReportLab со шрифтом из репозитория: системные библиотеки и шрифты не нужны.
 
 WORKDIR /srv
 COPY pyproject.toml README.md ./
 COPY app ./app
-RUN pip install .
+# EXTRAS="[dev]" ставит и инструменты разработки (нужны подставному ПРЕДРЕЙСу в docker-compose.dev.yml)
+ARG EXTRAS=""
+RUN pip install ".${EXTRAS}"
 
 COPY alembic.ini ./
 COPY alembic ./alembic

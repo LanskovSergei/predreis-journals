@@ -22,7 +22,7 @@ from app.domain.permissions import CLIENT_ROLES
 from app.domain.validators import birth_date_issue, merge_auto_note
 from app.models.catalog import User
 from app.models.documents import RecordDocument, SignJob
-from app.models.records import MedicalRecord
+from app.models.records import MEDICAL_DRIVER_NAME, MedicalRecord
 from app.modules.audit.service import append_audit
 from app.modules.medical.schemas import (
     MedicalRecordClientOut,
@@ -124,11 +124,11 @@ class MedicalService(BaseRecordService):
         self._ensure_view(principal)
         stmt: Any = await self._scope(select(MedicalRecord), principal)
         stmt = self._apply_common_filters(stmt, f)
+        if f.driver_id:
+            stmt = stmt.where(MedicalRecord.driver_id == f.driver_id)
         if f.driver_name:
             stmt = stmt.where(
-                MedicalRecord.snapshot["driver"]["full_name"].astext.ilike(
-                    contains_pattern(f.driver_name), escape="\\"
-                )
+                MEDICAL_DRIVER_NAME.ilike(contains_pattern(f.driver_name), escape="\\")
             )
         total = (
             await self.session.execute(select(func.count()).select_from(stmt.subquery()))

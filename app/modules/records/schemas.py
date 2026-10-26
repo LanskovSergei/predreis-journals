@@ -73,13 +73,27 @@ class RecordFilters(BaseModel):
 class MedicalFilters(RecordFilters):
     """Фильтры журнала медосмотров."""
 
-    driver_name: str | None = Field(default=None, max_length=255)
+    driver_id: uuid.UUID | None = Field(
+        default=None, description="Записи одного водителя (быстро)"
+    )
+    driver_name: str | None = Field(
+        default=None,
+        min_length=3,
+        max_length=255,
+        description="Поиск по подстроке ФИО, от 3 символов",
+    )
 
 
 class TechnicalFilters(RecordFilters):
     """Фильтры журнала техконтроля."""
 
-    plate: str | None = Field(default=None, max_length=16)
+    vehicle_id: uuid.UUID | None = Field(default=None, description="Записи одного ТС (быстро)")
+    plate: str | None = Field(
+        default=None,
+        min_length=3,
+        max_length=16,
+        description="Поиск по подстроке госномера, от 3 символов",
+    )
 
 
 class SignRequest(BaseModel):

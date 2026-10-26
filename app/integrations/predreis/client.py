@@ -391,3 +391,8 @@ class PredreisClient:
 def get_predreis_client() -> PredreisClient:
     """Возвращает общий экземпляр клиента Предрейса."""
     return PredreisClient(get_settings())
+
+
+def get_sign_gateway() -> SignGateway:
+    """Зависимость FastAPI: шлюз подписи (в тестах подменяется заглушкой)."""
+    return get_predreis_client()

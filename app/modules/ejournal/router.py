@@ -12,16 +12,16 @@ from app.core.errors import NotFoundError
 from app.core.security import Principal, get_principal
 from app.core.storage import get_storage
 from app.domain.enums import EJournalStatus, JournalKind
-from app.integrations.predreis.client import get_predreis_client
+from app.integrations.predreis.client import SignGateway, get_sign_gateway
 from app.modules.ejournal.schemas import EJournalCreate, EJournalOut, RejectIn
 from app.modules.ejournal.service import EJournalService
 
 router = APIRouter(prefix="/ejournals", tags=["Электронные журналы"])
 
 
-def _service(session: AsyncSession) -> EJournalService:
+def _service(session: AsyncSession, gateway: SignGateway) -> EJournalService:
     """Создаёт сервис электронных журналов."""
-    return EJournalService(session, get_predreis_client())
+    return EJournalService(session, gateway)
 
 
 @router.get("", response_model=list[EJournalOut], summary="Список электронных журналов")
@@ -30,9 +30,10 @@ async def list_journals(
     kind: JournalKind | None = None,
     principal: Principal = Depends(get_principal),
     session: AsyncSession = Depends(get_session),
+    gateway: SignGateway = Depends(get_sign_gateway),
 ) -> list[EJournalOut]:
     """Журналы по статусу и виду (СА — «ожидающие подписи»)."""
-    rows = await _service(session).list_journals(principal, status_filter, kind)
+    rows = await _service(session, gateway).list_journals(principal, status_filter, kind)
     return [EJournalOut.model_validate(r) for r in rows]
 
 
@@ -43,9 +44,10 @@ async def create_journal(
     body: EJournalCreate,
     principal: Principal = Depends(get_principal),
     session: AsyncSession = Depends(get_session),
+    gateway: SignGateway = Depends(get_sign_gateway),
 ) -> EJournalOut:
     """Создаёт черновик журнала по организации и периоду."""
-    return EJournalOut.model_validate(await _service(session).create(principal, body))
+    return EJournalOut.model_validate(await _service(session, gateway).create(principal, body))
 
 
 @router.get("/{journal_id}", response_model=EJournalOut, summary="Электронный журнал")
@@ -53,9 +55,10 @@ async def get_journal(
     journal_id: uuid.UUID,
     principal: Principal = Depends(get_principal),
     session: AsyncSession = Depends(get_session),
+    gateway: SignGateway = Depends(get_sign_gateway),
 ) -> EJournalOut:
     """Возвращает журнал."""
-    return EJournalOut.model_validate(await _service(session).get(principal, journal_id))
+    return EJournalOut.model_validate(await _service(session, gateway).get(principal, journal_id))
 
 
 @router.delete("/{journal_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Отмена черновика")
@@ -63,9 +66,10 @@ async def cancel_journal(
     journal_id: uuid.UUID,
     principal: Principal = Depends(get_principal),
     session: AsyncSession = Depends(get_session),
+    gateway: SignGateway = Depends(get_sign_gateway),
 ) -> Response:
     """Удаляет черновик."""
-    await _service(session).cancel(principal, journal_id)
+    await _service(session, gateway).cancel(principal, journal_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -74,9 +78,12 @@ async def submit_journal(
     journal_id: uuid.UUID,
     principal: Principal = Depends(get_principal),
     session: AsyncSession = Depends(get_session),
+    gateway: SignGateway = Depends(get_sign_gateway),
 ) -> EJournalOut:
     """Резервирует записи и отправляет журнал в ЛК СА."""
-    return EJournalOut.model_validate(await _service(session).submit(principal, journal_id))
+    return EJournalOut.model_validate(
+        await _service(session, gateway).submit(principal, journal_id)
+    )
 
 
 @router.post(
@@ -88,9 +95,10 @@ async def sign_journal(
     journal_id: uuid.UUID,
     principal: Principal = Depends(get_principal),
     session: AsyncSession = Depends(get_session),
+    gateway: SignGateway = Depends(get_sign_gateway),
 ) -> EJournalOut:
     """Ставит журнал в очередь подписи организации; статус «signing», затем «signed»."""
-    return EJournalOut.model_validate(await _service(session).sign(principal, journal_id))
+    return EJournalOut.model_validate(await _service(session, gateway).sign(principal, journal_id))
 
 
 @router.post("/{journal_id}/reject", response_model=EJournalOut, summary="Отклонить (СА)")
@@ -99,10 +107,11 @@ async def reject_journal(
     body: RejectIn,
     principal: Principal = Depends(get_principal),
     session: AsyncSession = Depends(get_session),
+    gateway: SignGateway = Depends(get_sign_gateway),
 ) -> EJournalOut:
     """Отклоняет журнал, контейнер расформировывается."""
     return EJournalOut.model_validate(
-        await _service(session).reject(principal, journal_id, body.reason)
+        await _service(session, gateway).reject(principal, journal_id, body.reason)
     )
 
 
@@ -111,9 +120,10 @@ async def preview_journal(
     journal_id: uuid.UUID,
     principal: Principal = Depends(get_principal),
     session: AsyncSession = Depends(get_session),
+    gateway: SignGateway = Depends(get_sign_gateway),
 ) -> Response:
     """PDF содержимого журнала для СА: до подписи — без плашки, после — подписанная версия."""
-    journal = await _service(session).get(principal, journal_id)
+    journal = await _service(session, gateway).get(principal, journal_id)
     key = journal.pdf_key if journal.status is EJournalStatus.SIGNED else journal.preview_pdf_key
     if not key:
         raise NotFoundError("Журнал ещё не отправлен на подпись")
@@ -129,9 +139,10 @@ async def download_journal(
     journal_id: uuid.UUID,
     principal: Principal = Depends(get_principal),
     session: AsyncSession = Depends(get_session),
+    gateway: SignGateway = Depends(get_sign_gateway),
 ) -> Response:
     """Отдаёт собранный ZIP (только после подписи; доступ — Предрейс, Админ, СА)."""
-    journal = await _service(session).get(principal, journal_id)
+    journal = await _service(session, gateway).get(principal, journal_id)
     if journal.status is not EJournalStatus.SIGNED or not journal.zip_key:
         raise NotFoundError("ZIP-контейнер появляется после подписи журнала")
     data = await get_storage().get(journal.zip_key)

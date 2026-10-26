@@ -27,8 +27,7 @@ python -m app.workers.consumer  # потребитель очереди осмо
 python -m app.workers.replay    # повторная обработка отказов из inbox_failures
 ```
 
-Для WeasyPrint нужны системные библиотеки (`libpango-1.0-0`, `libpangoft2-1.0-0`) и шрифты с кириллицей
-(`fonts-dejavu-core`). В Docker-образе они уже есть.
+PDF формируется ReportLab; шрифт DejaVu лежит в репозитории (`app/assets/fonts`), системные библиотеки не нужны.
 
 ## Тесты
 
@@ -69,7 +68,9 @@ make lint typecheck
 - [docs/xml-schema.md](docs/xml-schema.md) — форматы XML (XSD) и образцы
 - [docs/predreis-integration.md](docs/predreis-integration.md) — интеграция с Предрейсом: справочники, очередь, подпись, разбор сбоев
 - [docs/container-format.md](docs/container-format.md) — состав ZIP-контейнера журнала и порядок его проверки
-- [docs/openapi.json](docs/openapi.json) — контракт API для фронтенда (`make openapi`)
+- [docs/FRONTEND.md](docs/FRONTEND.md) — руководство для разработчика фронтенда (вход, статусы, подпись, ошибки)
+- [docs/OPERATIONS.md](docs/OPERATIONS.md) — эксплуатация: процессы, мониторинг, команды обслуживания, производительность
+- [docs/openapi.json](docs/openapi.json) и [docs/frontend/api.d.ts](docs/frontend/api.d.ts) — контракт API и TypeScript-типы (`make types`)
 
 ## Структура
 
@@ -82,7 +83,21 @@ app/
                    deletion, ocr, stats, audit, integration — router/service/schemas
   integrations/    predreis (клиент, схемы, сообщения очереди, разбор CMS), yandex_vision
   workers/         ARQ (справочники, подпись) и потребитель очереди
-  templates/pdf/   Jinja2-шаблоны отчётов
+  assets/fonts/    шрифт DejaVu для PDF
 alembic/           0001 схема, 0002 триггеры неизменяемости
 tests/             юнит и интеграционные (PostgreSQL)
 ```
+
+## Разработка и проверка
+
+```bash
+make dev-stack      # локальный стенд: подставной ПРЕДРЕЙС + API + воркер + потребитель (нужны PostgreSQL, Redis, RabbitMQ)
+docker compose -f docker-compose.dev.yml up --build   # то же самое в Docker (файл не проверялся в Docker)
+make e2e            # сквозной тест на настоящих процессах (JOURNALS_E2E=1)
+make load-seed bench   # нагрузочные замеры на отдельной тестовой БД
+make audit-check    # проверка хеш-цепочки журнала аудита
+```
+
+Подставной ПРЕДРЕЙС (`tools/fake_predreis`) повторяет контракт сервисного API; тестовые пользователи и управление
+(`/_dev/...`) описаны в [docs/FRONTEND.md](docs/FRONTEND.md), раздел 12.
+

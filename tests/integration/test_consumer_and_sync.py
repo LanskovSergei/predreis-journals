@@ -13,11 +13,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import Settings
 from app.core.storage import LocalStorage
-from app.domain.enums import RecordStatus, WorkFormat
+from app.domain.enums import HarmfulFactors, RecordStatus, WorkFormat
 from app.models.catalog import Driver, Organization, User, Vehicle
 from app.models.documents import RecordDocument
 from app.models.integration import InboxEvent, InboxFailure, SyncState
-from app.models.records import MedicalRecord
+from app.models.records import MedicalRecord, TechnicalRecord
 from app.modules.catalog.sync import SYNC_PLAN, sync_entity
 from app.workers.consumer import MAX_DEPENDENCY_ATTEMPTS, Outcome, process_body
 from tests.factories import seed
@@ -180,6 +180,106 @@ async def test_event_creates_specialist_without_touching_existing_roles(
     await process_body(body(existing), factory(session), storage, Settings())
     medic = (await session.execute(select(User).where(User.id == w.medic.id))).scalar_one()
     assert medic.journals_access is True
+
+
+async def test_automatic_exam_is_recorded_without_harmful_factors(
+    session: AsyncSession, storage: LocalStorage
+) -> None:
+    """«Водитель+»: признак вредных факторов не определялся (null) — в записи NULL, а не «absent»."""
+    from app.domain.enums import JournalKind
+    from app.modules.signing.xml_builder import build_record_xml
+    from app.xmlschemas import validate_xml
+
+    w = await seed(session)
+    raw = body(exam_payload(w), mid="auto-1")
+    assert await process_body(raw, factory(session), storage, Settings()) is Outcome.ACK
+    rec = (await session.execute(select(MedicalRecord))).scalar_one()
+    assert rec.harmful_factors is None  # не придуманное «отсутствуют»
+    xml = build_record_xml(JournalKind.MEDICAL, rec)
+    assert validate_xml(xml, "record") == [] and b"<HarmfulFactors>" not in xml
+
+
+@pytest.mark.parametrize(
+    ("detected", "expected"),
+    [(False, HarmfulFactors.ABSENT), (True, HarmfulFactors.DETECTED), (None, None)],
+)
+async def test_harmful_factors_three_states(
+    session: AsyncSession,
+    storage: LocalStorage,
+    detected: bool | None,
+    expected: HarmfulFactors | None,
+) -> None:
+    """Признак вредных факторов: отсутствуют / выявлены / не определялся — три разных состояния."""
+    w = await seed(session)
+    payload = exam_payload(w, harmful_factors_detected=detected)
+    if detected:
+        payload["harmful_factors"] = ["признаки опьянения"]
+    assert await process_body(body(payload), factory(session), storage, Settings()) is Outcome.ACK
+    rec = (await session.execute(select(MedicalRecord))).scalar_one()
+    assert rec.harmful_factors is expected
+    assert rec.harmful_factors_note == ("признаки опьянения" if detected else None)
+
+
+async def test_all_three_events_of_one_waybill_are_recorded(
+    session: AsyncSession, storage: LocalStorage
+) -> None:
+    """По рейсу приходит до трёх событий (Т2, Т6, Т3): все создают записи без конфликтов."""
+    w = await seed(session)
+    waybill = str(uuid.uuid4())
+    sent = [
+        body(exam_payload(w, waybill_id=waybill), mid="e-pre"),
+        body(exam_payload(w, "event_medical_post.json", waybill_id=waybill), mid="e-post"),
+        body(
+            exam_payload(
+                w,
+                "event_technical.json",
+                waybill_id=waybill,
+                exam_datetime="2026-10-25T08:36:00+00:00",
+            ),
+            "journal.technical_exam",
+            mid="e-tech",
+        ),
+    ]
+    for raw in sent:
+        assert await process_body(raw, factory(session), storage, Settings()) is Outcome.ACK
+    order = MedicalRecord.epl_title_number
+    medical = (await session.execute(select(MedicalRecord).order_by(order))).scalars().all()
+    assert [m.epl_title_number for m in medical] == [2, 6]
+    assert [m.phase.value for m in medical] == ["pre", "post"]
+    technical = (
+        await session.execute(select(func.count()).select_from(TechnicalRecord))
+    ).scalar_one()
+    assert technical == 1
+    assert (
+        await session.execute(select(func.count()).select_from(InboxFailure))
+    ).scalar_one() == 0
+
+
+async def test_binding_by_ids_when_requisites_differ(
+    session: AsyncSession, storage: LocalStorage
+) -> None:
+    """Идентификаторы из события надёжнее реквизитов: ИНН и ФИО могли измениться."""
+    w = await seed(session)
+    payload = exam_payload(w)
+    payload["organization"]["inn"] = "0000000000"
+    payload["driver"].update(last_name="Другая", first_name="Фамилия")
+    assert await process_body(body(payload), factory(session), storage, Settings()) is Outcome.ACK
+    rec = (await session.execute(select(MedicalRecord))).scalar_one()
+    assert rec.driver_id == w.driver.id and rec.organization_id == w.org.id
+    assert (
+        rec.snapshot["driver"]["full_name"] == "Другая Фамилия Константинович"
+    )  # на момент осмотра
+
+
+async def test_old_technical_event_without_time_is_parked(
+    session: AsyncSession, storage: LocalStorage
+) -> None:
+    """Старый техконтроль без времени: понятная причина, запись не создаётся."""
+    w = await seed(session)
+    raw = body(exam_payload(w, "event_technical.json"), "journal.technical_exam", mid="old-tech")
+    assert await process_body(raw, factory(session), storage, Settings()) is Outcome.ACK
+    failure = (await session.execute(select(InboxFailure))).scalar_one()
+    assert failure.reason == "exam_time_missing" and failure.payload is not None
 
 
 # ---------- синхронизация справочников ----------

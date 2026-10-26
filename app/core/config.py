@@ -36,7 +36,8 @@ class Settings(BaseSettings):
     auth_cache_ttl_s: int = 30
     auth_negative_cache_ttl_s: int = 5
     auth_cache_max: int = 10_000
-    login_max_attempts: int = 10
+    login_max_attempts: int = 10  # неудач по одной почте за окно
+    login_max_attempts_per_ip: int = 50  # неудач с одного адреса (офис за NAT)
     login_window_s: int = 300
 
     # --- Очередь событий осмотров (RabbitMQ Предрейса) ---

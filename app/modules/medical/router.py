@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.db import get_session
 from app.core.security import Principal, get_principal
 from app.domain.enums import JournalKind
-from app.integrations.predreis.client import get_predreis_client
+from app.integrations.predreis.client import SignGateway, get_sign_gateway
 from app.modules.medical.schemas import MedicalRecordCreate, MedicalRecordUpdate
 from app.modules.medical.service import MedicalOut, MedicalService
 from app.modules.records.schemas import (
@@ -59,9 +59,10 @@ async def sign_records(
     body: SignRequest,
     principal: Principal = Depends(get_principal),
     session: AsyncSession = Depends(get_session),
+    gateway: SignGateway = Depends(get_sign_gateway),
 ) -> SignBatchResult:
     """Ставит записи в очередь на подпись сертификатом медика (подписывает Предрейс)."""
-    return await SigningService(session, get_predreis_client()).request_signing(
+    return await SigningService(session, gateway).request_signing(
         principal, JournalKind.MEDICAL, body.record_ids
     )
 

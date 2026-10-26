@@ -10,8 +10,8 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field, SecretStr
 
 from app.core.config import get_settings
-from app.core.errors import TooManyRequestsError
-from app.core.ratelimit import SlidingWindowLimiter
+from app.core.errors import TooManyRequestsError, UnauthorizedError
+from app.core.ratelimit import LoginGuard
 from app.core.security import (
     UserVerifier,
     get_user_verifier,
@@ -52,10 +52,12 @@ class LoginOut(BaseModel):
 
 
 @lru_cache
-def get_login_limiter() -> SlidingWindowLimiter:
-    """Ограничитель попыток входа (по адресу и по почте)."""
+def get_login_limiter() -> LoginGuard:
+    """Защита входа от подбора: неудачи по почте и по адресу."""
     settings = get_settings()
-    return SlidingWindowLimiter(settings.login_max_attempts, settings.login_window_s)
+    return LoginGuard(
+        settings.login_max_attempts, settings.login_max_attempts_per_ip, settings.login_window_s
+    )
 
 
 @router.post(
@@ -66,20 +68,24 @@ async def login(
     request: Request,
     client: PredreisClient = Depends(get_predreis_client),
     verifier: UserVerifier = Depends(get_user_verifier),
-    limiter: SlidingWindowLimiter = Depends(get_login_limiter),
+    limiter: LoginGuard = Depends(get_login_limiter),
 ) -> LoginOut:
     """Проверяет учётные данные в Предрейсе и открыт ли доступ к журналам; возвращает токен.
 
-    Пароль передаётся только в Предрейс и не сохраняется. Попытки ограничены по адресу и по почте.
+    Пароль передаётся только в Предрейс и не сохраняется. Считаются только неудачные попытки.
     """
     ip = request.client.host if request.client else "?"
     email = body.email.strip().lower()
-    if not (limiter.allow(f"ip:{ip}") and limiter.allow(f"email:{email}")):
-        raise TooManyRequestsError("Слишком много попыток входа, повторите позже")
-    login_result = await client.user_login(email, body.password.get_secret_value())
+    if limiter.is_blocked(ip, email):
+        raise TooManyRequestsError("Слишком много неудачных попыток входа, повторите позже")
+    try:
+        login_result = await client.user_login(email, body.password.get_secret_value())
+    except UnauthorizedError:
+        limiter.failure(ip, email)
+        raise
     user = await verifier.verify(login_result.access_token)
     principal = principal_from_user(user, ip=ip, token=login_result.access_token)
-    limiter.reset(f"email:{email}")
+    limiter.success(email)
     logger.info("Вход пользователя %s (%s)", principal.user_id, principal.role.value)
     return LoginOut(
         access_token=login_result.access_token,

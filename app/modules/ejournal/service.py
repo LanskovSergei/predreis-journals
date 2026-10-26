@@ -14,6 +14,7 @@ from app.core.config import get_settings
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationFailedError
 from app.core.security import Principal
 from app.core.storage import Storage, get_storage
+from app.core.timeutils import local_day_bounds
 from app.domain.enums import (
     EJournalStatus,
     JournalKind,
@@ -34,15 +35,15 @@ from app.modules.signing.service import SigningService
 
 
 def _eligible(model: Any, organization_id: uuid.UUID, start: date, end: date) -> list[Any]:
-    """Условия отбора записей для журнала: подписанные, не в журнале, не на удалении."""
-    local_date = func.date(func.timezone(get_settings().business_timezone, model.performed_at))
+    """Условия отбора записей для журнала: подписанные, не в другом журнале, не на удалении."""
+    lower, upper = local_day_bounds(start, end)
     return [
         model.organization_id == organization_id,
         model.status == RecordStatus.SIGNED,
         model.deletion_pending.is_(False),
         model.reserved_journal_id.is_(None),
-        local_date >= start,
-        local_date <= end,
+        model.performed_at >= lower,
+        model.performed_at < upper,
     ]
 
 
