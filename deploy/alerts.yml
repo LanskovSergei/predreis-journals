@@ -1,0 +1,61 @@
+# Примеры правил оповещений Prometheus. Подключение: rule_files: ["/etc/prometheus/journals-alerts.yml"]
+# Источник метрик: GET /metrics с заголовком Authorization: Bearer <JOURNALS_METRICS_TOKEN> (job="journals").
+# Правила RabbitMQ требуют плагина rabbitmq_prometheus на стороне брокера Предрейса (если он доступен вам).
+groups:
+  - name: journals
+    rules:
+      - alert: JournalsDown
+        expr: up{job="journals"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: "Электронные журналы не отвечают на сбор метрик"
+
+      - alert: JournalsErrors5xx
+        expr: sum(rate(journals_http_request_seconds_count{status=~"5.."}[5m])) > 0.1
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "Ответы 5xx чаще 1 раза в 10 секунд"
+
+      - alert: JournalsSlowRequests
+        expr: histogram_quantile(0.95, sum by (le) (rate(journals_http_request_seconds_bucket[5m]))) > 2
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "95% запросов медленнее 2 секунд"
+
+      - alert: SignJobsStuck
+        expr: journals_sign_job_oldest_active_age_seconds > 900
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "Задача подписи висит дольше 15 минут: проверьте воркер и доступность Предрейса"
+
+      - alert: SignJobsFailing
+        expr: increase(journals_sign_jobs{status="failed"}[1h]) > 10
+        for: 0m
+        labels: {severity: warning}
+        annotations:
+          summary: "Больше 10 отказов подписи за час"
+
+      - alert: CatalogSyncStale
+        expr: journals_catalog_sync_age_seconds > 1800
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "Справочник {{ $labels.entity }} не синхронизировался больше 30 минут (воркер остановлен или Предрейс недоступен)"
+
+      - alert: InboxFailuresAccumulate
+        expr: sum(journals_inbox_failures) > 20
+        for: 30m
+        labels: {severity: warning}
+        annotations:
+          summary: "Накопилось больше 20 нераспознанных сообщений очереди: смотрите таблицу inbox_failures"
+
+      - alert: EventQueueBacklog
+        expr: rabbitmq_queue_messages_ready{queue="journal.events.outgoing"} > 100
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "Очередь осмотров растёт: потребитель остановлен или не успевает"

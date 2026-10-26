@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     app_name: str = "Электронные журналы"
     env: str = "dev"
     log_level: str = "INFO"
+    # Токен для /metrics (Prometheus); не задан — метод отключён.
+    metrics_token: str | None = None
     business_timezone: str = "Europe/Moscow"
     cors_origins: list[str] = Field(default_factory=list)
 

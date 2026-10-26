@@ -1,10 +1,21 @@
+# Боевой запуск: docker compose up -d --build
+# Перед запуском: cp .env.example .env и заполнить (в том числе POSTGRES_PASSWORD).
+# Обратный прокси (Caddy/nginx) работает на хосте и ходит на 127.0.0.1:8000, см. deploy/ и docs/DEPLOY.md.
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
 services:
   postgres:
     image: postgres:16
     restart: unless-stopped
+    logging: *logging
     environment:
       POSTGRES_USER: journals
-      POSTGRES_PASSWORD: journals
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в .env}
       POSTGRES_DB: journals
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -17,10 +28,12 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    logging: *logging
 
   migrate:
     build: .
     env_file: .env
+    logging: *logging
     command: ["alembic", "upgrade", "head"]
     depends_on:
       postgres:
@@ -29,7 +42,18 @@ services:
   api:
     build: .
     restart: unless-stopped
+    logging: *logging
     env_file: .env
+    # Порт доступен только с этого хоста (прокси). Поэтому адресам из X-Forwarded-For можно доверять:
+    # без --forwarded-allow-ips все пользователи выглядят одним адресом прокси, а защита входа по адресу
+    # блокировала бы их всех сразу.
+    command:
+      - uvicorn
+      - app.main:app
+      - --host=0.0.0.0
+      - --port=8000
+      - --proxy-headers
+      - --forwarded-allow-ips=*
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -39,10 +63,17 @@ services:
       - "127.0.0.1:8000:8000"
     volumes:
       - storage:/var/lib/journals/storage
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   worker:
     build: .
     restart: unless-stopped
+    logging: *logging
     env_file: .env
     command: ["arq", "app.workers.settings.WorkerSettings"]
     depends_on:
@@ -56,6 +87,7 @@ services:
   consumer:
     build: .
     restart: unless-stopped
+    logging: *logging
     env_file: .env
     command: ["python", "-m", "app.workers.consumer"]
     depends_on:

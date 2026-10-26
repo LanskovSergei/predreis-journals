@@ -13,8 +13,9 @@ from app.core.config import get_settings
 from app.core.db import get_engine
 from app.core.errors import register_exception_handlers
 from app.core.logging import setup_logging
+from app.core.observability import ObservabilityMiddleware
 from app.integrations.predreis.client import get_predreis_client
-from app.modules import health
+from app.modules import health, metrics
 from app.modules.auth.router import router as auth_router
 from app.modules.catalog.router import router as catalog_router
 from app.modules.deletion.router import router as deletion_router
@@ -54,8 +55,9 @@ def create_app() -> FastAPI:
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
-            expose_headers=["Content-Disposition"],
+            expose_headers=["Content-Disposition", "X-Request-ID"],
         )
+    app.add_middleware(ObservabilityMiddleware)
     register_exception_handlers(app)
 
     api = APIRouter(prefix="/api/v1")
@@ -73,6 +75,7 @@ def create_app() -> FastAPI:
         api.include_router(r)
     app.include_router(api)
     app.include_router(health.router)
+    app.include_router(metrics.router)
     return app
 
 

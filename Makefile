@@ -1,4 +1,4 @@
-.PHONY: install run worker consumer test lint typecheck migrate revision openapi types up down dev-stack e2e load-seed bench audit-check replay
+.PHONY: storage-check backup install run worker consumer test lint typecheck migrate revision openapi types up down dev-stack e2e load-seed bench audit-check replay
 
 install:
 	pip install -e ".[dev]"
@@ -57,3 +57,9 @@ audit-check:
 
 replay:
 	python -m app.workers.replay --dry-run
+
+storage-check:
+	python -m app.maintenance.verify_storage --sample 1000
+
+backup:
+	deploy/backup.sh

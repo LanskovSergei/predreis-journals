@@ -1,0 +1,35 @@
+# Обратный прокси Caddy: TLS (сертификат Let's Encrypt выпускается автоматически), сжатие, ограничения.
+# Замените journals.example.ru на реальное имя; DNS-запись должна указывать на этот сервер, порты 80 и 443 открыты.
+# Проверка шаблона: caddy validate --config /etc/caddy/Caddyfile  (в моей среде Caddy не было, файл не проверялся)
+journals.example.ru {
+    encode zstd gzip
+
+    # Метрики только изнутри (Prometheus ходит на 127.0.0.1:8000 напрямую)
+    @metrics path /metrics /metrics/*
+    respond @metrics 404
+
+    # Лишнего про сервер не сообщаем; HSTS: браузер всегда ходит по HTTPS
+    header {
+        -Server
+        Strict-Transport-Security "max-age=31536000"
+    }
+
+    # Запросы приложения небольшие; крупные выгрузки (PDF, ZIP) идут в обратную сторону
+    request_body {
+        max_size 12MB
+    }
+
+    reverse_proxy 127.0.0.1:8000 {
+        # Выгрузка PDF и просмотр журнала могут занимать несколько секунд
+        transport http {
+            response_header_timeout 120s
+        }
+    }
+
+    log {
+        output file /var/log/caddy/journals.access.log {
+            roll_size 50MiB
+            roll_keep 10
+        }
+    }
+}

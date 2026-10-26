@@ -148,3 +148,35 @@ async def test_audit_verification_command_detects_tampering(session: AsyncSessio
     await session.commit()
     broken = await verify_stream(session, batch=2)
     assert not broken.ok and broken.checked == 3 and "содержимым" in (broken.reason or "")
+
+
+async def test_storage_verification_finds_missing_and_corrupted_files(
+    session: AsyncSession, storage
+) -> None:
+    """Сверка файлов с БД: целое хранилище проходит, пропавший и подменённый файлы находятся."""
+    from sqlalchemy import select as sa_select
+
+    from app.domain.enums import JournalKind
+    from app.maintenance.verify_storage import verify_storage
+    from app.models.documents import RecordDocument
+    from tests.integration.test_flows import _signed_record
+
+    w = await seed(session)
+    for _ in range(3):
+        await _signed_record(session, w, storage)
+    clean = await verify_storage(session, storage)
+    assert (
+        clean.ok and clean.documents == 3 and clean.files >= 12
+    )  # xml, pdf, подпись, метка времени
+
+    docs = (await session.execute(sa_select(RecordDocument))).scalars().all()
+    await storage.put(docs[0].xml_key or "", "<подменено/>".encode())
+    await storage.delete(docs[1].pdf_key or "")
+    broken = await verify_storage(session, storage)
+    assert not broken.ok
+    assert len(broken.corrupted) == 1 and docs[0].xml_key in broken.corrupted[0]
+    assert len(broken.missing) == 1 and docs[1].pdf_key in broken.missing[0]
+    assert JournalKind.MEDICAL.value in broken.missing[0]
+
+    sampled = await verify_storage(session, storage, sample=1)
+    assert sampled.documents == 1
