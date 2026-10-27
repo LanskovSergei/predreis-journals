@@ -46,6 +46,9 @@ class FakePredreis:
         self.verify_calls = 0
         self.login_calls: list[tuple[str, str]] = []
         self.password_ok = True
+        self.certificates: list[dict[str, Any]] = []
+        self.certificate_calls = 0
+        self.certificates_error: Exception | None = None
 
     async def verify_user(self, token: str) -> VerifiedUser:
         """Проверка токена."""
@@ -54,6 +57,20 @@ class FakePredreis:
         if isinstance(result, Exception):
             raise result
         return result
+
+    async def list_certificates(
+        self, *, role: str | None = None, user_id: uuid.UUID | None = None
+    ) -> list[dict[str, Any]]:
+        """Сертификаты с отбором по роли или пользователю (как у метода Предрейса)."""
+        self.certificate_calls += 1
+        if self.certificates_error is not None:
+            raise self.certificates_error
+        return [
+            c
+            for c in self.certificates
+            if (role is None or c.get("role") == role)
+            and (user_id is None or str(c.get("user_id")) == str(user_id))
+        ]
 
     async def user_login(self, email: str, password: str) -> UserLogin:
         """Вход в Предрейс."""

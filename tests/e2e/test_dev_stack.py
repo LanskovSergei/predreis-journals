@@ -258,3 +258,31 @@ def test_ejournal_end_to_end(stack: DevStack) -> None:
     assert "bp_systolic" not in seen.text and "complaints" not in seen.text
     export = client.post("/exports/medical", json={})
     assert export.status_code == 200 and export.content.startswith(b"%PDF")
+
+
+def test_certificates_and_specialists(stack: DevStack) -> None:
+    """Сертификаты: свои у медика, плашки у менеджера, счётчики по специалистам только у СА."""
+    medic, nocert = Session("medic"), Session("nocert")
+    mine = medic.get("/me/certificates").json()
+    assert mine["status"] == "active" and mine["certificates"][0]["serial"]
+    assert mine["certificates"][0]["issuer"] == "Тестовый удостоверяющий центр"
+    assert (
+        nocert.get("/me/certificates").json()["status"] == "missing"
+    )  # в хранилище сертификата нет
+
+    manager = Session("predreis")
+    listed = manager.get("/specialists?role=medic").json()
+    assert listed["certificates_available"] is True
+    by_name = {i["full_name"]: i for i in listed["items"]}
+    assert by_name["Сидорова Анна Сергеевна"]["status"] == "active"
+    assert by_name["Безсертов Сергей Сергеевич"]["status"] == "missing"
+    assert all(i["records"] is None for i in listed["items"])  # менеджеру счётчики не положены
+
+    sa = Session("superadmin").get("/specialists?role=medic").json()
+    counters = {i["full_name"]: i["records"] for i in sa["items"]}
+    assert (
+        counters["Сидорова Анна Сергеевна"]["signed"] >= 1
+    )  # записи из очереди и подписанная вручную
+    assert (
+        counters["Безсертов Сергей Сергеевич"]["to_sign"] == 1
+    )  # отказ подписи оставил запись неподписанной

@@ -658,6 +658,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/certificates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Мои сертификаты (медик, механик)
+         * @description Сертификаты текущего специалиста со статусом и сроком действия (отзыв не проверяется).
+         */
+        get: operations["my_certificates_api_v1_me_certificates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/specialists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Медики или механики с сертификатами (счётчики записей для СА)
+         * @description Список для плашек сертификатов и фильтра «ФИО медика/механика»; менеджерские роли.
+         */
+        get: operations["list_specialists_api_v1_specialists_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -707,6 +747,31 @@ export interface components {
             stamp_type: components["schemas"]["OcrStampType"];
             /** Files */
             files: string[];
+        };
+        /**
+         * CertificateOut
+         * @description Сертификат пользователя: статус считается по сроку и признаку `is_valid` Предрейса.
+         */
+        CertificateOut: {
+            /** Serial */
+            serial: string | null;
+            /** Owner */
+            owner: string | null;
+            /** Thumbprint */
+            thumbprint: string | null;
+            /** Issuer */
+            issuer: string | null;
+            /** Valid From */
+            valid_from: string | null;
+            /** Valid To */
+            valid_to: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "expired" | "missing";
+            /** Expiring Soon */
+            expiring_soon: boolean;
         };
         /**
          * ContractType
@@ -1150,6 +1215,26 @@ export interface components {
             note?: string | null;
         };
         /**
+         * MyCertificatesOut
+         * @description Сертификаты текущего специалиста (стартовая страница медика и механика).
+         */
+        MyCertificatesOut: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "expired" | "missing";
+            /** Valid To */
+            valid_to: string | null;
+            /** Certificates */
+            certificates: components["schemas"]["CertificateOut"][];
+            /**
+             * Revocation Checked
+             * @default false
+             */
+            revocation_checked: boolean;
+        };
+        /**
          * OcrStampType
          * @description Тип штампа на бумажном путевом листе.
          * @enum {string}
@@ -1254,18 +1339,6 @@ export interface components {
             page_size: number;
         };
         /**
-         * RecordCounters
-         * @description Счётчики записей: на подпись / подписанных / всего.
-         */
-        RecordCounters: {
-            /** To Sign */
-            to_sign: number;
-            /** Signed */
-            signed: number;
-            /** Total */
-            total: number;
-        };
-        /**
          * RecordSource
          * @description Источник записи.
          * @enum {string}
@@ -1353,14 +1426,59 @@ export interface components {
             signed_at: string | null;
         };
         /**
+         * SpecialistOut
+         * @description Специалист (медик или механик): сертификат и, для СА, счётчики записей.
+         */
+        SpecialistOut: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Full Name */
+            full_name: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "medic" | "mechanic";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "expired" | "missing";
+            /** Valid To */
+            valid_to: string | null;
+            /** Expiring Soon */
+            expiring_soon: boolean;
+            /** Certificates */
+            certificates: components["schemas"]["CertificateOut"][];
+            records?: components["schemas"]["app__modules__specialists__schemas__RecordCounters"] | null;
+        };
+        /**
+         * SpecialistsOut
+         * @description Список специалистов; `certificates_available=false`, если Предрейс не ответил.
+         */
+        SpecialistsOut: {
+            /** Items */
+            items: components["schemas"]["SpecialistOut"][];
+            /** Certificates Available */
+            certificates_available: boolean;
+            /**
+             * Revocation Checked
+             * @default false
+             */
+            revocation_checked: boolean;
+        };
+        /**
          * StatsOut
          * @description Статистика для роли. Для медика и механика показывается только их журнал.
          */
         StatsOut: {
             organizations?: components["schemas"]["CountPair"] | null;
             drivers?: components["schemas"]["CountPair"] | null;
-            medical?: components["schemas"]["RecordCounters"] | null;
-            technical?: components["schemas"]["RecordCounters"] | null;
+            medical?: components["schemas"]["app__modules__stats__service__RecordCounters"] | null;
+            technical?: components["schemas"]["app__modules__stats__service__RecordCounters"] | null;
         };
         /**
          * TechnicalRecordCreate
@@ -1545,6 +1663,30 @@ export interface components {
          * @enum {string}
          */
         WorkFormat: "epl" | "paper" | "hybrid";
+        /**
+         * RecordCounters
+         * @description Счётчики записей специалиста: «на подпись / подписанных / всего».
+         */
+        app__modules__specialists__schemas__RecordCounters: {
+            /** To Sign */
+            to_sign: number;
+            /** Signed */
+            signed: number;
+            /** Total */
+            total: number;
+        };
+        /**
+         * RecordCounters
+         * @description Счётчики записей: на подпись / подписанных / всего.
+         */
+        app__modules__stats__service__RecordCounters: {
+            /** To Sign */
+            to_sign: number;
+            /** Signed */
+            signed: number;
+            /** Total */
+            total: number;
+        };
     };
     responses: never;
     parameters: never;
@@ -2807,6 +2949,57 @@ export interface operations {
                     "application/json": {
                         [key: string]: number;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_certificates_api_v1_me_certificates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyCertificatesOut"];
+                };
+            };
+        };
+    };
+    list_specialists_api_v1_specialists_get: {
+        parameters: {
+            query?: {
+                role?: "medic" | "mechanic";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecialistsOut"];
                 };
             };
             /** @description Validation Error */

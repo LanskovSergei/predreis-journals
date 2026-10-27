@@ -2420,6 +2420,86 @@
         }
       }
     },
+    "/api/v1/me/certificates": {
+      "get": {
+        "tags": [
+          "Специалисты и сертификаты"
+        ],
+        "summary": "Мои сертификаты (медик, механик)",
+        "description": "Сертификаты текущего специалиста со статусом и сроком действия (отзыв не проверяется).",
+        "operationId": "my_certificates_api_v1_me_certificates_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyCertificatesOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/specialists": {
+      "get": {
+        "tags": [
+          "Специалисты и сертификаты"
+        ],
+        "summary": "Медики или механики с сертификатами (счётчики записей для СА)",
+        "description": "Список для плашек сертификатов и фильтра «ФИО медика/механика»; менеджерские роли.",
+        "operationId": "list_specialists_api_v1_specialists_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "role",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "medic",
+                "mechanic"
+              ],
+              "type": "string",
+              "default": "medic",
+              "title": "Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpecialistsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -2495,6 +2575,104 @@
           "files"
         ],
         "title": "Body_create_batch_api_v1_ocr_batches_post"
+      },
+      "CertificateOut": {
+        "properties": {
+          "serial": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serial"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
+          },
+          "thumbprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbprint"
+          },
+          "issuer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issuer"
+          },
+          "valid_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid From"
+          },
+          "valid_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid To"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "expired",
+              "missing"
+            ],
+            "title": "Status"
+          },
+          "expiring_soon": {
+            "type": "boolean",
+            "title": "Expiring Soon"
+          }
+        },
+        "type": "object",
+        "required": [
+          "serial",
+          "owner",
+          "thumbprint",
+          "issuer",
+          "valid_from",
+          "valid_to",
+          "status",
+          "expiring_soon"
+        ],
+        "title": "CertificateOut",
+        "description": "Сертификат пользователя: статус считается по сроку и признаку `is_valid` Предрейса."
       },
       "ContractType": {
         "type": "string",
@@ -3695,6 +3873,51 @@
         "title": "MedicalRecordUpdate",
         "description": "Частичное изменение неподписанной записи."
       },
+      "MyCertificatesOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "expired",
+              "missing"
+            ],
+            "title": "Status"
+          },
+          "valid_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid To"
+          },
+          "certificates": {
+            "items": {
+              "$ref": "#/components/schemas/CertificateOut"
+            },
+            "type": "array",
+            "title": "Certificates"
+          },
+          "revocation_checked": {
+            "type": "boolean",
+            "title": "Revocation Checked",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "valid_to",
+          "certificates"
+        ],
+        "title": "MyCertificatesOut",
+        "description": "Сертификаты текущего специалиста (стартовая страница медика и механика)."
+      },
       "OcrStampType": {
         "type": "string",
         "enum": [
@@ -4058,30 +4281,6 @@
         ],
         "title": "Page[VehicleOut]"
       },
-      "RecordCounters": {
-        "properties": {
-          "to_sign": {
-            "type": "integer",
-            "title": "To Sign"
-          },
-          "signed": {
-            "type": "integer",
-            "title": "Signed"
-          },
-          "total": {
-            "type": "integer",
-            "title": "Total"
-          }
-        },
-        "type": "object",
-        "required": [
-          "to_sign",
-          "signed",
-          "total"
-        ],
-        "title": "RecordCounters",
-        "description": "Счётчики записей: на подпись / подписанных / всего."
-      },
       "RecordSource": {
         "type": "string",
         "enum": [
@@ -4314,6 +4513,108 @@
         "title": "SignatureInfo",
         "description": "Данные электронной подписи записи (для таблицы архива)."
       },
+      "SpecialistOut": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "full_name": {
+            "type": "string",
+            "title": "Full Name"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "medic",
+              "mechanic"
+            ],
+            "title": "Role"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "expired",
+              "missing"
+            ],
+            "title": "Status"
+          },
+          "valid_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid To"
+          },
+          "expiring_soon": {
+            "type": "boolean",
+            "title": "Expiring Soon"
+          },
+          "certificates": {
+            "items": {
+              "$ref": "#/components/schemas/CertificateOut"
+            },
+            "type": "array",
+            "title": "Certificates"
+          },
+          "records": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/app__modules__specialists__schemas__RecordCounters"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "full_name",
+          "role",
+          "status",
+          "valid_to",
+          "expiring_soon",
+          "certificates"
+        ],
+        "title": "SpecialistOut",
+        "description": "Специалист (медик или механик): сертификат и, для СА, счётчики записей."
+      },
+      "SpecialistsOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SpecialistOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "certificates_available": {
+            "type": "boolean",
+            "title": "Certificates Available"
+          },
+          "revocation_checked": {
+            "type": "boolean",
+            "title": "Revocation Checked",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "certificates_available"
+        ],
+        "title": "SpecialistsOut",
+        "description": "Список специалистов; `certificates_available=false`, если Предрейс не ответил."
+      },
       "StatsOut": {
         "properties": {
           "organizations": {
@@ -4339,7 +4640,7 @@
           "medical": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/RecordCounters"
+                "$ref": "#/components/schemas/app__modules__stats__service__RecordCounters"
               },
               {
                 "type": "null"
@@ -4349,7 +4650,7 @@
           "technical": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/RecordCounters"
+                "$ref": "#/components/schemas/app__modules__stats__service__RecordCounters"
               },
               {
                 "type": "null"
@@ -4856,6 +5157,54 @@
         ],
         "title": "WorkFormat",
         "description": "Формат работы организации."
+      },
+      "app__modules__specialists__schemas__RecordCounters": {
+        "properties": {
+          "to_sign": {
+            "type": "integer",
+            "title": "To Sign"
+          },
+          "signed": {
+            "type": "integer",
+            "title": "Signed"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "to_sign",
+          "signed",
+          "total"
+        ],
+        "title": "RecordCounters",
+        "description": "Счётчики записей специалиста: «на подпись / подписанных / всего»."
+      },
+      "app__modules__stats__service__RecordCounters": {
+        "properties": {
+          "to_sign": {
+            "type": "integer",
+            "title": "To Sign"
+          },
+          "signed": {
+            "type": "integer",
+            "title": "Signed"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "to_sign",
+          "signed",
+          "total"
+        ],
+        "title": "RecordCounters",
+        "description": "Счётчики записей: на подпись / подписанных / всего."
       }
     },
     "securitySchemes": {

@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     # Чей сертификат подписывает журнал; пусто — сертификат СА, нажавшего «Подписать».
     org_signer_user_id: uuid.UUID | None = None
 
+    # Список сертификатов Предрейса кэшируется (запрос тяжёлый, данные меняются редко)
+    certificates_cache_ttl_s: int = 60
+
     # --- Синхронизация справочников ---
     catalog_page_size: int = 500
     catalog_sync_overlap_s: int = 5

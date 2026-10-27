@@ -23,6 +23,7 @@ from app.modules.ejournal.router import router as ejournal_router
 from app.modules.medical.router import router as medical_router
 from app.modules.ocr.router import router as ocr_router
 from app.modules.reports.router import router as reports_router
+from app.modules.specialists.router import router as specialists_router
 from app.modules.stats.router import router as stats_router
 from app.modules.technical.router import router as technical_router
 
@@ -71,6 +72,7 @@ def create_app() -> FastAPI:
         reports_router,
         ejournal_router,
         ocr_router,
+        specialists_router,
     ):
         api.include_router(r)
     app.include_router(api)

@@ -26,6 +26,7 @@ TOKEN_PATH = "/api/v1/service/token"
 CATALOG_PATH = "/api/v1/service/catalogs/{entity}"
 SIGN_PATH = "/api/v1/service/sign"
 VERIFY_PATH = "/api/v1/service/users/verify"
+CERTIFICATES_PATH = "/api/v1/service/certificates"
 TOKEN_LEEWAY_S = 60
 
 
@@ -338,6 +339,18 @@ class PredreisClient:
             )
         except (KeyError, ValueError, TypeError) as exc:
             raise UpstreamError("Неожиданный ответ проверки токена") from exc
+
+    # --- сертификаты пользователей -----------------------------------------------------------
+    async def list_certificates(
+        self, *, role: str | None = None, user_id: uuid.UUID | None = None
+    ) -> list[dict[str, Any]]:
+        """Сертификаты пользователей (отбор по роли или пользователю). Отзыв не проверяется."""
+        params: dict[str, Any] = {}
+        if role:
+            params["role"] = role
+        if user_id:
+            params["user_id"] = str(user_id)
+        return _items(await self._request("GET", CERTIFICATES_PATH, params=params))
 
     # --- справочники --------------------------------------------------------------------------
     async def list_catalog(

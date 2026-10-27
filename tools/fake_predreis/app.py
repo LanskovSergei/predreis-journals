@@ -160,6 +160,37 @@ def verify(body: VerifyIn) -> dict[str, Any]:
     }
 
 
+# ---------- сертификаты пользователей ----------
+
+
+@app.get("/api/v1/service/certificates", dependencies=[Depends(service_auth)])
+def certificates(role: str | None = None, user_id: str | None = None) -> list[dict[str, Any]]:
+    """Сертификаты пользователей: у кого сертификата нет в хранилище, поля пустые и is_valid=false."""
+    out: list[dict[str, Any]] = []
+    for user in data.USERS.values():
+        if (role and user["role"] != role) or (user_id and user["id"] != user_id):
+            continue
+        name = f"{user['last_name']} {user['first_name']} {user['middle_name']}"
+        item: dict[str, Any] = {
+            "user_id": user["id"], "full_name": name, "role": user["role"], "owner": None,
+            "thumbprint": None, "serial": None, "issuer": None, "valid_from": None, "valid_to": None,
+            "is_valid": False,
+        }  # fmt: skip
+        if user["has_cert"]:
+            _, cert = _cert_for(user["id"], name)
+            item.update(
+                owner=name,
+                thumbprint=cert.fingerprint(hashes.SHA1()).hex().upper(),
+                serial="0x" + format(cert.serial_number, "X"),
+                issuer="Тестовый удостоверяющий центр",
+                valid_from=cert.not_valid_before_utc.isoformat(),
+                valid_to=cert.not_valid_after_utc.isoformat(),
+                is_valid=True,
+            )
+        out.append(item)
+    return out
+
+
 # ---------- справочники ----------
 
 
