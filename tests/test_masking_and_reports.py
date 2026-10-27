@@ -194,3 +194,55 @@ async def test_single_record_pdf_is_generated(kind: JournalKind) -> None:
     pdf = await render_single_record_pdf(kind, rec, _doc(rec.id, kind))
     assert pdf.startswith(b"%PDF")
     assert len(pdf) > 1000
+
+
+def test_texts_match_the_specification_verbatim() -> None:
+    """Названия документов и реквизиты исполнителя совпадают с ТЗ дословно (стр. 19-21)."""
+    from app.core.config import Settings
+    from app.domain.masking import MEDICAL_PRIVACY_NOTICE
+    from app.modules.reports.service import (
+        JOURNAL_TITLES,
+        MEDICAL_RECORD_TITLE,
+        MEDICAL_TITLE,
+        TECHNICAL_RECORD_TITLE,
+        TECHNICAL_TITLE,
+    )
+
+    assert MEDICAL_TITLE == (
+        "Отчёт о проведённом предрейсовом (предсменном), послерейсовом (послесменном) "
+        "медицинском осмотре водителей"
+    )
+    assert TECHNICAL_TITLE == (
+        "Отчёт о проведённом предрейсовом (предсменном) контроле технического состояния "
+        "транспортных средств"
+    )
+    assert MEDICAL_RECORD_TITLE == (
+        "Электронная запись о предрейсовом (предсменном) или послерейсовом (послесменном) "
+        "медицинском осмотре водителя"
+    )
+    assert TECHNICAL_RECORD_TITLE == (
+        "Электронная запись о предрейсовом контроле технического состояния транспортного средства"
+    )
+    assert list(JOURNAL_TITLES.values()) == [
+        "Электронный журнал предрейсовых (предсменных) и послерейсовых (послесменных) "
+        "медицинских осмотров водителей",
+        "Электронный журнал предрейсового контроля технического состояния транспортных средств",
+    ]
+    s = Settings()
+    assert s.executor_name == "ООО «ПРЕДРЕЙС»" and s.executor_inn == "5027236147"
+    assert s.executor_address == (
+        "140032, Московская область, г. Люберцы, пгт. Малаховка, ул. Шоссейная, д. 40, "
+        "этаж 1, пом.19,20"
+    )
+    assert s.executor_license == (
+        "№ Л041-01162-50/00331687 от 23.05.2019 выдана Министерством здравоохранения "
+        "Московской области"
+    )
+    assert (
+        s.executor_phone == "+7 (925) 028-87-55" and s.executor_email == "predreis@predreis.online"
+    )
+    assert MEDICAL_PRIVACY_NOTICE == (
+        "Информация, имеющая отношение к врачебной тайне, скрыта в соответствии со ст. 13 "
+        "Федерального закона от 21.11.2011 № 323-ФЗ «Об основах охраны здоровья граждан в "
+        "Российской Федерации»."
+    )

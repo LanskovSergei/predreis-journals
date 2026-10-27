@@ -68,6 +68,7 @@ make lint typecheck
 - [docs/xml-schema.md](docs/xml-schema.md) — форматы XML (XSD) и образцы
 - [docs/predreis-integration.md](docs/predreis-integration.md) — интеграция с Предрейсом: справочники, очередь, подпись, разбор сбоев
 - [docs/container-format.md](docs/container-format.md) — состав ZIP-контейнера журнала и порядок его проверки
+- [docs/TZ_COMPLIANCE.md](docs/TZ_COMPLIANCE.md) — соответствие реализации ТЗ: что сделано, чем проверено, чего нет и от кого зависит
 - [docs/FRONTEND.md](docs/FRONTEND.md) — руководство для разработчика фронтенда (вход, статусы, подпись, ошибки)
 - [docs/DEPLOY.md](docs/DEPLOY.md) — развёртывание на сервере: прокси и TLS, обновление, копии, мониторинг, чек-лист
 - [docs/OPERATIONS.md](docs/OPERATIONS.md) — эксплуатация: процессы, мониторинг, команды обслуживания, производительность

@@ -383,3 +383,67 @@ async def test_specialist_is_required_for_managers_and_signing_is_denied_to_them
         "/api/v1/medical/records/sign", json={"record_ids": [rid]}, headers=manager
     )
     assert denied.status_code == 403 and denied.json()["error"]["code"] == "permission_denied"
+
+
+async def test_mass_signing_reports_each_record_and_signs_the_clean_ones(stack: Stack) -> None:
+    """Массовая подпись (ТЗ, п. 8): подписываются все «чистые» записи, с примечанием отказ только по ним."""
+    c, w = stack.client, stack.world
+    medic = stack.auth("medic")
+    ids = []
+    for hour, note in ((0, None), (1, None), (2, "проверить"), (3, None)):
+        body = medical_body(w, performed_at=(WHEN + timedelta(hours=hour)).isoformat())
+        if note:
+            body["note"] = note
+        created = await c.post("/api/v1/medical/records", json=body, headers=medic)
+        ids.append(created.json()["id"])
+
+    result = await c.post("/api/v1/medical/records/sign", json={"record_ids": ids}, headers=medic)
+    assert result.status_code == 200
+    data = result.json()
+    assert (data["signed"], data["failed"]) == (3, 1)
+    by_id = {r["record_id"]: r for r in data["results"]}
+    assert by_id[ids[2]]["ok"] is False and by_id[ids[2]]["code"] == "note_not_empty"
+    assert all(by_id[i]["ok"] for i in (ids[0], ids[1], ids[3]))
+
+    await stack.run_worker()
+    statuses = {
+        i: (await c.get(f"/api/v1/medical/records/{i}", headers=medic)).json()["status"]
+        for i in ids
+    }
+    assert [statuses[i] for i in ids] == ["signed", "signed", "unsigned", "signed"]
+    # Повторная подпись тех же записей: уже подписанные не принимаются, ошибка по каждой.
+    again = await c.post(
+        "/api/v1/medical/records/sign", json={"record_ids": ids[:2]}, headers=medic
+    )
+    assert again.json()["failed"] == 2 and again.json()["signed"] == 0
+
+
+async def test_mass_signing_limit_and_duplicates(stack: Stack) -> None:
+    """За один запрос не более 50 записей; повторы одного идентификатора считаются один раз."""
+    c = stack.client
+    too_many = await c.post(
+        "/api/v1/medical/records/sign",
+        json={"record_ids": [str(uuid.uuid4()) for _ in range(51)]},
+        headers=stack.auth("medic"),
+    )
+    assert too_many.status_code == 400 and "50" in too_many.json()["error"]["message"]
+
+    created = await c.post(
+        "/api/v1/medical/records", json=medical_body(stack.world), headers=stack.auth("medic")
+    )
+    rid = created.json()["id"]
+    twice = await c.post(
+        "/api/v1/medical/records/sign",
+        json={"record_ids": [rid, rid, rid]},
+        headers=stack.auth("medic"),
+    )
+    assert twice.json()["signed"] == 1 and len(twice.json()["results"]) == 1
+
+    exactly_fifty = await c.post(
+        "/api/v1/medical/records/sign",
+        json={"record_ids": [str(uuid.uuid4()) for _ in range(50)]},
+        headers=stack.auth("medic"),
+    )
+    assert (
+        exactly_fifty.status_code == 200 and exactly_fifty.json()["failed"] == 50
+    )  # записей нет, но лимит не нарушен

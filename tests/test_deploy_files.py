@@ -71,8 +71,14 @@ def test_alert_rules_reference_existing_metrics() -> None:
 
 
 def test_backup_script_is_executable_and_safe() -> None:
-    """Скрипт копирования исполняемый, строгий режим bash, дамп проверяется перед использованием."""
-    script = ROOT / "deploy" / "backup.sh"
-    assert script.stat().st_mode & 0o111
-    text = script.read_text(encoding="utf-8")
+    """Скрипт копирования исполняемый (по индексу Git), строгий режим bash, дамп проверяется."""
+    import subprocess
+
+    text = (ROOT / "deploy" / "backup.sh").read_text(encoding="utf-8")
     assert "set -euo pipefail" in text and "pg_restore --list" in text and ".part" in text
+    # Режим файла берём из индекса Git: на Windows файловая система флага исполняемости не хранит.
+    listed = subprocess.run(
+        ["git", "ls-files", "-s", "deploy/backup.sh"], cwd=ROOT, capture_output=True, text=True
+    )
+    if listed.returncode == 0 and listed.stdout.strip():
+        assert listed.stdout.startswith("100755"), "deploy/backup.sh должен быть исполняемым в Git"
