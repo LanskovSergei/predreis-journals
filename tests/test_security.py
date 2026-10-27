@@ -153,6 +153,8 @@ async def test_invalidate_forgets_token() -> None:
         ("client", Role.CLIENT),
         ("dispatcher", Role.DISPATCHER),
         ("predreis", Role.PREDREIS),
+        ("predreise", Role.PREDREIS),  # так оператор платформы называется в Предрейсе
+        ("PredreisE", Role.PREDREIS),
     ],
 )
 def test_role_mapping(raw: str, role: Role) -> None:
@@ -374,3 +376,19 @@ def test_login_guard_counts_only_failures() -> None:
     assert guard.is_blocked("1.1.1.1", "a@e.ru") and not guard.is_blocked("1.1.1.1", "b@e.ru")
     clock.now += 11
     assert not guard.is_blocked("1.1.1.1", "a@e.ru")
+
+
+@pytest.mark.parametrize("raw", ["driver", "driver_plus", "support", "client_service", "unknown"])
+def test_roles_without_journals_equivalent_are_refused(raw: str) -> None:
+    """Роли Предрейса, которых нет в ТЗ журналов, доступа не получают (даже с включённым флагом)."""
+    with pytest.raises(ForbiddenError) as exc:
+        parse_role(raw)
+    assert exc.value.code == "role_unsupported"
+    with pytest.raises(ForbiddenError):
+        principal_from_user(user(role=raw))
+
+
+def test_real_predreis_manager_role_gets_manager_permissions() -> None:
+    """Менеджер ПРЕДРЕЙС с ролью «predreise» входит и получает права роли Предрейс."""
+    principal = principal_from_user(user(role="predreise"))
+    assert principal.role is Role.PREDREIS

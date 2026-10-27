@@ -151,12 +151,14 @@ def _user(
 
 USERS = {
     "superadmin": _user("superadmin", "Главный", "Админ", "Суперович"),
-    "predreis": _user("predreis", "Менеджерова", "Мария", "Петровна"),
+    "predreis": _user(
+        "predreise", "Менеджерова", "Мария", "Петровна", email="predreis@example.ru"
+    ),
     "medic": _user("medic", "Сидорова", "Анна", "Сергеевна"),
     "mechanic": _user("mechanic", "Механиков", "Дмитрий", "Юрьевич"),
     "client": _user("client", "Клиентов", "Клим", "Климович", org=ORG_LLC),
     "noaccess": _user(
-        "predreis", "Безправов", "Борис", "Борисович", access=False, email="noaccess@example.ru"
+        "predreise", "Безправов", "Борис", "Борисович", access=False, email="noaccess@example.ru"
     ),
     "nocert": _user(
         "medic", "Безсертов", "Сергей", "Сергеевич", cert=False, email="nocert@example.ru"

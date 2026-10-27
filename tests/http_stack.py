@@ -72,7 +72,7 @@ async def build_stack(
     predreis.tokens = {
         "medic": verified_user(world.medic.id, "medic"),
         "mechanic": verified_user(world.mechanic.id, "mechanic"),
-        "manager": verified_user(world.manager.id, "predreis"),
+        "manager": verified_user(world.manager.id, "predreise"),
         "sa": verified_user(uuid.uuid4(), "superadmin"),
         "admin": verified_user(uuid.uuid4(), "admin"),
         "client": verified_user(uuid.uuid4(), "client", world.org.id),

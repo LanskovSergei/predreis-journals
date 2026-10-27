@@ -26,7 +26,12 @@ from app.integrations.predreis.client import PredreisClient, VerifiedUser, get_p
 logger = logging.getLogger(__name__)
 _bearer = HTTPBearer(auto_error=False)
 
-_ROLE_ALIASES = {"super_admin": Role.SA, "super-admin": Role.SA}
+# Названия ролей в Предрейсе, отличающиеся от наших. Оператор платформы пишется «predreise».
+_ROLE_ALIASES = {
+    "super_admin": Role.SA,
+    "super-admin": Role.SA,
+    "predreise": Role.PREDREIS,
+}
 
 
 @dataclass(frozen=True, slots=True)

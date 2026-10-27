@@ -220,7 +220,7 @@ async def test_permission_matrix_over_http(
 
 async def test_login_over_http_sets_up_a_working_session(stack: Stack) -> None:
     """Вход возвращает токен; с ним доступны методы, а права в ответе совпадают с /me."""
-    stack.predreis.tokens["good"] = verified_user(stack.world.manager.id, "predreis")
+    stack.predreis.tokens["good"] = verified_user(stack.world.manager.id, "predreise")
     login = await stack.client.post(
         "/api/v1/auth/login", json={"email": "m@e.ru", "password": "pw"}
     )
