@@ -12,7 +12,7 @@ from app.core.security import Principal
 from app.domain import fsm
 from app.domain.enums import JournalKind, RecordSource, RecordStatus, Role
 from app.domain.validators import merge_auto_note, odometer_issues
-from app.models.catalog import Driver, User
+from app.models.catalog import Driver, User, Vehicle
 from app.models.documents import RecordDocument, SignJob
 from app.models.records import TECHNICAL_PLATE, TechnicalRecord
 from app.modules.audit.service import append_audit
@@ -91,6 +91,14 @@ class TechnicalService(BaseRecordService):
         stmt = self._apply_common_filters(stmt, f)
         if f.vehicle_id:
             stmt = stmt.where(TechnicalRecord.vehicle_id == f.vehicle_id)
+        if f.vehicle:
+            # Ищем по справочнику ТС (сотни строк), а записи отбираем по найденным ТС через индекс:
+            # триграммы по снимку записей медленны, если у тысяч записей одни марка и модель.
+            text = func.concat_ws(" ", Vehicle.brand, Vehicle.model, Vehicle.plate)
+            matching = select(Vehicle.id).where(
+                text.ilike(contains_pattern(f.vehicle), escape="\\")
+            )
+            stmt = stmt.where(TechnicalRecord.vehicle_id.in_(matching))
         if f.plate:
             stmt = stmt.where(TECHNICAL_PLATE.ilike(contains_pattern(f.plate), escape="\\"))
         total = (

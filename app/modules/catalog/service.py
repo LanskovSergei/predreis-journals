@@ -81,6 +81,23 @@ async def ensure_principal_user(session: AsyncSession, principal: Principal) -> 
     )
 
 
+# Правовые формы в начале наименования (длинные раньше коротких: «пао» раньше «ао»).
+LEGAL_FORMS = (
+    "общество с ограниченной ответственностью|индивидуальный предприниматель|"
+    "публичное акционерное общество|непубличное акционерное общество|"
+    "закрытое акционерное общество|открытое акционерное общество|акционерное общество|"
+    "федеральное государственное унитарное предприятие|государственное унитарное предприятие|"
+    "муниципальное унитарное предприятие|автономная некоммерческая организация|"
+    "ооо|ип|пао|зао|оао|ао|фгуп|гуп|муп|ано|нко"
+)
+
+
+def org_sort_key(name: Any) -> Any:
+    """Ключ сортировки каталога: наименование без правовой формы и кавычек (ТЗ, стр. 15)."""
+    without_form = func.regexp_replace(name, rf"^\s*({LEGAL_FORMS})\s+", "", "i")
+    return func.lower(func.regexp_replace(without_form, r"^[\s«»\"'“”„]+", ""))
+
+
 class CatalogService:
     """Чтение реплик каталога (создаются и меняются только в Предрейсе)."""
 
@@ -126,7 +143,9 @@ class CatalogService:
             )
         if only_active is not None:
             stmt = stmt.where(Organization.is_active == only_active)
-        rows, total = await self._page(stmt, params, [func.lower(Organization.name)])
+        rows, total = await self._page(
+            stmt, params, [org_sort_key(Organization.name), func.lower(Organization.name)]
+        )
         return Page(items=rows, total=total, page=params.page, page_size=params.page_size)
 
     async def list_drivers(

@@ -88,6 +88,12 @@ class TechnicalFilters(RecordFilters):
     """Фильтры журнала техконтроля."""
 
     vehicle_id: uuid.UUID | None = Field(default=None, description="Записи одного ТС (быстро)")
+    vehicle: str | None = Field(
+        default=None,
+        min_length=3,
+        max_length=128,
+        description="Поиск по марке, модели и госномеру ТС из справочника (от 3 символов)",
+    )
     plate: str | None = Field(
         default=None,
         min_length=3,
@@ -96,10 +102,34 @@ class TechnicalFilters(RecordFilters):
     )
 
 
+class RecordIdsIn(BaseModel):
+    """Выбранные записи (чек-боксы архива)."""
+
+    record_ids: list[uuid.UUID] = Field(min_length=1)
+
+
 class SignRequest(BaseModel):
     """Запрос на подпись одной или нескольких записей."""
 
     record_ids: list[uuid.UUID] = Field(min_length=1)
+
+
+class StandardTimeOut(BaseModel):
+    """Время последней «бумажной» записи по водителю или ТС (ТЗ: «стандартное время» осмотра)."""
+
+    time: str | None = Field(
+        description="ЧЧ:ММ по московскому времени; null — записей ещё не было"
+    )
+    performed_at: datetime | None
+    record_id: uuid.UUID | None
+
+
+class DeleteBatchResult(BaseModel):
+    """Итог пакетного удаления: по каждой записи — удалена или причина отказа."""
+
+    deleted: int
+    failed: int
+    results: list[SignOutcome]
 
 
 class SignOutcome(BaseModel):

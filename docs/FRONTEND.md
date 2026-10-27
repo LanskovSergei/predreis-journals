@@ -135,7 +135,8 @@ POST /api/v1/auth/login
 | `has_note` | `true` — только с примечанием |
 | `is_signed` | `true` — подписанные и в журнале, `false` — неподписанные («на подпись») |
 | `driver_id` / `vehicle_id` | записи одного водителя / ТС (быстро; используйте при выборе из справочника) |
-| `driver_name` / `plate` | поиск по подстроке, **от 3 символов** |
+| `driver_name` / `plate` | поиск по подстроке, **от 3 символов** (`plate` ищет госномер в самой записи) |
+| `vehicle` | техконтроль: поиск по марке, модели и госномеру ТС из справочника (от 3 символов), например `газон next` |
 
 Сортировка фиксирована: самые новые первыми. Для «На подпись» у медика: `is_signed=false&specialist_user_id=<мой id>`.
 
@@ -146,6 +147,10 @@ POST /api/v1/auth/login
 - `performed_at` — **с часовым поясом** (`2026-10-14T08:20:00+03:00`), без пояса вернётся `422`.
 - Медик/механик создают записи только от себя (`specialist_user_id` не нужен). Менеджеры, админ и суперадмин обязаны
   указать `specialist_user_id`.
+- **«Стандартное время»** (ТЗ: для первой записи время вводят вручную, дальше подставляется прежнее):
+  `GET /medical/records/standard-time?driver_id=…&phase=pre|post` и `GET /technical/records/standard-time?vehicle_id=…`
+  возвращают `{time: "ЧЧ:ММ" | null, performed_at, record_id}` по последней записи из бумажного путевого листа.
+  `null` значит записей ещё не было: поле времени пустое, пользователь вводит вручную.
 - Создание «на период» (несколько дат) сервер пока не поддерживает: для диапазона отправляйте запросы по каждой дате.
 - Изменять можно только запись `unsigned` из `manual`/`ocr` и только пока она не отправлена на подпись.
 
@@ -154,6 +159,7 @@ POST /api/v1/auth/login
 `GET /catalog/organizations`, `/catalog/drivers`, `/catalog/vehicles` (`q` — поиск, `organization_id`, `page`, `page_size`;
 только менеджерские роли). Данные приходят из ПРЕДРЕЙСа и **создаются и меняются только там**; для выпадающих списков
 используйте поиск по `q` с подгрузкой, а не загрузку всего списка. Пол и дата рождения водителя могут быть пустыми.
+Организации отсортированы по алфавиту **без правовой формы** (ИП, ООО, АО и т. п.) и кавычек, как требует ТЗ.
 
 ## 6.1. Сертификаты специалистов
 
@@ -193,7 +199,9 @@ hex без `0x` (как в подписи), `owner` это владелец по
 
 ## 8. Удаление
 
-- Неподписанную запись удаляют `DELETE /{kind}/records/{id}` (`204`).
+- Неподписанную запись удаляют `DELETE /{kind}/records/{id}` (`204`). **Выбранные галочками:**
+  `POST /{kind}/records/delete {"record_ids": [...]}` (до 50), ответ `{deleted, failed, results: [{record_id, ok, code, message}]}`:
+  подписанные, чужие и несуществующие записи не удаляются, причина приходит по каждой.
 - Подписанную нельзя удалить напрямую: менеджер ПРЕДРЕЙС создаёт запрос
   `POST /{kind}/records/{id}/deletion-request {reason}` (`201`), Админ и Суперадмин решают в разделе запросов:
   `GET /deletion-requests`, `POST /deletion-requests/{id}/approve|reject`.
@@ -289,7 +297,9 @@ docker compose -f docker-compose.dev.yml up --build
 |---|---|---|
 | GET | `/api/v1/medical/records` | Архив записей медосмотров |
 | POST | `/api/v1/medical/records` | Создать запись |
+| POST | `/api/v1/medical/records/delete` | Удалить выбранные неподписанные записи (до 50) |
 | POST | `/api/v1/medical/records/sign` | Отправить записи на подпись (в т.ч. массово) |
+| GET | `/api/v1/medical/records/standard-time` | Стандартное время осмотра (последняя запись по водителю) |
 | DELETE | `/api/v1/medical/records/{record_id}` | Удалить неподписанную запись |
 | GET | `/api/v1/medical/records/{record_id}` | Получить запись |
 | PATCH | `/api/v1/medical/records/{record_id}` | Изменить неподписанную запись |
@@ -302,7 +312,9 @@ docker compose -f docker-compose.dev.yml up --build
 |---|---|---|
 | GET | `/api/v1/technical/records` | Архив записей техконтроля |
 | POST | `/api/v1/technical/records` | Создать запись |
+| POST | `/api/v1/technical/records/delete` | Удалить выбранные неподписанные записи (до 50) |
 | POST | `/api/v1/technical/records/sign` | Отправить записи на подпись (в т.ч. массово) |
+| GET | `/api/v1/technical/records/standard-time` | Стандартное время осмотра (последняя запись по ТС) |
 | DELETE | `/api/v1/technical/records/{record_id}` | Удалить неподписанную запись |
 | GET | `/api/v1/technical/records/{record_id}` | Получить запись |
 | PATCH | `/api/v1/technical/records/{record_id}` | Изменить неподписанную запись |

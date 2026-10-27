@@ -10,6 +10,7 @@ from typing import Any, ClassVar
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.errors import (
     AppError,
     ConflictError,
@@ -19,7 +20,7 @@ from app.core.errors import (
 )
 from app.core.security import Principal
 from app.core.sqlutil import contains_pattern
-from app.core.timeutils import local_day_bounds
+from app.core.timeutils import business_tz, local_day_bounds
 from app.domain import fsm
 from app.domain.enums import (
     JournalKind,
@@ -37,7 +38,13 @@ from app.models.records import MedicalRecord, TechnicalRecord
 from app.modules.audit.service import append_audit
 from app.modules.catalog.service import ensure_principal_user
 from app.modules.integration import outbox
-from app.modules.records.schemas import RecordFilters, SignatureInfo
+from app.modules.records.schemas import (
+    DeleteBatchResult,
+    RecordFilters,
+    SignatureInfo,
+    SignOutcome,
+    StandardTimeOut,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -301,6 +308,53 @@ class BaseRecordService:
             entity_id=str(record_id),
         )
         await self.session.commit()
+
+    async def standard_time(self, principal: Principal, *conditions: Any) -> StandardTimeOut:
+        """Время последней записи из бумажного путевого листа по условию (водитель или ТС).
+
+        ТЗ: первую запись вводят вручную, для следующих подставляется указанное ранее время.
+        Записи из ЭПЛ не учитываются: у них фактическое время осмотра, а не «стандартное».
+        """
+        self._require(principal, self.perms.create)
+        m = self.model
+        stmt = await self._scope(select(m), principal)
+        stmt = (
+            stmt.where(m.source != RecordSource.EPL, *conditions)
+            .order_by(m.performed_at.desc(), m.id.desc())
+            .limit(1)
+        )
+        record = (await self.session.execute(stmt)).scalar_one_or_none()
+        if record is None:
+            return StandardTimeOut(time=None, performed_at=None, record_id=None)
+        local = record.performed_at.astimezone(business_tz())
+        return StandardTimeOut(
+            time=local.strftime("%H:%M"), performed_at=record.performed_at, record_id=record.id
+        )
+
+    async def delete_unsigned_many(
+        self, principal: Principal, record_ids: list[uuid.UUID]
+    ) -> DeleteBatchResult:
+        """Удаляет выбранные неподписанные записи; отказ по одной записи не мешает остальным."""
+        self._require(principal, self.perms.delete_unsigned)
+        unique = list(dict.fromkeys(record_ids))
+        limit = get_settings().mass_delete_max_batch
+        if len(unique) > limit:
+            raise AppError(f"За один запрос можно удалить не более {limit} записей")
+        results: list[SignOutcome] = []
+        for record_id in unique:
+            try:
+                await self.delete_unsigned(principal, record_id)
+            except AppError as exc:
+                await (
+                    self.session.rollback()
+                )  # снимаем блокировку строки, удачные уже зафиксированы
+                results.append(
+                    SignOutcome(record_id=record_id, ok=False, code=exc.code, message=str(exc))
+                )
+            else:
+                results.append(SignOutcome(record_id=record_id, ok=True))
+        deleted = sum(1 for r in results if r.ok)
+        return DeleteBatchResult(deleted=deleted, failed=len(results) - deleted, results=results)
 
     async def clear_note(self, principal: Principal, record_id: uuid.UUID) -> AnyRecord:
         """Очищает поле «Примечание» неподписанной записи."""

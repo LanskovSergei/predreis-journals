@@ -81,6 +81,7 @@ class Settings(BaseSettings):
     page_size_default: int = 10
     page_size_max: int = 100
     mass_sign_max_batch: int = 50
+    mass_delete_max_batch: int = 50
     export_max_rows: int = 5000
 
     # --- Реквизиты исполнителя для отчётных PDF (ТЗ, стр. 19-20) ---

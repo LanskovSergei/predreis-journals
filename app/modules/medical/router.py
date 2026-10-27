@@ -10,18 +10,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
 from app.core.security import Principal, get_principal
-from app.domain.enums import JournalKind
+from app.domain.enums import InspectionPhase, JournalKind
 from app.integrations.predreis.client import SignGateway, get_sign_gateway
+from app.models.records import MedicalRecord
 from app.modules.medical.schemas import MedicalRecordCreate, MedicalRecordUpdate
 from app.modules.medical.service import MedicalOut, MedicalService
 from app.modules.records.schemas import (
+    DeleteBatchResult,
     DeletionRequestIn,
     DeletionRequestOut,
     MedicalFilters,
     Page,
     PageParams,
+    RecordIdsIn,
     SignBatchResult,
     SignRequest,
+    StandardTimeOut,
     page_params,
 )
 from app.modules.signing.service import SigningService
@@ -65,6 +69,38 @@ async def sign_records(
     return await SigningService(session, gateway).request_signing(
         principal, JournalKind.MEDICAL, body.record_ids
     )
+
+
+@router.get(
+    "/standard-time",
+    response_model=StandardTimeOut,
+    summary="Стандартное время осмотра (последняя запись по водителю)",
+)
+async def standard_time(
+    driver_id: uuid.UUID,
+    phase: InspectionPhase | None = None,
+    principal: Principal = Depends(get_principal),
+    session: AsyncSession = Depends(get_session),
+) -> StandardTimeOut:
+    """Время последней записи из бумажного путевого листа для подстановки в форму создания."""
+    conditions = [MedicalRecord.driver_id == driver_id]
+    if phase is not None:
+        conditions.append(MedicalRecord.phase == phase)
+    return await MedicalService(session).standard_time(principal, *conditions)
+
+
+@router.post(
+    "/delete",
+    response_model=DeleteBatchResult,
+    summary="Удалить выбранные неподписанные записи (до 50)",
+)
+async def delete_records(
+    body: RecordIdsIn,
+    principal: Principal = Depends(get_principal),
+    session: AsyncSession = Depends(get_session),
+) -> DeleteBatchResult:
+    """Удаляет выбранные записи типа А; по каждой записи — результат или причина отказа."""
+    return await MedicalService(session).delete_unsigned_many(principal, body.record_ids)
 
 
 @router.get("/{record_id}", response_model=MedicalOut, summary="Получить запись")

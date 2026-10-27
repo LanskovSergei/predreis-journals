@@ -110,6 +110,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/medical/records/standard-time": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Стандартное время осмотра (последняя запись по водителю)
+         * @description Время последней записи из бумажного путевого листа для подстановки в форму создания.
+         */
+        get: operations["standard_time_api_v1_medical_records_standard_time_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/medical/records/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Удалить выбранные неподписанные записи (до 50)
+         * @description Удаляет выбранные записи типа А; по каждой записи — результат или причина отказа.
+         */
+        post: operations["delete_records_api_v1_medical_records_delete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/medical/records/{record_id}": {
         parameters: {
             query?: never;
@@ -216,6 +256,46 @@ export interface paths {
          * @description Ставит записи в очередь на подпись сертификатом механика (подписывает Предрейс).
          */
         post: operations["sign_records_api_v1_technical_records_sign_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/technical/records/standard-time": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Стандартное время осмотра (последняя запись по ТС)
+         * @description Время последней записи из бумажного путевого листа для подстановки в форму создания.
+         */
+        get: operations["standard_time_api_v1_technical_records_standard_time_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/technical/records/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Удалить выбранные неподписанные записи (до 50)
+         * @description Удаляет выбранные записи типа А; по каждой записи — результат или причина отказа.
+         */
+        post: operations["delete_records_api_v1_technical_records_delete_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -790,6 +870,18 @@ export interface components {
             total: number;
         };
         /**
+         * DeleteBatchResult
+         * @description Итог пакетного удаления: по каждой записи — удалена или причина отказа.
+         */
+        DeleteBatchResult: {
+            /** Deleted */
+            deleted: number;
+            /** Failed */
+            failed: number;
+            /** Results */
+            results: components["schemas"]["SignOutcome"][];
+        };
+        /**
          * DeletionRequestIn
          * @description Тело запроса на удаление подписанной записи.
          */
@@ -1339,6 +1431,14 @@ export interface components {
             page_size: number;
         };
         /**
+         * RecordIdsIn
+         * @description Выбранные записи (чек-боксы архива).
+         */
+        RecordIdsIn: {
+            /** Record Ids */
+            record_ids: string[];
+        };
+        /**
          * RecordSource
          * @description Источник записи.
          * @enum {string}
@@ -1469,6 +1569,21 @@ export interface components {
              * @default false
              */
             revocation_checked: boolean;
+        };
+        /**
+         * StandardTimeOut
+         * @description Время последней «бумажной» записи по водителю или ТС (ТЗ: «стандартное время» осмотра).
+         */
+        StandardTimeOut: {
+            /**
+             * Time
+             * @description ЧЧ:ММ по московскому времени; null — записей ещё не было
+             */
+            time: string | null;
+            /** Performed At */
+            performed_at: string | null;
+            /** Record Id */
+            record_id: string | null;
         };
         /**
          * StatsOut
@@ -1880,6 +1995,71 @@ export interface operations {
             };
         };
     };
+    standard_time_api_v1_medical_records_standard_time_get: {
+        parameters: {
+            query: {
+                driver_id: string;
+                phase?: components["schemas"]["InspectionPhase"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StandardTimeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_records_api_v1_medical_records_delete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordIdsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteBatchResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_record_api_v1_medical_records__record_id__get: {
         parameters: {
             query?: never;
@@ -2053,6 +2233,8 @@ export interface operations {
                 is_signed?: boolean | null;
                 /** @description Записи одного ТС (быстро) */
                 vehicle_id?: string | null;
+                /** @description Поиск по марке, модели и госномеру ТС из справочника (от 3 символов) */
+                vehicle?: string | null;
                 /** @description Поиск по подстроке госномера, от 3 символов */
                 plate?: string | null;
                 page?: number;
@@ -2137,6 +2319,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SignBatchResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    standard_time_api_v1_technical_records_standard_time_get: {
+        parameters: {
+            query: {
+                vehicle_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StandardTimeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_records_api_v1_technical_records_delete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordIdsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteBatchResult"];
                 };
             };
             /** @description Validation Error */

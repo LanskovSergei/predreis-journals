@@ -421,6 +421,118 @@
         ]
       }
     },
+    "/api/v1/medical/records/standard-time": {
+      "get": {
+        "tags": [
+          "Журнал медосмотров"
+        ],
+        "summary": "Стандартное время осмотра (последняя запись по водителю)",
+        "description": "Время последней записи из бумажного путевого листа для подстановки в форму создания.",
+        "operationId": "standard_time_api_v1_medical_records_standard_time_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "driver_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Driver Id"
+            }
+          },
+          {
+            "name": "phase",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/InspectionPhase"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Phase"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardTimeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/medical/records/delete": {
+      "post": {
+        "tags": [
+          "Журнал медосмотров"
+        ],
+        "summary": "Удалить выбранные неподписанные записи (до 50)",
+        "description": "Удаляет выбранные записи типа А; по каждой записи — результат или причина отказа.",
+        "operationId": "delete_records_api_v1_medical_records_delete_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordIdsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteBatchResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/medical/records/{record_id}": {
       "get": {
         "tags": [
@@ -849,6 +961,26 @@
             "description": "Записи одного ТС (быстро)"
           },
           {
+            "name": "vehicle",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Поиск по марке, модели и госномеру ТС из справочника (от 3 символов)",
+              "title": "Vehicle"
+            },
+            "description": "Поиск по марке, модели и госномеру ТС из справочника (от 3 символов)"
+          },
+          {
             "name": "plate",
             "in": "query",
             "required": false,
@@ -986,6 +1118,102 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SignBatchResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/technical/records/standard-time": {
+      "get": {
+        "tags": [
+          "Журнал техконтроля"
+        ],
+        "summary": "Стандартное время осмотра (последняя запись по ТС)",
+        "description": "Время последней записи из бумажного путевого листа для подстановки в форму создания.",
+        "operationId": "standard_time_api_v1_technical_records_standard_time_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "vehicle_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Vehicle Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardTimeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/technical/records/delete": {
+      "post": {
+        "tags": [
+          "Журнал техконтроля"
+        ],
+        "summary": "Удалить выбранные неподписанные записи (до 50)",
+        "description": "Удаляет выбранные записи типа А; по каждой записи — результат или причина отказа.",
+        "operationId": "delete_records_api_v1_technical_records_delete_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordIdsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteBatchResult"
                 }
               }
             }
@@ -2703,6 +2931,33 @@
         "title": "CountPair",
         "description": "Счётчик «активно / всего»."
       },
+      "DeleteBatchResult": {
+        "properties": {
+          "deleted": {
+            "type": "integer",
+            "title": "Deleted"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/SignOutcome"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deleted",
+          "failed",
+          "results"
+        ],
+        "title": "DeleteBatchResult",
+        "description": "Итог пакетного удаления: по каждой записи — удалена или причина отказа."
+      },
       "DeletionRequestIn": {
         "properties": {
           "reason": {
@@ -4281,6 +4536,25 @@
         ],
         "title": "Page[VehicleOut]"
       },
+      "RecordIdsIn": {
+        "properties": {
+          "record_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Record Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_ids"
+        ],
+        "title": "RecordIdsIn",
+        "description": "Выбранные записи (чек-боксы архива)."
+      },
       "RecordSource": {
         "type": "string",
         "enum": [
@@ -4614,6 +4888,54 @@
         ],
         "title": "SpecialistsOut",
         "description": "Список специалистов; `certificates_available=false`, если Предрейс не ответил."
+      },
+      "StandardTimeOut": {
+        "properties": {
+          "time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time",
+            "description": "ЧЧ:ММ по московскому времени; null — записей ещё не было"
+          },
+          "performed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performed At"
+          },
+          "record_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "time",
+          "performed_at",
+          "record_id"
+        ],
+        "title": "StandardTimeOut",
+        "description": "Время последней «бумажной» записи по водителю или ТС (ТЗ: «стандартное время» осмотра)."
       },
       "StatsOut": {
         "properties": {
