@@ -11,6 +11,7 @@ x-journals: &journals
   restart: unless-stopped
   environment: &env
     JOURNALS_ENV: dev
+    JOURNALS_JOURNAL_SIGN_WITH_REQUESTER: "true"  # на стенде журнал подписывает СА
     JOURNALS_DATABASE_URL: postgresql+asyncpg://journals:journals@postgres:5432/journals
     JOURNALS_REDIS_URL: redis://redis:6379/0
     JOURNALS_STORAGE_DIR: /var/lib/journals/storage

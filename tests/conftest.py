@@ -19,6 +19,9 @@ from app.models import Base
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# Тесты и стенд подписывают журнал сертификатом СА: боевой запрет на это включается по умолчанию.
+os.environ.setdefault("JOURNALS_JOURNAL_SIGN_WITH_REQUESTER", "true")
+
 
 @pytest.fixture(scope="session")
 def db_url() -> str:

@@ -215,12 +215,21 @@ class EJournalService:
         if hashlib.sha256(content).hexdigest() != journal.xml_sha256:
             raise ConflictError("journal.xml изменился после отправки", code="storage_integrity")
         settings = get_settings()
+        signer_id = settings.org_signer_user_id
+        if signer_id is None:
+            if not settings.journal_sign_with_requester:
+                raise ConflictError(
+                    "Не задан пользователь с сертификатом ООО «ПРЕДРЕЙС» для подписи журналов "
+                    "(JOURNALS_ORG_SIGNER_USER_ID)",
+                    code="org_signer_not_configured",
+                )
+            signer_id = principal.user_id  # только для разработки и тестов
         job = SignJob(
             id=uuid.uuid4(),
             target=SignTarget.JOURNAL,
             journal_kind=journal.kind,
             subject_id=journal.id,
-            signer_user_id=settings.org_signer_user_id or principal.user_id,
+            signer_user_id=signer_id,
             requested_by=principal.user_id,
             document_type=settings.journal_sign_document_type,
             content_key=journal.xml_key,

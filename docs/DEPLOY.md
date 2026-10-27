@@ -34,7 +34,7 @@ cp .env.example .env && chmod 600 .env
 | `JOURNALS_RABBITMQ_URL` | `amqp://пользователь:пароль@хост:5672/` (пользователь с правом чтения очереди `journal.events.outgoing`) |
 | `JOURNALS_CORS_ORIGINS` | список адресов фронтенда в формате JSON, например `["https://journals-app.example.ru"]` |
 | `JOURNALS_EPL_IMPORT_FROM` | дата запуска журналов (`ГГГГ-ММ-ДД`): осмотры раньше неё не импортируются |
-| `JOURNALS_ORG_SIGNER_USER_ID` | пользователь, чьим сертификатом подписывается журнал (у него действующая доверенность) |
+| `JOURNALS_ORG_SIGNER_USER_ID` | **обязательно:** пользователь Предрейса, чей сертификат это УКЭП ООО «ПРЕДРЕЙС» (им подписываются электронные журналы). Без него журнал не подписывается. `JOURNALS_JOURNAL_SIGN_WITH_REQUESTER` в боевом режиме оставьте `false` |
 | `JOURNALS_METRICS_TOKEN` | случайная строка для сбора метрик (если нужны) |
 
 ```bash
@@ -137,6 +137,7 @@ scrape_configs:
 - [ ] `.env` с правами `600`, в репозиторий не попадает; секрет Предрейса перевыпущен и нигде не пересылался в открытом виде
 - [ ] Открыты только 80 и 443 (и SSH только с доверенных адресов); PostgreSQL, Redis, порт 8000 снаружи недоступны
 - [ ] `POSTGRES_PASSWORD` задан и не равен `journals`
+- [ ] `JOURNALS_ORG_SIGNER_USER_ID` задан, сертификат этого пользователя виден в `GET /api/v1/service/certificates` и действует; `JOURNALS_JOURNAL_SIGN_WITH_REQUESTER=false`
 - [ ] `/metrics` снаружи отдаёт 404; `JOURNALS_METRICS_TOKEN` длинный случайный
 - [ ] TLS работает, HTTP перенаправляется на HTTPS, включён HSTS
 - [ ] Сервис работает от обычного пользователя в контейнере (в образе так и есть: uid 10001)

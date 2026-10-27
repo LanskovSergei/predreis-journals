@@ -54,8 +54,11 @@ class Settings(BaseSettings):
     sign_submit_max_attempts: int = 10
     sign_pending_timeout_s: int = 3600
     journal_sign_document_type: str = "journal.ejournal"
-    # Чей сертификат подписывает журнал; пусто — сертификат СА, нажавшего «Подписать».
+    # Пользователь Предрейса, чей сертификат это УКЭП ООО «ПРЕДРЕЙС» (подписывает журналы).
     org_signer_user_id: uuid.UUID | None = None
+    # Только для разработки и тестов: без подписанта журнал подписывает сертификат нажавшего СА.
+    # В боевом режиме выключено: журнал подписывается сертификатом организации, не личным.
+    journal_sign_with_requester: bool = False
 
     # Список сертификатов Предрейса кэшируется (запрос тяжёлый, данные меняются редко)
     certificates_cache_ttl_s: int = 60

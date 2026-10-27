@@ -13,7 +13,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import Settings
 from app.core.errors import ConflictError
 from app.core.storage import LocalStorage
-from app.domain.enums import EJournalStatus, JournalKind, RecordStatus, Role, SignJobStatus
+from app.domain.enums import (
+    EJournalStatus,
+    JournalKind,
+    RecordStatus,
+    Role,
+    SignJobStatus,
+    SignTarget,
+)
 from app.integrations.predreis.client import SignStatus
 from app.models.documents import RecordDocument, SignJob
 from app.models.integration import InboxFailure
@@ -317,3 +324,37 @@ async def test_epl_failures_are_visible_to_operator(session: AsyncSession) -> No
 
 
 _ = base64
+
+
+async def test_journal_is_not_signed_with_a_personal_certificate_by_default(
+    session: AsyncSession, storage: LocalStorage, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Подписант журнала обязателен: молча подписать сертификатом нажавшего СА нельзя (плашка говорит «ООО ПРЕДРЕЙС»)."""
+    gateway = FakeSigner(hold=True)
+    _, svc, jid = await _awaiting_journal(session, storage, gateway)
+    sa = principal(Role.SA)
+    monkeypatch.setattr(
+        "app.modules.ejournal.service.get_settings",
+        lambda: Settings(journal_sign_with_requester=False, org_signer_user_id=None),
+    )
+    with pytest.raises(ConflictError) as exc:
+        await svc.sign(sa, jid)
+    assert exc.value.code == "org_signer_not_configured"
+    assert (
+        await svc.get(sa, jid)
+    ).status is EJournalStatus.AWAITING_SIGNATURE  # ничего не изменилось
+    assert gateway.calls == []  # в Предрейс ничего не отправлено
+    journal_jobs = select(SignJob).where(SignJob.target == SignTarget.JOURNAL)
+    assert (
+        await session.execute(journal_jobs)
+    ).scalars().all() == []  # задача подписи журнала не создана
+
+    director = uuid.uuid4()
+    monkeypatch.setattr(
+        "app.modules.ejournal.service.get_settings",
+        lambda: Settings(org_signer_user_id=director),
+    )
+    await svc.sign(sa, jid)
+    assert (
+        gateway.calls[-1].signer_user_id == director
+    )  # подписывает заданный пользователь, а не нажавший СА
