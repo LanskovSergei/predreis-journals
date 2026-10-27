@@ -97,6 +97,7 @@ docker compose -f docker-compose.dev.yml up --build   # то же самое в 
 make e2e            # сквозной тест на настоящих процессах (JOURNALS_E2E=1)
 make load-seed bench   # нагрузочные замеры на отдельной тестовой БД
 make audit-check    # проверка хеш-цепочки журнала аудита
+make lock           # пересобрать requirements*.txt (версии и хеши) из pyproject.toml; make audit — проверка уязвимостей
 ```
 
 Подставной ПРЕДРЕЙС (`tools/fake_predreis`) повторяет контракт сервисного API; тестовые пользователи и управление

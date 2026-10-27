@@ -1,4 +1,4 @@
-.PHONY: storage-check backup install run worker consumer test lint typecheck migrate revision openapi types up down dev-stack e2e load-seed bench audit-check replay
+.PHONY: lock audit storage-check backup install run worker consumer test lint typecheck migrate revision openapi types up down dev-stack e2e load-seed bench audit-check replay
 
 install:
 	pip install -e ".[dev]"
@@ -63,3 +63,10 @@ storage-check:
 
 backup:
 	deploy/backup.sh
+
+lock:
+	pip-compile --generate-hashes --strip-extras -o requirements.txt pyproject.toml
+	pip-compile --generate-hashes --strip-extras --extra dev -o requirements-dev.txt pyproject.toml
+
+audit:
+	pip-audit --require-hashes -r requirements.txt

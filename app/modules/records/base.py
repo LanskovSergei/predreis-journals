@@ -253,7 +253,9 @@ class BaseRecordService:
         acts: list[str] = []
         editable = _allowed(fsm.ensure_editable, status=record.status, source=record.source)
         if editable and has_permission(role, perms.edit):
-            acts += ["edit", "clear_note"]
+            acts.append("edit")
+            if record.note:  # кнопка «Снять примечание» нужна только записи с примечанием
+                acts.append("clear_note")
         if editable and has_permission(role, perms.delete_unsigned):
             acts.append("delete")
         if has_permission(role, perms.sign) and _allowed(

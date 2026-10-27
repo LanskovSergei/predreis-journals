@@ -1,0 +1,19 @@
+# В образ попадает только нужное для сборки; секреты и мусор остаются снаружи.
+.git
+.github
+.env
+.env.*
+.venv
+var
+dump.rdb
+*.rdb
+**/__pycache__
+*.pyc
+.mypy_cache
+.ruff_cache
+.pytest_cache
+tests
+docs
+scripts
+tools
+deploy

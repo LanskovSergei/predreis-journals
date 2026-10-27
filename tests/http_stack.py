@@ -74,6 +74,7 @@ async def build_stack(
         "mechanic": verified_user(world.mechanic.id, "mechanic"),
         "manager": verified_user(world.manager.id, "predreis"),
         "sa": verified_user(uuid.uuid4(), "superadmin"),
+        "admin": verified_user(uuid.uuid4(), "admin"),
         "client": verified_user(uuid.uuid4(), "client", world.org.id),
     }
     sessions = async_sessionmaker(session.bind, expire_on_commit=False)  # type: ignore[arg-type]

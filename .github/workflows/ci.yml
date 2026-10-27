@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "0 6 * * 1"  # по понедельникам: аудит зависимостей и полный прогон
 
 jobs:
   test:
@@ -29,7 +31,8 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -e ".[dev]"
+      - run: pip install --require-hashes -r requirements-dev.txt
+      - run: pip install --no-deps -e .
       - run: ruff check .
       - run: ruff format --check .
       - run: mypy app
@@ -72,6 +75,20 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -e ".[dev]"
+      - run: pip install --require-hashes -r requirements-dev.txt
+      - run: pip install --no-deps -e .
       - run: pytest tests/e2e -q
+
+  audit:
+    # Известные уязвимости в зафиксированных зависимостях. Не блокирует слияние: новые уведомления
+    # появляются независимо от наших изменений; результат смотрите во вкладке Actions.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pip-audit
+      - run: pip-audit --require-hashes -r requirements.txt
 

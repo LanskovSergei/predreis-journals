@@ -117,8 +117,9 @@ POST /api/v1/auth/login
 - Медосмотр, показатель «вредные факторы» (`harmful_factors`) может быть `null`: признак не определялся
   (автоматические осмотры «Водителя+»). Это не то же самое, что «отсутствуют»; показывайте «не определялись».
 
-Для клиента/диспетчера медосмотр приходит в сокращённом виде: `driver_full_name`, `driver_birth_date`, `driver_gender`,
-`specialist_name`, `phase`, `result`, `signature` (без показателей здоровья, примечания и `actions`).
+Для клиента/диспетчера медосмотр приходит в сокращённом виде: общие поля (`id`, `status`, `source`, `waybill_kind`,
+`performed_at`) и `driver_full_name`, `driver_birth_date`, `driver_gender`, `specialist_name`, `phase`, `result`,
+`signature`. Показателей здоровья, примечания и `actions` в нём нет.
 
 ### Список
 
@@ -179,7 +180,8 @@ POST /api/v1/auth/login
 ## 9. Выгрузка PDF
 
 `POST /exports/medical` / `/exports/technical`, тело: `{organization_id, date_from, date_to, record_ids?}`
-(для клиента/диспетчера организация подставляется автоматически). Ответ — файл `application/pdf`:
+`organization_id` обязателен для менеджерских ролей (отчёт всегда по одной организации; без него `422`), даже если
+передан список `record_ids`; для клиента/диспетчера организация подставляется автоматически. Ответ — файл `application/pdf`:
 
 ```ts
 const res = await fetch(url, { method: "POST", headers, body });

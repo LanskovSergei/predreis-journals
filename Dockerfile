@@ -7,11 +7,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # PDF рисует ReportLab со шрифтом из репозитория: системные библиотеки и шрифты не нужны.
 
 WORKDIR /srv
+
+# Зависимости ставятся строго из блокировки (версии и контрольные суммы зафиксированы), затем сам пакет.
+# Для стенда разработчика сборка получает LOCK=requirements-dev.txt (см. docker-compose.dev.yml).
+ARG LOCK=requirements.txt
+COPY ${LOCK} ./requirements.txt
+RUN pip install --require-hashes -r requirements.txt
+
 COPY pyproject.toml README.md ./
 COPY app ./app
-# EXTRAS="[dev]" ставит и инструменты разработки (нужны подставному ПРЕДРЕЙСу в docker-compose.dev.yml)
-ARG EXTRAS=""
-RUN pip install ".${EXTRAS}"
+RUN pip install --no-deps .
 
 COPY alembic.ini ./
 COPY alembic ./alembic

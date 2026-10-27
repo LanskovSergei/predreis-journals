@@ -7,7 +7,7 @@ x-journals: &journals
   build:
     context: .
     args:
-      EXTRAS: "[dev]"
+      LOCK: requirements-dev.txt
   restart: unless-stopped
   environment: &env
     JOURNALS_ENV: dev
