@@ -1,0 +1,14 @@
+{
+  "user_id": "4f67b9cb-6a91-48bf-b711-093dfde483dc",
+  "last_name": "Иванова",
+  "first_name": "Анна",
+  "middle_name": "Сергеевна",
+  "role": "medic",
+  "cert_cn": "Иванова Анна",
+  "thumbprint": "7dbfee891d6600e68a4a2c2554b9604359540e3a",
+  "serial": "0x01449AD1F8DFB225A640085EDD019FFF3A",
+  "issuer": "E=ca_tensor@tensor.ru, INNLE=7605016030, OGRN=1027600787994, C=RU, ..., CN=\"ООО \"\"Компания \"\"Тензор\"\"\"",
+  "valid_from": "14.08.2026",
+  "valid_to": "14.08.2027",
+  "is_valid": true
+}

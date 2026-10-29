@@ -7,6 +7,7 @@ from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import (
+    CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
@@ -147,6 +148,11 @@ class SignJob(TimestampMixin, Base):
             postgresql_where=text("status IN ('queued', 'pending')"),
         ),
         Index("ix_sign_jobs_status_next", "status", "next_attempt_at"),
+        CheckConstraint(
+            "sign_as IN ('user', 'organization') "
+            "AND (sign_as = 'organization' OR signer_user_id IS NOT NULL)",
+            name="sign_jobs_signer_required",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -158,7 +164,9 @@ class SignJob(TimestampMixin, Base):
     status: Mapped[SignJobStatus] = mapped_column(
         enum_col(SignJobStatus), default=SignJobStatus.QUEUED
     )
-    signer_user_id: Mapped[uuid.UUID] = mapped_column()
+    # Подписант: специалист (sign_as=user) или КЭП организации (sign_as=organization)
+    sign_as: Mapped[str] = mapped_column(String(16), default="user", server_default="user")
+    signer_user_id: Mapped[uuid.UUID | None] = mapped_column()
     requested_by: Mapped[uuid.UUID] = mapped_column()
     document_type: Mapped[str] = mapped_column(String(64))
     content_key: Mapped[str] = mapped_column(Text)

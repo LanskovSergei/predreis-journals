@@ -40,6 +40,7 @@ app = FastAPI(title="Fake PREDREIS")
 service_tokens: dict[str, float] = {}
 user_tokens: dict[str, tuple[str, float]] = {}
 sign_jobs: dict[str, dict[str, Any]] = {}
+ORG_CERT_ID = data.uid("organization-predreis-kep")  # «пользователь» для КЭП организации в подставном Предрейсе
 state: dict[str, Any] = {
     "sign_mode": "normal",
     "organizations": [dict(o) for o in data.ORGANIZATIONS],
@@ -165,26 +166,35 @@ def verify(body: VerifyIn) -> dict[str, Any]:
 
 @app.get("/api/v1/service/certificates", dependencies=[Depends(service_auth)])
 def certificates(role: str | None = None, user_id: str | None = None) -> list[dict[str, Any]]:
-    """Сертификаты пользователей: у кого сертификата нет в хранилище, поля пустые и is_valid=false."""
+    """Сертификаты пользователей в формате образца Предрейса (ФИО частями, cert_cn, даты ДД.ММ.ГГГГ)."""
     out: list[dict[str, Any]] = []
     for user in data.USERS.values():
         if (role and user["role"] != role) or (user_id and user["id"] != user_id):
             continue
         name = f"{user['last_name']} {user['first_name']} {user['middle_name']}"
         item: dict[str, Any] = {
-            "user_id": user["id"], "full_name": name, "role": user["role"], "owner": None,
-            "thumbprint": None, "serial": None, "issuer": None, "valid_from": None, "valid_to": None,
+            "user_id": user["id"],
+            "last_name": user["last_name"],
+            "first_name": user["first_name"],
+            "middle_name": user["middle_name"],
+            "role": user["role"],
+            "cert_cn": None,
+            "thumbprint": None,
+            "serial": None,
+            "issuer": None,
+            "valid_from": None,
+            "valid_to": None,
             "is_valid": False,
-        }  # fmt: skip
+        }
         if user["has_cert"]:
             _, cert = _cert_for(user["id"], name)
             item.update(
-                owner=name,
-                thumbprint=cert.fingerprint(hashes.SHA1()).hex().upper(),
+                cert_cn=f"{user['last_name']} {user['first_name']}",
+                thumbprint=cert.fingerprint(hashes.SHA1()).hex(),
                 serial="0x" + format(cert.serial_number, "X"),
-                issuer="Тестовый удостоверяющий центр",
-                valid_from=cert.not_valid_before_utc.isoformat(),
-                valid_to=cert.not_valid_after_utc.isoformat(),
+                issuer='E=ca@test.ru, C=RU, CN="Тестовый удостоверяющий центр"',
+                valid_from=cert.not_valid_before_utc.strftime("%d.%m.%Y"),
+                valid_to=cert.not_valid_after_utc.strftime("%d.%m.%Y"),
                 is_valid=True,
             )
         out.append(item)
@@ -245,7 +255,9 @@ def vehicles(
 class SignIn(BaseModel):
     """Запрос подписи."""
 
-    signer_user_id: str
+    signer_user_id: str | None = None
+    sign_as: str = "user"  # "organization" — КЭП организации ПРЕДРЕЙС (электронный журнал)
+    requested_by_user_id: str | None = None
     document_type: str
     content_b64: str
     external_id: str
@@ -254,8 +266,18 @@ class SignIn(BaseModel):
 def _view(job: dict[str, Any]) -> dict[str, Any]:
     """Состояние задачи; подпись «выполняется» по истечении задержки."""
     if job["status"] == "pending" and time.time() - job["created"] >= SIGN_DELAY:
-        user = _user_by_id(job["signer_user_id"])
         mode = state["sign_mode"]
+        if job.get("sign_as") == "organization":
+            org = {
+                "id": ORG_CERT_ID,
+                "last_name": "ООО «ПРЕДРЕЙС»",
+                "first_name": "",
+                "middle_name": "",
+                "has_cert": True,
+            }
+            user = org if mode != "fail" else None
+        else:
+            user = _user_by_id(job["signer_user_id"])
         if user is None or not user["has_cert"] or mode == "fail":
             job.update(
                 status="failed",
@@ -265,7 +287,8 @@ def _view(job: dict[str, Any]) -> dict[str, Any]:
             job.update(status="signed", signature_b64="AUTO_SIGNATURE")
         else:
             key, cert = _cert_for(
-                user["id"], f"{user['last_name']} {user['first_name']} {user['middle_name']}"
+                user["id"],
+                f"{user['last_name']} {user['first_name']} {user['middle_name']}".strip(),
             )
             sig = (
                 pkcs7.PKCS7SignatureBuilder()
@@ -280,8 +303,12 @@ def _view(job: dict[str, Any]) -> dict[str, Any]:
 @app.post("/api/v1/service/sign", status_code=201, dependencies=[Depends(service_auth)])
 def sign(body: SignIn) -> dict[str, Any]:
     """Принимает документ на подпись."""
-    if len(body.content_b64) > 2 * 1024 * 1024 * 4 // 3:
+    if len(body.content_b64) > 20 * 1024 * 1024 * 4 // 3:
         raise HTTPException(413, "content too large")
+    if body.sign_as not in ("user", "organization"):
+        raise HTTPException(422, "sign_as: user | organization")
+    if body.sign_as == "user" and not body.signer_user_id:
+        raise HTTPException(422, "signer_user_id обязателен при sign_as=user")
     job = {
         "id": str(uuid.uuid4()),
         "status": "pending",
@@ -290,6 +317,8 @@ def sign(body: SignIn) -> dict[str, Any]:
         "last_error": None,
         "created": time.time(),
         "signer_user_id": body.signer_user_id,
+        "sign_as": body.sign_as,
+        "requested_by_user_id": body.requested_by_user_id,
         "content_b64": body.content_b64,
         "document_type": body.document_type,
     }

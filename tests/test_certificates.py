@@ -101,7 +101,9 @@ def test_alternative_field_names_and_date_only_values() -> None:
     }
     cert = parse_certificate(item)
     assert cert is not None and cert.role == "mechanic" and cert.full_name == "Иванов"
-    assert cert.serial == "ab12" and cert.valid_to == datetime(2027, 1, 1, tzinfo=timezone.utc)
+    assert cert.serial == "ab12" and cert.valid_to == datetime(
+        2027, 1, 1, 23, 59, 59, tzinfo=timezone.utc
+    )
     assert cert.status(NOW) == "active"
 
 
@@ -123,3 +125,29 @@ def test_best_certificate_prefers_active_with_latest_expiry() -> None:
         best_certificate([old, missing], NOW) is old
     )  # просроченный всё же полезнее, чем «нет данных»
     assert best_certificate([], NOW) is None
+
+
+def test_real_sample_from_predreis() -> None:
+    """Настоящий образец ответа Предрейса: ФИО частями, владелец в cert_cn, даты «ДД.ММ.ГГГГ»."""
+    import json
+    from pathlib import Path
+
+    item = json.loads(
+        (Path(__file__).parent / "samples" / "predreis" / "certificate.json").read_text("utf-8")
+    )
+    cert = parse_certificate(item)
+    assert cert is not None
+    assert cert.full_name == "Иванова Анна Сергеевна" and cert.owner == "Иванова Анна"
+    assert cert.serial == "01449ad1f8dfb225a640085edd019fff3a"  # 0x… → вид из подписи
+    assert cert.thumbprint == "7dbfee891d6600e68a4a2c2554b9604359540e3a"
+    assert cert.issuer and "Тензор" in cert.issuer
+    assert cert.valid_from == datetime(2026, 8, 14, tzinfo=timezone.utc)
+    assert cert.valid_to == datetime(
+        2027, 8, 14, 23, 59, 59, tzinfo=timezone.utc
+    )  # весь последний день
+    assert cert.status(NOW) == "active"
+    last_day = datetime(2027, 8, 14, 18, 0, tzinfo=timezone.utc)
+    assert (
+        cert.status(last_day) == "active"
+        and cert.status(last_day + timedelta(days=1)) == "expired"
+    )

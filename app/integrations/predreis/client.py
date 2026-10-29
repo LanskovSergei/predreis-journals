@@ -106,9 +106,20 @@ class SignGateway(Protocol):
     """Шлюз подписи: реальный — Предрейс, в тестах — заглушка."""
 
     async def submit(
-        self, *, signer_user_id: uuid.UUID, document_type: str, content: bytes, external_id: str
+        self,
+        *,
+        signer_user_id: uuid.UUID | None,
+        document_type: str,
+        content: bytes,
+        external_id: str,
+        sign_as: str = "user",
+        requested_by_user_id: uuid.UUID | None = None,
     ) -> SignTicket:
-        """Отправляет документ на подпись (мгновенный ответ, подпись — позже)."""
+        """Отправляет документ на подпись (мгновенный ответ, подпись — позже).
+
+        sign_as="user" — сертификатом специалиста signer_user_id; "organization" — КЭП организации
+        ПРЕДРЕЙС (электронный журнал), signer_user_id не передаётся.
+        """
 
     async def fetch(self, external_ids: Sequence[str]) -> list[SignStatus]:
         """Возвращает состояние задач по нашим идентификаторам."""
@@ -373,19 +384,30 @@ class PredreisClient:
 
     # --- подпись ------------------------------------------------------------------------------
     async def submit(
-        self, *, signer_user_id: uuid.UUID, document_type: str, content: bytes, external_id: str
+        self,
+        *,
+        signer_user_id: uuid.UUID | None,
+        document_type: str,
+        content: bytes,
+        external_id: str,
+        sign_as: str = "user",
+        requested_by_user_id: uuid.UUID | None = None,
     ) -> SignTicket:
-        """Отправляет содержимое на подпись сертификатом указанного специалиста (до 2 МБ)."""
-        data = await self._request(
-            "POST",
-            SIGN_PATH,
-            json={
-                "signer_user_id": str(signer_user_id),
-                "document_type": document_type,
-                "content_b64": base64.b64encode(content).decode("ascii"),
-                "external_id": external_id,
-            },
-        )
+        """Отправляет содержимое на подпись (до 20 МБ): специалистом или КЭП организации."""
+        body: dict[str, Any] = {
+            "document_type": document_type,
+            "content_b64": base64.b64encode(content).decode("ascii"),
+            "external_id": external_id,
+        }
+        if sign_as == "organization":
+            body["sign_as"] = "organization"
+        else:
+            if signer_user_id is None:
+                raise ValueError("Для подписи специалистом нужен signer_user_id")
+            body["signer_user_id"] = str(signer_user_id)
+        if requested_by_user_id is not None:
+            body["requested_by_user_id"] = str(requested_by_user_id)
+        data = await self._request("POST", SIGN_PATH, json=body)
         if not isinstance(data, dict) or "id" not in data:
             raise UpstreamError("Неожиданный ответ Предрейса на отправку подписи")
         return SignTicket(str(data["id"]), str(data.get("status", "pending")))

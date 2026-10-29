@@ -319,3 +319,37 @@ def test_garbage_signature_in_sign_result_is_upstream_error() -> None:
         parse_sign_status(
             {"id": "1", "external_id": "e", "status": "signed", "signature_b64": "%%%"}
         )
+
+
+async def test_submit_as_organization_matches_agreed_contract() -> None:
+    """Подпись журнала КЭП организации: sign_as=organization, без signer_user_id, с инициатором."""
+    srv = Server()
+    client = make_client(httpx.MockTransport(srv))
+    sa = uuid.uuid4()
+    await client.submit(
+        signer_user_id=None,
+        document_type="journal.ejournal",
+        content=b"<journal/>",
+        external_id="j1",
+        sign_as="organization",
+        requested_by_user_id=sa,
+    )
+    sent = json.loads(
+        [r for r in srv.requests if r.method == "POST" and "sign" in r.url.path][-1].content
+    )
+    assert sent == {
+        "sign_as": "organization",
+        "document_type": "journal.ejournal",
+        "content_b64": base64.b64encode(b"<journal/>").decode(),
+        "external_id": "j1",
+        "requested_by_user_id": str(sa),
+    }
+
+
+async def test_submit_as_user_requires_signer() -> None:
+    """Подпись специалистом без специалиста не уходит в Предрейс (там это 422)."""
+    srv = Server()
+    client = make_client(httpx.MockTransport(srv))
+    with pytest.raises(ValueError):
+        await client.submit(signer_user_id=None, document_type="x", content=b"x", external_id="e")
+    assert not [r for r in srv.requests if "sign" in r.url.path]

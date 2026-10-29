@@ -43,7 +43,6 @@ class DevStack:
             "JOURNALS_RABBITMQ_URL": "amqp://guest:guest@127.0.0.1:5672/",
             "JOURNALS_RABBITMQ_REQUEUE_DELAY_S": "2",
             "JOURNALS_LOG_LEVEL": "INFO",
-            "JOURNALS_JOURNAL_SIGN_WITH_REQUESTER": "true",  # на стенде журнал подписывает СА
             "PYTHONPATH": str(ROOT),
         }
 

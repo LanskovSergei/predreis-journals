@@ -247,6 +247,17 @@ def test_ejournal_end_to_end(stack: DevStack) -> None:
     )
     zipped = manager.get(f"/ejournals/{jid}/download")
     assert zipped.status_code == 200 and verify_container(zipped.content) == []
+    # Подписано КЭП организации: на плашке journal.pdf владелец — ПРЕДРЕЙС, а не нажавший кнопку суперадмин.
+    import io
+    import zipfile
+
+    from pypdf import PdfReader
+
+    archive = zipfile.ZipFile(io.BytesIO(zipped.content))
+    pdf_name = next(n for n in archive.namelist() if n.endswith("journal.pdf"))
+    stamp = PdfReader(io.BytesIO(archive.read(pdf_name))).pages[-1].extract_text()
+    owner = next(line for line in stamp.splitlines() if line.startswith("Владелец:"))
+    assert "ПРЕДРЕЙС" in owner and "Главный" not in owner, owner
     assert client.get(f"/ejournals/{jid}/download").status_code == 403
     records = manager.get("/medical/records?page_size=50").json()["items"]
     by_status = {r["status"] for r in records}
@@ -270,7 +281,8 @@ def test_certificates_and_specialists(stack: DevStack) -> None:
     medic, nocert = Session("medic"), Session("nocert")
     mine = medic.get("/me/certificates").json()
     assert mine["status"] == "active" and mine["certificates"][0]["serial"]
-    assert mine["certificates"][0]["issuer"] == "Тестовый удостоверяющий центр"
+    assert "Тестовый удостоверяющий центр" in mine["certificates"][0]["issuer"]
+    assert mine["certificates"][0]["owner"] == "Сидорова Анна"  # cert_cn, как в настоящем ответе
     assert (
         nocert.get("/me/certificates").json()["status"] == "missing"
     )  # в хранилище сертификата нет

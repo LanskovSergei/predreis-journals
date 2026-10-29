@@ -137,9 +137,11 @@ class SubmitCall:
     """Вызов отправки на подпись, записанный заглушкой."""
 
     document_type: str
-    signer_user_id: uuid.UUID
+    signer_user_id: uuid.UUID | None
     external_id: str
     content: bytes
+    sign_as: str = "user"
+    requested_by_user_id: uuid.UUID | None = None
 
 
 class FakeSigner:
@@ -159,12 +161,21 @@ class FakeSigner:
         self._jobs: dict[str, SubmitCall] = {}
 
     async def submit(
-        self, *, signer_user_id: uuid.UUID, document_type: str, content: bytes, external_id: str
+        self,
+        *,
+        signer_user_id: uuid.UUID | None,
+        document_type: str,
+        content: bytes,
+        external_id: str,
+        sign_as: str = "user",
+        requested_by_user_id: uuid.UUID | None = None,
     ) -> SignTicket:
         """Принимает документ; при submit_error имитирует недоступность Предрейса."""
         if self.submit_error:
             raise UpstreamError("Предрейс недоступен")
-        call = SubmitCall(document_type, signer_user_id, external_id, content)
+        call = SubmitCall(
+            document_type, signer_user_id, external_id, content, sign_as, requested_by_user_id
+        )
         self.calls.append(call)
         self._jobs[external_id] = call
         return SignTicket(sign_id=str(uuid.uuid4()), status="pending")

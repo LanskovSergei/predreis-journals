@@ -207,6 +207,8 @@ class SigningService:
                     document_type=job.document_type,
                     content=content,
                     external_id=job.external_id,
+                    sign_as=job.sign_as,
+                    requested_by_user_id=job.requested_by,
                 )
             except (AppError, OSError) as exc:
                 job.attempts += 1
