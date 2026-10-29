@@ -48,7 +48,7 @@
 | № | Требование | | Подтверждение / замечание | Блокер |
 |---|---|---|---|---|
 | B1 | Подписать можно только запись из бумажного путевого листа | ✅ | `test_fsm.py::test_sign_rules` | — |
-| B2 | Подписывает только специалист, проводивший осмотр, своим сертификатом (через Предрейс) | ✅ | `test_flows.py::test_only_record_specialist_can_sign`, `test_permissions.py::test_only_specialists_sign_records`, `test_dev_stack.py::test_manual_record_signing_failure_and_success` | — |
+| B2 | Подписывает только специалист, проводивший осмотр, своим сертификатом (через Предрейс) | ✅ | `test_flows.py::test_only_record_specialist_can_sign`, `test_permissions.py::test_only_specialists_sign_records`, `test_manager_signing.py::test_by_default_only_the_specialist_signs`; настройкой можно разрешить запуск подписи менеджерам за специалиста (`test_manager_signing.py::test_manager_signs_on_behalf_of_the_record_specialist`) — по решению заказчика | — |
 | B3 | Электронная запись: .xml (по схеме XSD), .pdf и откреплённая подпись .sig | ✅ | `test_signing_async.py::test_completion_signs_record_and_audits`, `test_xml_schemas.py::test_all_samples_are_valid` | — |
 | B4 | Метка доверенного времени (TSP) к подписи сотрудника | ❌ | Предрейс не возвращает метку времени; в контейнер она попадёт, если придёт | Предрейс |
 | B5 | Метаданные подписи: серийный номер, ФИО подписанта, срок действия | ✅ | `test_cms.py::test_extracts_serial_owner_and_validity`, `test_signing_async.py::test_certificate_is_read_from_signature_when_not_in_response` | — |

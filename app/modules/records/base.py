@@ -60,6 +60,19 @@ def _allowed(check: Callable[..., None], **kwargs: Any) -> bool:
     return True
 
 
+MANAGER_SIGNERS = frozenset({Role.PREDREIS, Role.ADMIN, Role.SA})
+
+
+def manager_signs(role: Role) -> bool:
+    """Менеджер запускает подпись за специалиста (если это включено настройкой)."""
+    return get_settings().managers_can_sign_records and role in MANAGER_SIGNERS
+
+
+def may_request_signing(role: Role, sign_permission: Permission) -> bool:
+    """Может ли роль запустить подпись записи: сам специалист или, если разрешено, менеджер."""
+    return has_permission(role, sign_permission) or manager_signs(role)
+
+
 class BaseRecordService:
     """Базовый сервис журнала. Наследники задают kind и model."""
 
@@ -281,14 +294,15 @@ class BaseRecordService:
                 acts.append("clear_note")
         if editable and has_permission(role, perms.delete_unsigned):
             acts.append("delete")
-        if has_permission(role, perms.sign) and _allowed(
+        actor = record.specialist_user_id if manager_signs(role) else principal.user_id
+        if may_request_signing(role, perms.sign) and _allowed(
             fsm.ensure_signable,
             status=record.status,
             source=record.source,
             note=record.note,
             deletion_pending=record.deletion_pending,
             specialist_id=record.specialist_user_id,
-            actor_id=principal.user_id,
+            actor_id=actor,
         ):
             acts.append("sign")
         if has_permission(role, perms.request_delete) and _allowed(

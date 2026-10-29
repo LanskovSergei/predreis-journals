@@ -22,11 +22,12 @@ from app.core.security import Principal
 from app.core.storage import Storage, get_storage
 from app.domain import fsm
 from app.domain.enums import JournalKind, RecordStatus, SignJobStatus, SignTarget
-from app.domain.permissions import RECORD_PERMS, has_permission
+from app.domain.permissions import RECORD_PERMS
 from app.integrations.predreis.client import SignGateway, SignResult, SignStatus
 from app.integrations.predreis.cms import extract_cert_info
 from app.models.documents import RecordDocument, SignJob
 from app.modules.audit.service import append_audit
+from app.modules.records.base import manager_signs, may_request_signing
 from app.modules.records.queries import load_record
 from app.modules.records.schemas import SignBatchResult, SignOutcome
 from app.modules.reports.service import render_single_record_pdf
@@ -92,7 +93,7 @@ class SigningService:
         self, principal: Principal, kind: JournalKind, record_ids: list[uuid.UUID]
     ) -> SignBatchResult:
         """Ставит записи в очередь на подпись; сбой одной не отменяет остальные."""
-        if not has_permission(principal.role, RECORD_PERMS[kind].sign):
+        if not may_request_signing(principal.role, RECORD_PERMS[kind].sign):
             raise ForbiddenError("Недостаточно прав", code="permission_denied")
         limit = self.settings.mass_sign_max_batch
         if len(record_ids) > limit:
@@ -141,7 +142,10 @@ class SigningService:
             note=record.note,
             deletion_pending=record.deletion_pending,
             specialist_id=record.specialist_user_id,
-            actor_id=principal.user_id,
+            # менеджер (если разрешено) запускает подпись за специалиста записи
+            actor_id=record.specialist_user_id
+            if manager_signs(principal.role)
+            else principal.user_id,
         )
         if await self._active_job(record.id) is not None:
             raise ConflictError("Запись уже отправлена на подпись", code="signing_in_progress")
@@ -152,7 +156,7 @@ class SigningService:
             target=SignTarget.RECORD,
             journal_kind=kind,
             subject_id=record.id,
-            signer_user_id=principal.user_id,
+            signer_user_id=record.specialist_user_id,  # подписант — специалист, проводивший осмотр
             requested_by=principal.user_id,
             document_type=RECORD_DOCUMENT_TYPES[kind],
             content_key=key,
@@ -169,7 +173,9 @@ class SigningService:
             action="record.sign_requested",
             entity_type=kind.value,
             entity_id=str(record.id),
-            payload={"job": job.external_id},
+            payload={"job": job.external_id, "on_behalf_of": str(record.specialist_user_id)}
+            if principal.user_id != record.specialist_user_id
+            else {"job": job.external_id},
         )
 
     # --- обработка задач (воркер) -------------------------------------------------------------

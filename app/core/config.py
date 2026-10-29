@@ -75,6 +75,9 @@ class Settings(BaseSettings):
     page_size_default: int = 10
     page_size_max: int = 100
     mass_sign_max_batch: int = 50
+    # Предрейс, Админ и СА могут запускать подпись ручной записи (подписант — специалист из записи,
+    # ключ выбирает Предрейс). По ТЗ подписывает сам специалист, поэтому по умолчанию выключено.
+    managers_can_sign_records: bool = False
     mass_delete_max_batch: int = 50
     export_max_rows: int = 5000
 
