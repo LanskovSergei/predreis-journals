@@ -36,7 +36,9 @@ def _driver(parent: etree._Element, driver: dict[str, Any]) -> None:
     """Блок «Водитель» из снимка реквизитов."""
     el = etree.SubElement(parent, f"{{{NS_RECORD}}}Driver")
     _sub(el, "FullName", driver.get("full_name"))
-    _sub(el, "BirthDate", driver.get("birth_date"))
+    _sub_opt(
+        el, "BirthDate", driver.get("birth_date")
+    )  # у водителя дата рождения может быть не указана
     _sub_opt(el, "Gender", driver.get("gender"))
 
 
@@ -86,7 +88,10 @@ def build_record_xml(kind: JournalKind, record: AnyRecord) -> bytes:
         _sub_opt(exam, "HarmfulFactorsNote", record.harmful_factors_note)
         _sub(exam, "Result", record.result.value)
     else:
-        assert isinstance(record, TechnicalRecord)
+        if not (
+            isinstance(record, TechnicalRecord)
+        ):  # явная проверка: assert исчезает при python -O
+            raise RuntimeError("Нарушено внутреннее условие")
         inspection = etree.SubElement(root, f"{{{NS_RECORD}}}TechnicalInspection")
         vehicle = snap.get("vehicle", {})
         veh = etree.SubElement(inspection, f"{{{NS_RECORD}}}Vehicle")

@@ -224,7 +224,8 @@ class IntegrationService:
         role = Role.MECHANIC if is_technical else Role.MEDIC
         await upsert_specialist(self.session, ev.specialist_user_id, role, ev.specialist_full_name)
         specialist = await self.session.get(User, ev.specialist_user_id, populate_existing=True)
-        assert specialist is not None
+        if not (specialist is not None):  # явная проверка: assert исчезает при python -O
+            raise RuntimeError("Нарушено внутреннее условие")
         if specialist.role is not role:
             raise ValidationFailedError(
                 f"Для {ev.event_type} специалист должен иметь роль {role.value}",
@@ -252,7 +253,10 @@ class IntegrationService:
         result = InspectionResult.ADMITTED if ev.approved else InspectionResult.NOT_ADMITTED
         model: type[MedicalRecord] | type[TechnicalRecord]
         if is_technical:
-            assert vehicle is not None and ev.odometer is not None
+            if not (
+                vehicle is not None and ev.odometer is not None
+            ):  # явная проверка: assert исчезает при python -O
+                raise RuntimeError("Нарушено внутреннее условие")
             kind, model = JournalKind.TECHNICAL, TechnicalRecord
             values = {
                 **common,
@@ -262,11 +266,16 @@ class IntegrationService:
                 "result": result,
             }
         else:
-            assert ev.temperature is not None and ev.alcohol_ppm is not None
-            assert (
+            if not (
+                ev.temperature is not None and ev.alcohol_ppm is not None
+            ):  # явная проверка: assert исчезает при python -O
+                raise RuntimeError("Нарушено внутреннее условие")
+            if not (
                 ev.blood_pressure_systolic is not None and ev.blood_pressure_diastolic is not None
-            )
-            assert ev.pulse is not None
+            ):  # явная проверка: assert исчезает при python -O
+                raise RuntimeError("Нарушено внутреннее условие")
+            if not (ev.pulse is not None):  # явная проверка: assert исчезает при python -O
+                raise RuntimeError("Нарушено внутреннее условие")
             kind, model = JournalKind.MEDICAL, MedicalRecord
             factors = ev.harmful_factors
             factors_note = ", ".join(factors) if isinstance(factors, list) else (factors or None)

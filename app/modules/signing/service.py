@@ -58,7 +58,8 @@ def _sha(data: bytes) -> str:
 
 def result_from_status(status: SignStatus) -> SignResult:
     """Формирует итог подписи; сведения о сертификате берутся из ответа или из самой подписи."""
-    assert status.signature is not None
+    if not (status.signature is not None):  # явная проверка: assert исчезает при python -O
+        raise RuntimeError("Нарушено внутреннее условие")
     return SignResult(
         signature=status.signature,
         tsp=status.tsp,

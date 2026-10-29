@@ -102,7 +102,9 @@ class DevStack:
             "подставной Предрейс",
             lambda: httpx.get(f"http://127.0.0.1:{FAKE_PORT}/_dev/users").status_code == 200,
         )
-        self._spawn("api", py, "-m", "uvicorn", "app.main:app", "--port", str(API_PORT))
+        self._spawn(
+            "api", py, "-m", "uvicorn", "app.main:app", "--port", str(API_PORT), "--no-access-log"
+        )
         self._spawn("worker", py, "-m", "arq", "app.workers.settings.WorkerSettings")
         self._spawn("consumer", py, "-m", "app.workers.consumer")
         self.wait_for(

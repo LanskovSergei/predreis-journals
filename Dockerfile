@@ -27,4 +27,6 @@ RUN useradd --create-home --uid 10001 journals \
 USER journals
 
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
+# --no-access-log: журнал Uvicorn пишет строку запроса (в поиске бывают фамилии); свой журнал обращений
+# приложения пишет только шаблон маршрута (app/core/observability.py).
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--no-access-log"]

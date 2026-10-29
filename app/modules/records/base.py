@@ -223,6 +223,20 @@ class BaseRecordService:
         )
         return {j.subject_id: j for j in rows.scalars()}
 
+    @staticmethod
+    def _owns(principal: Principal, record: AnyRecord) -> bool:
+        """Медик и механик распоряжаются только своими записями; менеджерские роли — любыми."""
+        if principal.role in (Role.MEDIC, Role.MECHANIC):
+            return record.specialist_user_id == principal.user_id
+        return True
+
+    def _ensure_own(self, principal: Principal, record: AnyRecord) -> None:
+        """Запрещает медику и механику менять и удалять записи других специалистов."""
+        if not self._owns(principal, record):
+            raise ForbiddenError(
+                "Медик и механик могут менять только свои записи", code="not_record_specialist"
+            )
+
     async def _ensure_idle(self, record_id: uuid.UUID) -> None:
         """Запись, отправленную на подпись, нельзя менять: подписывается конкретное содержимое."""
         active = (
@@ -258,7 +272,9 @@ class BaseRecordService:
             return []
         role, perms = principal.role, self.perms
         acts: list[str] = []
-        editable = _allowed(fsm.ensure_editable, status=record.status, source=record.source)
+        editable = _allowed(
+            fsm.ensure_editable, status=record.status, source=record.source
+        ) and self._owns(principal, record)
         if editable and has_permission(role, perms.edit):
             acts.append("edit")
             if record.note:  # кнопка «Снять примечание» нужна только записи с примечанием
@@ -297,6 +313,7 @@ class BaseRecordService:
         """Удаляет неподписанную запись (тип А)."""
         self._require(principal, self.perms.delete_unsigned)
         record = await self.get(principal, record_id, for_update=True)
+        self._ensure_own(principal, record)
         fsm.ensure_deletable_unsigned(record.status, record.source)
         await self._ensure_idle(record.id)
         await self.session.delete(record)
@@ -360,6 +377,7 @@ class BaseRecordService:
         """Очищает поле «Примечание» неподписанной записи."""
         self._require(principal, self.perms.edit)
         record = await self.get(principal, record_id, for_update=True)
+        self._ensure_own(principal, record)
         fsm.ensure_editable(record.status, record.source)
         await self._ensure_idle(record.id)
         record.note = None

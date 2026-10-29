@@ -72,6 +72,7 @@ make lint typecheck
 - [docs/PERMISSIONS.md](docs/PERMISSIONS.md) — матрица прав по ролям и правила поверх неё (генерируется из кода)
 - [docs/FRONTEND.md](docs/FRONTEND.md) — руководство для разработчика фронтенда (вход, статусы, подпись, ошибки)
 - [docs/DEPLOY.md](docs/DEPLOY.md) — развёртывание на сервере: прокси и TLS, обновление, копии, мониторинг, чек-лист
+- [docs/SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md) — проверка безопасности перед запуском: находки, исправления, остаточные риски
 - [docs/OPERATIONS.md](docs/OPERATIONS.md) — эксплуатация: процессы, мониторинг, команды обслуживания, производительность
 - [docs/openapi.json](docs/openapi.json) и [docs/frontend/api.d.ts](docs/frontend/api.d.ts) — контракт API и TypeScript-типы (`make types`)
 

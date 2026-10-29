@@ -22,7 +22,7 @@ from app.integrations.predreis.signature import is_placeholder
 logger = logging.getLogger(__name__)
 
 CatalogEntity = Literal["organizations", "drivers", "vehicles"]
-TOKEN_PATH = "/api/v1/service/token"
+TOKEN_PATH = "/api/v1/service/token"  # noqa: S105 — путь метода, не пароль
 CATALOG_PATH = "/api/v1/service/catalogs/{entity}"
 SIGN_PATH = "/api/v1/service/sign"
 VERIFY_PATH = "/api/v1/service/users/verify"
@@ -223,7 +223,7 @@ class PredreisClient:
                     TOKEN_PATH,
                     json={
                         "client_id": self._settings.predreis_client_id,
-                        "client_secret": self._settings.predreis_client_secret,
+                        "client_secret": self._settings.predreis_client_secret.get_secret_value(),
                     },
                 )
                 resp.raise_for_status()
@@ -323,7 +323,8 @@ class PredreisClient:
             if resp.status_code == 401 and attempt == 1:
                 continue  # возможно, истёк сервисный токен — обновляем и повторяем один раз
             break
-        assert resp is not None
+        if not (resp is not None):  # явная проверка: assert исчезает при python -O
+            raise RuntimeError("Нарушено внутреннее условие")
         if resp.status_code == 401:
             raise UnauthorizedError("Недействительный токен или учётная запись отключена")
         if resp.status_code == 403:

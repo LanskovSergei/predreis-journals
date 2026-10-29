@@ -6,7 +6,7 @@ from datetime import date
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     env: str = "dev"
     log_level: str = "INFO"
     # Токен для /metrics (Prometheus); не задан — метод отключён.
-    metrics_token: str | None = None
+    metrics_token: SecretStr | None = None
     business_timezone: str = "Europe/Moscow"
     cors_origins: list[str] = Field(default_factory=list)
 
@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     predreis_timeout_s: float = 20.0
     # Сервисный клиент (client credentials). Секрет хранить только в .env на сервере.
     predreis_client_id: str = "journals"
-    predreis_client_secret: str = ""
+    predreis_client_secret: SecretStr = SecretStr("")
     # Вход пользователей: токен выдаёт Предрейс, журналы только спрашивают, действителен ли он.
     predreis_user_login_path: str = "/api/v1/auth/login"  # уточнить у Предрейса
     auth_cache_ttl_s: int = 30

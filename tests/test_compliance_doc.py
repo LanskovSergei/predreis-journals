@@ -5,14 +5,19 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_every_test_referenced_in_compliance_doc_exists() -> None:
-    """Каждая ссылка вида `файл.py::test_имя` в docs/TZ_COMPLIANCE.md указывает на реальный тест."""
-    doc = (ROOT / "docs" / "TZ_COMPLIANCE.md").read_text(encoding="utf-8")
+@pytest.mark.parametrize(
+    ("name", "minimum"), [("TZ_COMPLIANCE.md", 30), ("SECURITY_REVIEW.md", 5)]
+)
+def test_every_test_referenced_in_compliance_doc_exists(name: str, minimum: int) -> None:
+    """Каждая ссылка вида `файл.py::test_имя` в отчётах указывает на реальный тест."""
+    doc = (ROOT / "docs" / name).read_text(encoding="utf-8")
     refs = set(re.findall(r"`(test_\w+)\.py::(test_\w+)`", doc))
-    assert len(refs) > 30, "в документе должны быть ссылки на тесты"
+    assert len(refs) >= minimum, "в документе должны быть ссылки на тесты"
     existing: dict[str, set[str]] = {}
     for path in (ROOT / "tests").rglob("test_*.py"):
         existing[path.stem] = set(

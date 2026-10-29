@@ -95,7 +95,8 @@ async def business_metrics(session: AsyncSession) -> bytes:
 
 def _authorize(authorization: str | None = Header(default=None)) -> None:
     """Проверяет токен метрик; без настроенного токена метод скрыт."""
-    expected = get_settings().metrics_token
+    token = get_settings().metrics_token
+    expected = token.get_secret_value() if token is not None else ""
     if not expected:
         raise NotFoundError("Не найдено")
     given = (authorization or "").removeprefix("Bearer ").strip()

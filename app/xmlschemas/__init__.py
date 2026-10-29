@@ -24,6 +24,11 @@ _PARSER = etree.XMLParser(
 )
 
 
+def safe_fromstring(data: bytes) -> etree._Element:
+    """Разбор XML без сущностей, DTD и сети (для любых данных не из нашего кода)."""
+    return etree.fromstring(data, parser=_PARSER)
+
+
 class XmlInvalidError(AppError):
     """XML не соответствует схеме (ошибка данных или баг генерации)."""
 

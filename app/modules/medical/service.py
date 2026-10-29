@@ -104,7 +104,10 @@ class MedicalService(BaseRecordService):
 
     async def out(self, principal: Principal, record: AnyRecord) -> MedicalOut:
         """Формирует ответ API для одной записи (с подгрузкой подписи)."""
-        assert isinstance(record, MedicalRecord)
+        if not (
+            isinstance(record, MedicalRecord)
+        ):  # явная проверка: assert исчезает при python -O
+            raise RuntimeError("Нарушено внутреннее условие")
         docs = await self.signatures([record.id])
         jobs = await self.signing_jobs([record.id])
         return self.build_out(principal, record, docs.get(record.id), jobs.get(record.id))
@@ -208,7 +211,11 @@ class MedicalService(BaseRecordService):
         """Изменяет неподписанную запись; снимок реквизитов пересобирается при смене ссылок."""
         self._require(principal, self.perms.edit)
         record = await self.get(principal, record_id, for_update=True)
-        assert isinstance(record, MedicalRecord)
+        if not (
+            isinstance(record, MedicalRecord)
+        ):  # явная проверка: assert исчезает при python -O
+            raise RuntimeError("Нарушено внутреннее условие")
+        self._ensure_own(principal, record)
         fsm.ensure_editable(record.status, record.source)
         await self._ensure_idle(record.id)
         changes = data.model_dump(exclude_unset=True)
@@ -230,7 +237,8 @@ class MedicalService(BaseRecordService):
             driver = await self._get_driver(record.driver_id, org.id)
             if refs_changed:
                 specialist = await self.session.get(User, record.specialist_user_id)
-                assert specialist is not None
+                if not (specialist is not None):  # явная проверка: assert исчезает при python -O
+                    raise RuntimeError("Нарушено внутреннее условие")
                 record.snapshot = build_snapshot(
                     organization=org, specialist=specialist, driver=driver
                 )

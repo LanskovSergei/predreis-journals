@@ -9,6 +9,8 @@
 - Типы: `docs/frontend/api.d.ts` (создаётся командой `make types`, то есть
   `npx openapi-typescript docs/openapi.json -o docs/frontend/api.d.ts`). Пример использования с
   `openapi-fetch`: `createClient<paths>({ baseUrl })`.
+- **CORS:** разрешены только адреса из `JOURNALS_CORS_ORIGINS`, методы GET/POST/PATCH/DELETE и заголовки `Authorization`,
+  `Content-Type`, `X-Request-ID`; cookies не используются (токен в заголовке). Нужен другой заголовок — скажите.
 - **Локальный стенд с подставным ПРЕДРЕЙСом** (чтобы работать без боевых систем) — раздел 12.
 - Все даты и время в JSON — ISO 8601. Даты фильтров и отображение — по московскому времени
   (`Europe/Moscow`), момент осмотра хранится с часовым поясом.

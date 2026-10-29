@@ -141,7 +141,7 @@
   <xs:complexType name="DriverType">
     <xs:sequence>
       <xs:element name="FullName" type="rec:NonEmptyStringType"/>
-      <xs:element name="BirthDate" type="xs:date"/>
+      <xs:element name="BirthDate" type="xs:date" minOccurs="0"/>
       <xs:element name="Gender" type="rec:GenderType" minOccurs="0"/>
     </xs:sequence>
   </xs:complexType>

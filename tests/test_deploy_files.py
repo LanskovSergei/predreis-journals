@@ -82,3 +82,13 @@ def test_backup_script_is_executable_and_safe() -> None:
     )
     if listed.returncode == 0 and listed.stdout.strip():
         assert listed.stdout.startswith("100755"), "deploy/backup.sh должен быть исполняемым в Git"
+
+
+def test_uvicorn_access_log_is_disabled_everywhere() -> None:
+    """Журнал Uvicorn пишет строку запроса (в поиске бывают фамилии), поэтому он выключен."""
+    api = _load("docker-compose.yml")["services"]["api"]
+    assert "--no-access-log" in api["command"]
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    cmd = next(line for line in dockerfile.splitlines() if line.startswith("CMD"))
+    assert "--no-access-log" in cmd
+    assert '"--no-access-log"' in (ROOT / "tools" / "dev_stack.py").read_text(encoding="utf-8")

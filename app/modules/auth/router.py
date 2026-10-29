@@ -45,7 +45,7 @@ class LoginOut(BaseModel):
     """Токен (выдан Предрейсом), профиль и права для построения интерфейса."""
 
     access_token: str
-    token_type: str = "bearer"
+    token_type: str = "bearer"  # noqa: S105 — тип токена, не пароль
     expires_in: int | None = None
     user: UserOut
     permissions: list[str]

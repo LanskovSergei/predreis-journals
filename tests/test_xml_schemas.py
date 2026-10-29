@@ -296,3 +296,20 @@ def test_manifest_rejects_unknown_role_and_unsafe_path() -> None:
             files=[ManifestFile("a.txt", "record-signature", 1, samples.SHA_A, signed_file="/x")],
             **kwargs,
         )
+
+
+def test_record_of_driver_without_birth_date_is_valid() -> None:
+    """Дата рождения водителя может быть не указана: XML записи без неё проходит схему (иначе запись
+    нельзя подписать, а запись ЭПЛ без даты сломала бы сборку всего журнала за период)."""
+    from app.domain.enums import JournalKind
+    from app.modules.signing.xml_builder import build_record_xml
+    from app.xmlschemas import validate_xml
+    from tests import xml_samples as s
+
+    record = s.medical()
+    record.snapshot = {
+        **record.snapshot,
+        "driver": {**record.snapshot["driver"], "birth_date": None},
+    }
+    xml = build_record_xml(JournalKind.MEDICAL, record)
+    assert validate_xml(xml, "record") == [] and b"BirthDate" not in xml

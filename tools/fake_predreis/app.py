@@ -40,7 +40,9 @@ app = FastAPI(title="Fake PREDREIS")
 service_tokens: dict[str, float] = {}
 user_tokens: dict[str, tuple[str, float]] = {}
 sign_jobs: dict[str, dict[str, Any]] = {}
-ORG_CERT_ID = data.uid("organization-predreis-kep")  # «пользователь» для КЭП организации в подставном Предрейсе
+ORG_CERT_ID = data.uid(
+    "organization-predreis-kep"
+)  # «пользователь» для КЭП организации в подставном Предрейсе
 state: dict[str, Any] = {
     "sign_mode": "normal",
     "organizations": [dict(o) for o in data.ORGANIZATIONS],

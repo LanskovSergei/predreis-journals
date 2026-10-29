@@ -72,7 +72,10 @@ async def render_single_record_pdf(
         "address": org.get("legal_address"),
     }
     if kind is JournalKind.MEDICAL:
-        assert isinstance(record, MedicalRecord)
+        if not (
+            isinstance(record, MedicalRecord)
+        ):  # явная проверка: assert исчезает при python -O
+            raise RuntimeError("Нарушено внутреннее условие")
         spec = build_spec(
             medical=True,
             title=MEDICAL_RECORD_TITLE,
@@ -81,7 +84,10 @@ async def render_single_record_pdf(
             settings=get_settings(),
         )
     else:
-        assert isinstance(record, TechnicalRecord)
+        if not (
+            isinstance(record, TechnicalRecord)
+        ):  # явная проверка: assert исчезает при python -O
+            raise RuntimeError("Нарушено внутреннее условие")
         spec = build_spec(
             medical=False,
             title=TECHNICAL_RECORD_TITLE,

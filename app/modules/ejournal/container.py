@@ -14,7 +14,7 @@ from lxml import etree
 
 from app.core.errors import ValidationFailedError
 from app.modules.ejournal.xml_builder import ManifestFile, build_manifest_xml, safe_archive_path
-from app.xmlschemas import NS_JOURNAL, NS_MANIFEST, NS_RECORD, validate_xml
+from app.xmlschemas import NS_JOURNAL, NS_MANIFEST, NS_RECORD, safe_fromstring, validate_xml
 
 MANIFEST_PATH = "manifest.xml"
 MAX_FILES = 500_000
@@ -120,7 +120,7 @@ def verify_container(data: bytes) -> list[str]:
     schema_errors = validate_xml(manifest_bytes, "manifest")
     if schema_errors:
         return [f"manifest.xml: {e}" for e in schema_errors]
-    manifest = etree.fromstring(manifest_bytes)
+    manifest = safe_fromstring(manifest_bytes)
     entries = {f.get("path", ""): f for f in manifest.iter(_q(NS_MANIFEST, "File"))}
 
     for path in names:
@@ -168,9 +168,10 @@ def _verify_journal(
 ) -> list[str]:
     """Сверяет ссылки journal.xml с файлами контейнера и проверяет записи по XSD."""
     errors: list[str] = []
-    root = etree.fromstring(journal_xml)
+    root = safe_fromstring(journal_xml)
     records = root.find(_q(NS_JOURNAL, "Records"))
-    assert records is not None
+    if not (records is not None):  # явная проверка: assert исчезает при python -O
+        raise RuntimeError("Нарушено внутреннее условие")
     items = records.findall(_q(NS_JOURNAL, "Record"))
     if int(records.get("count", "-1")) != len(items):
         errors.append("Records/@count не равен числу записей")
@@ -200,7 +201,7 @@ def _verify_journal(
         if path in contents:
             rec_errors = validate_xml(contents[path], "record")
             errors += [f"{path}: {e}" for e in rec_errors]
-            if not rec_errors and etree.fromstring(contents[path]).get("id") != rid:
+            if not rec_errors and safe_fromstring(contents[path]).get("id") != rid:
                 errors.append(f"{path}: id записи не совпадает с journal.xml")
     return errors
 
