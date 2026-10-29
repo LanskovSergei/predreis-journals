@@ -17,6 +17,7 @@ from app.core.config import Settings, get_settings
 from app.core.errors import ConflictError, ValidationFailedError
 from app.core.storage import Storage, get_storage
 from app.core.timeutils import business_tz, local_date
+from app.domain.contracts import CONTRACT_EXCLUDES_MESSAGE, journal_allowed
 from app.domain.enums import (
     HarmfulFactors,
     InspectionPhase,
@@ -217,6 +218,11 @@ class IntegrationService:
         """Создаёт запись типа Б из ЭПЛ (Т2/Т6 → медосмотр, Т3 → техконтроль)."""
         is_technical = ev.event_type == "T3"
         org = await self._find_org(ev)
+        kind = JournalKind.TECHNICAL if is_technical else JournalKind.MEDICAL
+        if not journal_allowed(org.contract_type, kind):
+            raise ValidationFailedError(
+                CONTRACT_EXCLUDES_MESSAGE[kind], code="contract_excludes_journal"
+            )
         driver = await self._find_driver(ev, org)
         if driver.organization_id != org.id:
             raise ValidationFailedError("Водитель не принадлежит организации события")

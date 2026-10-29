@@ -252,15 +252,34 @@ async def test_filters_pagination_and_client_masking(
         await svc.list_records(other_client, MedicalFilters(), PAGE)
 
 
-async def test_client_of_paper_organization_has_no_access(session: AsyncSession) -> None:
-    """Клиент вне ЭПЛ (бумажные ПЛ) доступа к журналам не имеет."""
+async def test_client_of_platform_organization_on_paper_keeps_access(
+    session: AsyncSession,
+) -> None:
+    """Организация на платформе, но «на бумаге» (нет МЧД или истёк договор): клиент свои записи видит."""
     from app.domain.enums import WorkFormat
 
     w = await seed(session, WorkFormat.PAPER)
-    with pytest.raises(ForbiddenError):
+    page = await MedicalService(session).list_records(
+        principal(Role.CLIENT, org_id=w.org.id), MedicalFilters(), PAGE
+    )
+    assert page.total == 0  # доступ есть, просто записей пока нет
+
+
+async def test_client_of_organization_not_on_platform_has_no_access(session: AsyncSession) -> None:
+    """Организация добавлена вручную (не на платформе): клиентского доступа к журналам нет."""
+    from app.domain.enums import CatalogOrigin, WorkFormat
+    from app.models.catalog import Organization
+
+    await seed(session)
+    org = Organization(id=uuid.uuid4(), origin=CatalogOrigin.MANUAL, work_format=WorkFormat.PAPER,
+                       inn="7736050003", name="ООО Бумажное", is_active=True)  # fmt: skip
+    session.add(org)
+    await session.commit()
+    with pytest.raises(ForbiddenError) as exc:
         await MedicalService(session).list_records(
-            principal(Role.CLIENT, org_id=w.org.id), MedicalFilters(), PAGE
+            principal(Role.CLIENT, org_id=org.id), MedicalFilters(), PAGE
         )
+    assert exc.value.code == "not_platform_org"
 
 
 async def test_odometer_issue_adds_note(session: AsyncSession) -> None:

@@ -22,14 +22,15 @@ from app.core.security import Principal
 from app.core.sqlutil import contains_pattern
 from app.core.timeutils import business_tz, local_day_bounds
 from app.domain import fsm
+from app.domain.contracts import CONTRACT_EXCLUDES_MESSAGE, journal_allowed
 from app.domain.enums import (
+    CatalogOrigin,
     JournalKind,
     RecordSource,
     RecordStatus,
     Role,
     SignJobStatus,
     SignTarget,
-    WorkFormat,
 )
 from app.domain.permissions import CLIENT_ROLES, RECORD_PERMS, Permission, has_permission
 from app.models.catalog import Driver, Organization, User, Vehicle
@@ -100,15 +101,22 @@ class BaseRecordService:
         raise ForbiddenError("Недостаточно прав", code="permission_denied")
 
     async def _scope(self, stmt: Select[Any], principal: Principal) -> Select[Any]:
-        """Для клиента/диспетчера: только своя ЭПЛ-организация и только подписанные записи."""
+        """Клиент и диспетчер: только своя организация с платформы и только подписанные записи."""
         if principal.role not in CLIENT_ROLES:
             return stmt
         if principal.org_id is None:
             raise ForbiddenError("Пользователь не привязан к организации", code="no_organization")
         org = await self.session.get(Organization, principal.org_id)
-        if org is None or org.work_format is not WorkFormat.EPL:
+        # Доступ клиента — по регистрации организации на платформе (таблица прав ТЗ:
+        # «если зарегистрированы на платформе»); значок «на ЭПЛ» на него не влияет.
+        if org is None or org.origin is not CatalogOrigin.PLATFORM:
             raise ForbiddenError(
-                "Электронные журналы доступны только организациям на ЭПЛ", code="not_epl_org"
+                "Журналы доступны клиентам организаций, зарегистрированных на платформе",
+                code="not_platform_org",
+            )
+        if not journal_allowed(org.contract_type, self.kind):
+            raise ForbiddenError(
+                CONTRACT_EXCLUDES_MESSAGE[self.kind], code="contract_excludes_journal"
             )
         return stmt.where(
             self.model.organization_id == principal.org_id,
@@ -121,6 +129,10 @@ class BaseRecordService:
         org = await self.session.get(Organization, organization_id)
         if org is None:
             raise NotFoundError("Организация не найдена")
+        if not journal_allowed(org.contract_type, self.kind):
+            raise ValidationFailedError(
+                CONTRACT_EXCLUDES_MESSAGE[self.kind], code="contract_excludes_journal"
+            )
         return org
 
     async def _get_driver(self, driver_id: uuid.UUID, organization_id: uuid.UUID) -> Driver:

@@ -15,6 +15,7 @@ from app.core.errors import ConflictError, ForbiddenError, NotFoundError, Valida
 from app.core.security import Principal
 from app.core.storage import Storage, get_storage
 from app.core.timeutils import local_day_bounds
+from app.domain.contracts import CONTRACT_EXCLUDES_MESSAGE, journal_allowed
 from app.domain.enums import (
     EJournalStatus,
     JournalKind,
@@ -107,8 +108,13 @@ class EJournalService:
     async def create(self, principal: Principal, data: EJournalCreate) -> EJournal:
         """Создаёт черновик журнала (шаг «Сформировать»). Записи ещё не резервируются."""
         self._require(principal, data.kind, build=True)
-        if await self.session.get(Organization, data.organization_id) is None:
+        org = await self.session.get(Organization, data.organization_id)
+        if org is None:
             raise NotFoundError("Организация не найдена")
+        if not journal_allowed(org.contract_type, data.kind):
+            raise ValidationFailedError(
+                CONTRACT_EXCLUDES_MESSAGE[data.kind], code="contract_excludes_journal"
+            )
         model = record_model(data.kind)
         count = (
             await self.session.execute(
