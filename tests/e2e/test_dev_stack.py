@@ -109,6 +109,9 @@ def test_catalogs_sync_then_events_become_records(stack: DevStack) -> None:
         orgs["7700000001"]["work_format"] == "epl"
         and orgs["770000000000"]["work_format"] == "paper"
     )
+    # почему ИП «на бумаге» и срок договора ООО — из справочника Предрейса
+    assert orgs["770000000000"]["epl_details"]["mchd_active"] is False
+    assert orgs["7700000001"]["contract_until"] == "2026-12-31"
     drivers = {
         d["full_name"]: d for d in manager.get("/catalog/drivers?page_size=50").json()["items"]
     }

@@ -5210,6 +5210,18 @@
             ],
             "title": "Contract Until"
           },
+          "epl_details": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Epl Details"
+          },
           "work_format": {
             "$ref": "#/components/schemas/WorkFormat"
           },

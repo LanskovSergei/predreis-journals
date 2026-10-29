@@ -100,6 +100,8 @@ async def upsert_organization(session: AsyncSession, p: OrganizationPayload) -> 
     """Организация из Предрейса: по id Предрейса, иначе объединение с ручной по ИНН."""
     predreis_id, values = _platform_values(p)
     epl_ready = values.pop("epl_ready", None)
+    if "epl_ready_details" in values:
+        values["epl_details"] = values.pop("epl_ready_details")
     if epl_ready is not None:  # формат работы по данным платформы (решение заказчика)
         values["work_format"] = WorkFormat.EPL if epl_ready else WorkFormat.PAPER
     row = await _by_predreis_id(session, Organization, predreis_id)
@@ -342,6 +344,7 @@ PLATFORM_ORG_FIELDS = {
     "ogrn",
     "legal_address",
     "is_active",
+    "contract_until",  # срок договора ведёт Предрейс
 }
 PLATFORM_DRIVER_FIELDS = {"full_name", "gender", "birth_date", "license_number", "is_active"}
 PLATFORM_VEHICLE_FIELDS = {"brand", "model", "vehicle_type", "plate", "is_active"}

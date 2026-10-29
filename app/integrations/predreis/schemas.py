@@ -60,9 +60,13 @@ class OrganizationPayload(_CatalogBase):
         default=None, validation_alias=AliasChoices("legal_address", "address")
     )
     is_active: bool = Field(default=True, validation_alias=AliasChoices("is_active", "active"))
-    # Решение заказчика: «на ЭПЛ» — реквизиты для ЭПЛ подтверждены и МЧД оформлена.
+    # «На ЭПЛ»: И четырёх признаков (активна, акцепт оферты, МЧД активна, договор не истёк).
     # None — Предрейс признак не прислал (формат работы не меняется).
     epl_ready: bool | None = None
+    # Составляющие и остаток суточного лимита (лимит в итог не входит: обнуляется в полночь).
+    epl_ready_details: dict[str, Any] | None = None
+    # Срок договора из Предрейса; null — бессрочный или не задан.
+    contract_until: date | None = None
     updated_at: datetime | None = None
     # Не приходят из Предрейса; задаются в журналах/тестах и не затираются синхронизацией.
     work_format: WorkFormat | None = None

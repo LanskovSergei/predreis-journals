@@ -353,3 +353,23 @@ async def test_submit_as_user_requires_signer() -> None:
     with pytest.raises(ValueError):
         await client.submit(signer_user_id=None, document_type="x", content=b"x", external_id="e")
     assert not [r for r in srv.requests if "sign" in r.url.path]
+
+
+def test_revocation_block_is_optional_and_validated() -> None:
+    """Статус отзыва: необязательный блок revocation (набросок Предрейса); мусор не принимается."""
+    from app.integrations.predreis.client import parse_sign_status
+
+    base = {
+        "id": "s1",
+        "external_id": "e1",
+        "status": "signed",
+        "signature_b64": base64.b64encode(b"SIG").decode(),
+    }
+    assert parse_sign_status(base).ocsp_status is None  # пока Предрейс не присылает — места хватит
+    good = base | {
+        "revocation": {"status": "good", "checked_at": "2026-10-29T06:30:00Z", "source": "ocsp"}
+    }
+    assert parse_sign_status(good).ocsp_status == "good"
+    assert parse_sign_status(base | {"revocation": {"status": "revoked"}}).ocsp_status == "revoked"
+    assert parse_sign_status(base | {"revocation": {"status": "что-то"}}).ocsp_status is None
+    assert parse_sign_status(base | {"ocsp_status": "unknown"}).ocsp_status == "unknown"

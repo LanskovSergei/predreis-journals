@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -29,6 +30,8 @@ class OrganizationOut(BaseModel):
     contract_number: str | None
     contract_date: date | None
     contract_until: date | None
+    # Почему «на бумаге» и остаток суточного лимита ЭПЛ (только у организаций из платформы)
+    epl_details: dict[str, Any] | None = None
     work_format: WorkFormat
     origin: CatalogOrigin
     is_active: bool

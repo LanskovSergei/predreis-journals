@@ -1,0 +1,20 @@
+{
+  "id": "b7c2a1f0-3d4e-4a5b-8c6d-1e2f3a4b5c6d",
+  "inn": "7707083893",
+  "kpp": "770701001",
+  "ogrn": "1027700132195",
+  "name_short": "ООО «Ромашка»",
+  "name_full": "Общество с ограниченной ответственностью «Ромашка»",
+  "legal_address": "г. Москва, ул. Тестовая, д. 1",
+  "is_active": true,
+  "updated_at": "2026-10-29T06:00:00Z",
+  "epl_ready": true,
+  "epl_ready_details": {
+    "is_active": true,
+    "offer_accepted": true,
+    "mchd_active": true,
+    "contract_valid": true,
+    "daily_limit_left": 2
+  },
+  "contract_until": "2026-12-31"
+}

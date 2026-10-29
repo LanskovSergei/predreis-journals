@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
+from typing import Any
 
 from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String, Text, Uuid, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.domain.enums import CatalogOrigin, ContractType, Gender, Role, WorkFormat
@@ -32,6 +34,8 @@ class Organization(TimestampMixin, Base):
     contract_number: Mapped[str | None] = mapped_column(String(128))
     contract_date: Mapped[date | None] = mapped_column(Date)
     contract_until: Mapped[date | None] = mapped_column(Date)
+    # Подробности готовности к ЭПЛ из Предрейса (почему «на бумаге», остаток суточного лимита)
+    epl_details: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     work_format: Mapped[WorkFormat] = mapped_column(
         enum_col(WorkFormat), default=WorkFormat.EPL, server_default="epl"
     )

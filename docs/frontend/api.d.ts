@@ -1564,6 +1564,10 @@ export interface components {
             contract_date: string | null;
             /** Contract Until */
             contract_until: string | null;
+            /** Epl Details */
+            epl_details?: {
+                [key: string]: unknown;
+            } | null;
             work_format: components["schemas"]["WorkFormat"];
             origin: components["schemas"]["CatalogOrigin"];
             /** Is Active */

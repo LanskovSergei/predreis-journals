@@ -486,3 +486,56 @@ async def test_manual_client_registered_without_mchd_stays_on_paper(session: Asy
         and merged.origin is CatalogOrigin.PLATFORM
     )
     assert merged.work_format is WorkFormat.PAPER  # клиенты организации журналы пока не видят
+
+
+async def test_real_epl_ready_sample_from_predreis(session: AsyncSession) -> None:
+    """Образец Предрейса: значок «на ЭПЛ», подробности готовности и срок договора из платформы."""
+    import json
+    from pathlib import Path
+
+    await seed(session)
+    item = json.loads(
+        (
+            Path(__file__).parents[1] / "samples" / "predreis" / "catalog_organization_epl.json"
+        ).read_text("utf-8")
+    )
+    item["inn"] = make_inn("776666666")  # в тестовом мире этот ИНН уже занят
+    await upsert_organization(session, OrganizationPayload.model_validate(item))
+    await session.commit()
+    org = await session.get(Organization, uuid.UUID(item["id"]))
+    assert org is not None and org.work_format is WorkFormat.EPL
+    assert org.contract_until == date(2026, 12, 31)
+    assert (
+        org.epl_details == item["epl_ready_details"] and org.epl_details["daily_limit_left"] == 2
+    )
+
+    # договор истёк: Предрейс снимает готовность, срок договора бессрочный → null затирает прежнее значение
+    expired = item | {"epl_ready": False, "contract_until": None,
+                      "epl_ready_details": item["epl_ready_details"] | {"contract_valid": False}}  # fmt: skip
+    await upsert_organization(session, OrganizationPayload.model_validate(expired))
+    await session.commit()
+    session.expire_all()
+    org = await session.get(Organization, uuid.UUID(item["id"]))
+    assert org is not None and org.work_format is WorkFormat.PAPER and org.contract_until is None
+    assert org.epl_details is not None and org.epl_details["contract_valid"] is False
+
+
+async def test_contract_term_of_platform_organization_is_read_only(stack: Stack) -> None:
+    """Срок договора организации из платформы ведёт Предрейс; у ручной — меняется в журналах."""
+    c, h, w = stack.client, stack.auth("manager"), stack.world
+    locked = await c.patch(
+        f"/api/v1/catalog/organizations/{w.org.id}",
+        json={"contract_until": "2030-01-01"},
+        headers=h,
+    )
+    assert locked.status_code == 409 and locked.json()["error"]["details"]["fields"] == [
+        "contract_until"
+    ]
+    manual = (await c.post("/api/v1/catalog/organizations", json=org_body(), headers=h)).json()
+    changed = await c.patch(
+        f"/api/v1/catalog/organizations/{manual['id']}",
+        json={"contract_until": "2030-01-01"},
+        headers=h,
+    )
+    assert changed.status_code == 200 and changed.json()["contract_until"] == "2030-01-01"
+    assert "epl_details" in changed.json()  # поле есть в ответе (у ручной организации пустое)

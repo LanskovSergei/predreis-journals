@@ -180,9 +180,19 @@ def parse_sign_status(item: dict[str, Any]) -> SignStatus:
         tsp=_b64(item.get("tsp_b64")),
         error=item.get("last_error"),
         certificate=certificate,
-        ocsp_status=item.get("ocsp_status"),
+        ocsp_status=_revocation_status(item),
         signed_at=_dt(item.get("signed_at")),
     )
+
+
+def _revocation_status(item: dict[str, Any]) -> str | None:
+    """Статус отзыва сертификата: необязательный блок `revocation` (good / revoked / unknown).
+
+    Формат — набросок Предрейса до подключения услуги УЦ; неизвестные значения не принимаются.
+    """
+    block = item.get("revocation")
+    status = block.get("status") if isinstance(block, dict) else item.get("ocsp_status")
+    return status if status in ("good", "revoked", "unknown") else None
 
 
 def _items(data: Any) -> list[dict[str, Any]]:
