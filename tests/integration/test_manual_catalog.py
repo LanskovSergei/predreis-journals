@@ -414,3 +414,75 @@ async def test_ambiguous_manual_cards_are_not_linked(session: AsyncSession) -> N
         .all()
     )
     assert len(drivers) == 3 and sum(d.origin is CatalogOrigin.MANUAL for d in drivers) == 2
+
+
+@pytest.mark.parametrize(("flag", "expected"), [(True, WorkFormat.EPL), (False, WorkFormat.PAPER)])
+async def test_work_format_follows_platform_epl_ready_flag(
+    session: AsyncSession, flag: bool, expected: WorkFormat
+) -> None:
+    """Значок «на ЭПЛ / на бумаге» по данным платформы: реквизиты для ЭПЛ и МЧД оформлены или нет."""
+    await seed(session)
+    pid = uuid.uuid4()
+    payload = {
+        "id": str(pid),
+        "inn": make_inn("773333333"),
+        "name_full": "ООО Флаг",
+        "epl_ready": flag,
+    }
+    await upsert_organization(session, OrganizationPayload.model_validate(payload))
+    await session.commit()
+    org = await session.get(Organization, pid)
+    assert org is not None and org.work_format is expected
+
+
+async def test_epl_ready_changes_are_synced_and_absent_flag_changes_nothing(
+    session: AsyncSession,
+) -> None:
+    """Организация прошла МЧД — становится «на ЭПЛ»; признак не прислан — формат не меняется."""
+    await seed(session)
+    pid, inn = uuid.uuid4(), make_inn("774444444")
+    base = {"id": str(pid), "inn": inn, "name_full": "ООО Переход"}
+    for flag, expected in (
+        (False, WorkFormat.PAPER),
+        (None, WorkFormat.PAPER),
+        (True, WorkFormat.EPL),
+    ):
+        data = base | ({"epl_ready": flag} if flag is not None else {})
+        await upsert_organization(session, OrganizationPayload.model_validate(data))
+        await session.commit()
+        session.expire_all()
+        org = await session.get(Organization, pid)
+        assert org is not None and org.work_format is expected, flag
+
+
+async def test_manual_client_registered_without_mchd_stays_on_paper(session: AsyncSession) -> None:
+    """Бумажный клиент зарегистрировался в ПРЕДРЕЙС, но МЧД ещё не оформил: карточка объединена, но «на бумаге»."""
+    await seed(session)
+    inn = make_inn("775555555")
+    org = Organization(
+        id=uuid.uuid4(),
+        origin=CatalogOrigin.MANUAL,
+        work_format=WorkFormat.PAPER,
+        inn=inn,
+        name="ООО Без МЧД",
+        is_active=True,
+    )
+    session.add(org)
+    await session.commit()
+    org_id = org.id
+    pid = uuid.uuid4()
+    await upsert_organization(
+        session,
+        OrganizationPayload.model_validate(
+            {"id": str(pid), "inn": inn, "name_full": "ООО Без МЧД", "epl_ready": False}
+        ),
+    )
+    await session.commit()
+    session.expire_all()
+    merged = await session.get(Organization, org_id)
+    assert (
+        merged is not None
+        and merged.predreis_id == pid
+        and merged.origin is CatalogOrigin.PLATFORM
+    )
+    assert merged.work_format is WorkFormat.PAPER  # клиенты организации журналы пока не видят

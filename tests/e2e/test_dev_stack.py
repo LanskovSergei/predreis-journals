@@ -104,6 +104,11 @@ def test_catalogs_sync_then_events_become_records(stack: DevStack) -> None:
     )
     orgs = {o["inn"]: o for o in manager.get("/catalog/organizations").json()["items"]}
     assert orgs["770000000000"]["legal_address"] is None  # адрес ИП пуст
+    # значок «на ЭПЛ / на бумаге» по признаку платформы: ООО прошло МЧД, ИП ещё нет
+    assert (
+        orgs["7700000001"]["work_format"] == "epl"
+        and orgs["770000000000"]["work_format"] == "paper"
+    )
     drivers = {
         d["full_name"]: d for d in manager.get("/catalog/drivers?page_size=50").json()["items"]
     }

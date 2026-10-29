@@ -60,6 +60,9 @@ class OrganizationPayload(_CatalogBase):
         default=None, validation_alias=AliasChoices("legal_address", "address")
     )
     is_active: bool = Field(default=True, validation_alias=AliasChoices("is_active", "active"))
+    # Решение заказчика: «на ЭПЛ» — реквизиты для ЭПЛ подтверждены и МЧД оформлена.
+    # None — Предрейс признак не прислал (формат работы не меняется).
+    epl_ready: bool | None = None
     updated_at: datetime | None = None
     # Не приходят из Предрейса; задаются в журналах/тестах и не затираются синхронизацией.
     work_format: WorkFormat | None = None

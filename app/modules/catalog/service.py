@@ -99,6 +99,9 @@ def _apply(row: Any, values: dict[str, Any]) -> None:
 async def upsert_organization(session: AsyncSession, p: OrganizationPayload) -> None:
     """Организация из Предрейса: по id Предрейса, иначе объединение с ручной по ИНН."""
     predreis_id, values = _platform_values(p)
+    epl_ready = values.pop("epl_ready", None)
+    if epl_ready is not None:  # формат работы по данным платформы (решение заказчика)
+        values["work_format"] = WorkFormat.EPL if epl_ready else WorkFormat.PAPER
     row = await _by_predreis_id(session, Organization, predreis_id)
     if row is None:
         candidates = await session.execute(
@@ -111,7 +114,8 @@ async def upsert_organization(session: AsyncSession, p: OrganizationPayload) -> 
         row = _single(candidates.scalars().all())
         if row is not None:
             await _link(session, row, predreis_id, "organization")
-            row.work_format = WorkFormat.EPL  # теперь клиент организации работает и на платформе
+            if "work_format" not in values:  # признака нет: как раньше, считаем организацию на ЭПЛ
+                row.work_format = WorkFormat.EPL
     if row is None:
         session.add(_new(Organization, predreis_id, values))
         return
