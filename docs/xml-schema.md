@@ -7,7 +7,7 @@
 | Документ | Схема | Пространство имён | Где используется |
 |---|---|---|---|
 | Электронная запись | `record.xsd` | `urn:predreis:journals:record:1.0` | `record.xml` — подписывается УКЭП специалиста (документ типа 1) |
-| Электронный журнал | `journal.xsd` | `urn:predreis:journals:journal:1.0` | `journal.xml` — подписывается УКЭП организации (документ типа 2) |
+| Электронный журнал | `journal.xsd` | `urn:predreis:journals:journal:1.0` | `journal.xml` — подписывается УКЭП ООО «ПРЕДРЕЙС» как исполнителя (документ типа 2, см. `container-format.md`) |
 | Манифест контейнера | `manifest.xsd` | `urn:predreis:journals:manifest:1.0` | `manifest.xml` — реестр файлов ZIP (размер, SHA-256, назначение) |
 
 ## Правила

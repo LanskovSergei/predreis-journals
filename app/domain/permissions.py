@@ -83,6 +83,38 @@ PERMISSION_ROLES: dict[Permission, frozenset[Role]] = {
 }
 
 
+# Человекочитаемые названия прав для документа docs/PERMISSIONS.md (формулировки ТЗ, стр. 8).
+PERMISSION_TITLES: dict[Permission, str] = {
+    Permission.MEDICAL_VIEW: "Просмотр архива медосмотров (все организации)",
+    Permission.MEDICAL_VIEW_OWN_ORG: "Архив медосмотров своей организации (без медпоказателей)",
+    Permission.MEDICAL_CREATE: "Внесение записи медосмотра",
+    Permission.MEDICAL_EDIT: "Редактирование записи медосмотра (тип А)",
+    Permission.MEDICAL_DELETE_UNSIGNED: "Удаление записи медосмотра типа А",
+    Permission.MEDICAL_REQUEST_DELETE: "Запрос на удаление записи медосмотра типа Б",
+    Permission.MEDICAL_DELETE_SIGNED: "Удаление медосмотра типа Б (по запросу или напрямую)",
+    Permission.MEDICAL_SIGN: "Подпись записи медосмотра своим сертификатом",
+    Permission.MEDICAL_EXPORT: "Выгрузка медосмотров в PDF",
+    Permission.MEDICAL_EJOURNAL_BUILD: "Формирование электронного журнала медосмотров",
+    Permission.MEDICAL_EJOURNAL_SIGN: "Подпись электронного журнала медосмотров",
+    Permission.TECHNICAL_VIEW: "Просмотр архива техконтроля (все организации)",
+    Permission.TECHNICAL_VIEW_OWN_ORG: "Просмотр архива техконтроля своей организации",
+    Permission.TECHNICAL_CREATE: "Внесение записи техконтроля",
+    Permission.TECHNICAL_EDIT: "Редактирование записи техконтроля (тип А; в ТЗ не указано)",
+    Permission.TECHNICAL_DELETE_UNSIGNED: "Удаление записи техконтроля типа А",
+    Permission.TECHNICAL_REQUEST_DELETE: "Запрос на удаление записи техконтроля типа Б",
+    Permission.TECHNICAL_DELETE_SIGNED: "Удаление техконтроля типа Б (по запросу или напрямую)",
+    Permission.TECHNICAL_SIGN: "Подпись записи техконтроля своим сертификатом",
+    Permission.TECHNICAL_EXPORT: "Выгрузка техконтроля в PDF",
+    Permission.TECHNICAL_EJOURNAL_BUILD: "Формирование электронного журнала техконтроля",
+    Permission.TECHNICAL_EJOURNAL_SIGN: "Подпись электронного журнала техконтроля",
+    Permission.CATALOG_VIEW: "Справочники организаций, водителей и ТС; сертификаты специалистов",
+    Permission.CATALOG_MANAGE: "Ведение справочников (создание в журналах пока не реализовано)",
+    Permission.OCR_UPLOAD: "Загрузка сканов для распознавания (не реализовано)",
+    Permission.STATS_VIEW: "Статистика стартовой страницы",
+    Permission.EJOURNAL_VIEW: "Раздел «Электронные журналы» (список, просмотр, скачивание ZIP)",
+}
+
+
 def has_permission(role: Role, permission: Permission) -> bool:
     """Проверяет, есть ли у роли указанное право."""
     return role in PERMISSION_ROLES[permission]

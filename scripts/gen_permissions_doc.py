@@ -1,0 +1,85 @@
+"""Генерирует docs/PERMISSIONS.md из матрицы прав в коде (app/domain/permissions.py).
+
+Запуск: python scripts/gen_permissions_doc.py. Тест tests/test_permissions.py проверяет, что документ актуален.
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from app.core.security import _ROLE_ALIASES  # noqa: E402
+from app.domain.enums import Role  # noqa: E402
+from app.domain.permissions import PERMISSION_ROLES, PERMISSION_TITLES  # noqa: E402
+
+COLUMNS = [
+    (Role.CLIENT, "Клиент"),
+    (Role.DISPATCHER, "Диспетчер"),
+    (Role.MEDIC, "Медик"),
+    (Role.MECHANIC, "Механик"),
+    (Role.PREDREIS, "Предрейс"),
+    (Role.ADMIN, "Админ"),
+    (Role.SA, "СА"),
+]
+
+RULES = """
+## Правила поверх матрицы
+
+Матрица отвечает на вопрос «может ли роль выполнять действие вообще». Кроме неё сервер проверяет состояние записи
+и принадлежность (эти правила тоже проверены тестами):
+
+- **Медик и механик** создают записи только от своего имени, а подписывают только записи, где они указаны специалистом.
+  Менеджерские роли при создании обязаны указать специалиста; подписывать записи они не могут.
+- **Тип записи:** редактировать и удалять можно только тип А (неподписанные) из ручного ввода или распознавания.
+  Записи из ЭПЛ и записи, попавшие в подписанный журнал (тип В), не меняет и не удаляет никто.
+- **Удаление типа Б:** запрос создаёт Предрейс, решение принимают Админ или СА; Админ и СА могут удалить и напрямую.
+- **Клиент и диспетчер** видят только свою организацию, только подписанные записи и только если организация на ЭПЛ;
+  медицинских показателей в ответах для них нет.
+- **Подпись журнала** выполняется сертификатом ООО «ПРЕДРЕЙС» (`JOURNALS_ORG_SIGNER_USER_ID`), кнопку нажимает СА.
+- **Сертификаты:** свои видят медик и механик (`/me/certificates`); список специалистов видят Предрейс, Админ и СА,
+  счётчики записей по специалистам только СА.
+- **Кнопки строки** фронтенд рисует по списку `actions` в ответе: сервер уже учёл роль, статус, источник, примечание,
+  принадлежность и идущую подпись.
+"""
+
+
+def render() -> str:
+    """Текст документа."""
+    head = "| Право | Код | " + " | ".join(t for _, t in COLUMNS) + " |"
+    sep = "|---|---|" + "---|" * len(COLUMNS)
+    rows = [
+        f"| {PERMISSION_TITLES[p]} | `{p.value}` | "
+        + " | ".join("✅" if r in roles else "—" for r, _ in COLUMNS)
+        + " |"
+        for p, roles in PERMISSION_ROLES.items()
+    ]
+    aliases = ", ".join(f"`{raw}` → `{role.value}`" for raw, role in sorted(_ROLE_ALIASES.items()))
+    return "\n".join(
+        [
+            "# Матрица прав",
+            "",
+            "Документ сгенерирован из `app/domain/permissions.py` командой `python scripts/gen_permissions_doc.py`;",
+            "тест не даёт ему разойтись с кодом. Основа — таблица «Ролевые права» ТЗ (стр. 8).",
+            "",
+            head,
+            sep,
+            *rows,
+            "",
+            "## Роли Предрейса",
+            "",
+            "Роль приходит из Предрейса при входе. Журналы понимают: "
+            + ", ".join(f"`{r.value}`" for r, _ in COLUMNS)
+            + f". Другие написания: {aliases}. Роли `driver`, `driver_plus`, `support`, `client_service` "
+            "доступа не получают (ответ `403 role_unsupported`): в ТЗ журналов их нет.",
+            RULES.rstrip(),
+            "",
+        ]
+    )
+
+
+if __name__ == "__main__":
+    (ROOT / "docs" / "PERMISSIONS.md").write_text(render(), encoding="utf-8")
+    print("docs/PERMISSIONS.md обновлён")

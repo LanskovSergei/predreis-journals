@@ -57,3 +57,28 @@ def test_only_specialists_sign_records() -> None:
     assert has_permission(M, Permission.MEDICAL_SIGN)
     assert not has_permission(S, Permission.MEDICAL_SIGN)
     assert not has_permission(M, Permission.TECHNICAL_SIGN)
+
+
+def test_every_permission_has_a_title() -> None:
+    """У каждого права есть название для документа."""
+    from app.domain.permissions import PERMISSION_TITLES
+
+    assert set(PERMISSION_TITLES) == set(Permission)
+
+
+def test_permissions_doc_is_up_to_date() -> None:
+    """docs/PERMISSIONS.md совпадает с матрицей в коде (если упал: python scripts/gen_permissions_doc.py)."""
+    import importlib.util
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    spec = importlib.util.spec_from_file_location(
+        "gen_permissions_doc", root / "scripts" / "gen_permissions_doc.py"
+    )
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    committed = (root / "docs" / "PERMISSIONS.md").read_text(encoding="utf-8")
+    assert committed == module.render(), (
+        "docs/PERMISSIONS.md устарел: python scripts/gen_permissions_doc.py"
+    )
