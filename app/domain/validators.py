@@ -57,3 +57,29 @@ def merge_auto_note(note: str | None, issues: list[str]) -> str | None:
     if not additions:
         return base or None
     return "; ".join([p for p in [base, *additions] if p])
+
+
+# Латинские буквы, похожие на кириллические на госномере (номер вводят с любой раскладки).
+_PLATE_LATIN = str.maketrans("ABEKMHOPCTYX", "АВЕКМНОРСТУХ")
+
+
+def normalize_plate(value: str) -> str:
+    """Госномер для сравнения: без пробелов и дефисов, верхний регистр, латиница → кириллица."""
+    return "".join(value.split()).replace("-", "").upper().translate(_PLATE_LATIN)
+
+
+def validate_inn(value: str) -> bool:
+    """Проверяет ИНН организации (10 цифр) или ИП (12 цифр) по контрольным разрядам."""
+    if not value.isdigit() or len(value) not in (10, 12):
+        return False
+    d = [int(c) for c in value]
+
+    def check(weights: list[int]) -> int:
+        return sum(w * x for w, x in zip(weights, d, strict=False)) % 11 % 10
+
+    if len(d) == 10:
+        return check([2, 4, 10, 3, 5, 9, 4, 6, 8]) == d[9]
+    return (
+        check([7, 2, 4, 10, 3, 5, 9, 4, 6, 8]) == d[10]
+        and check([3, 7, 2, 4, 10, 3, 5, 9, 4, 6, 8]) == d[11]
+    )

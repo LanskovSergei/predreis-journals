@@ -148,3 +148,10 @@ class SignJobStatus(str, Enum):
     PENDING = "pending"
     SIGNED = "signed"
     FAILED = "failed"
+
+
+class CatalogOrigin(str, Enum):
+    """Откуда карточка справочника: из платформы ПРЕДРЕЙС или добавлена вручную в журналах."""
+
+    PLATFORM = "platform"
+    MANUAL = "manual"

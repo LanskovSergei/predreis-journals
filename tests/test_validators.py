@@ -52,3 +52,24 @@ def test_merge_auto_note_is_idempotent() -> None:
     assert note == "Проверить; Одометр меньше"
     assert merge_auto_note(note, ["Одометр меньше"]) == note
     assert merge_auto_note(None, []) is None
+
+
+def test_inn_checksum() -> None:
+    """ИНН организации (10 цифр) и ИП (12 цифр) проверяются по контрольным разрядам."""
+    from app.domain.validators import validate_inn
+
+    assert validate_inn("7707083893")  # реальный ИНН (ПАО Сбербанк)
+    assert not validate_inn("7707083894")  # испорчен контрольный разряд
+    assert validate_inn("500100732259")  # пример ИНН ИП из открытых источников
+    assert not validate_inn("500100732250")
+    for bad in ("", "77070838", "77070838931", "abcdefghij"):
+        assert not validate_inn(bad)
+
+
+def test_plate_normalization_handles_layout_and_spaces() -> None:
+    """Госномер сравнивается без пробелов и регистра, латиница заменяется похожей кириллицей."""
+    from app.domain.validators import normalize_plate
+
+    assert normalize_plate(" о 224 ек 790 ") == "О224ЕК790"
+    assert normalize_plate("O224EK790") == "О224ЕК790"  # латиница
+    assert normalize_plate("а123-вс77") == "А123ВС77"

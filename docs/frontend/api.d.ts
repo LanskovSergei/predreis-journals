@@ -463,7 +463,11 @@ export interface paths {
          */
         get: operations["list_organizations_api_v1_catalog_organizations_get"];
         put?: never;
-        post?: never;
+        /**
+         * Добавить организацию вручную
+         * @description Организация без платформы ПРЕДРЕЙС (бумажный клиент); ИНН уникален в каталоге.
+         */
+        post: operations["create_organization_api_v1_catalog_organizations_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -483,7 +487,11 @@ export interface paths {
          */
         get: operations["list_drivers_api_v1_catalog_drivers_get"];
         put?: never;
-        post?: never;
+        /**
+         * Добавить водителей вручную (до 10)
+         * @description Водители к любой организации, в т. ч. из платформы (гибридные клиенты).
+         */
+        post: operations["create_drivers_api_v1_catalog_drivers_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -503,11 +511,87 @@ export interface paths {
          */
         get: operations["list_vehicles_api_v1_catalog_vehicles_get"];
         put?: never;
-        post?: never;
+        /**
+         * Добавить ТС вручную (до 10)
+         * @description ТС к любой организации; госномер уникален в организации.
+         */
+        post: operations["create_vehicles_api_v1_catalog_vehicles_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/organizations/{org_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Удалить организацию, добавленную вручную
+         * @description Только без водителей, ТС и записей; иначе организацию делают неактивной.
+         */
+        delete: operations["delete_organization_api_v1_catalog_organizations__org_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Изменить организацию
+         * @description У организаций из платформы меняются только поля журналов (договор, контакты, примечание).
+         */
+        patch: operations["update_organization_api_v1_catalog_organizations__org_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/catalog/drivers/{driver_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Удалить водителя, добавленного вручную
+         * @description Только без записей; иначе водителя делают неактивным.
+         */
+        delete: operations["delete_driver_api_v1_catalog_drivers__driver_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Изменить водителя
+         * @description У водителей из платформы меняются только СНИЛС, сроки ВУ и примечание.
+         */
+        patch: operations["update_driver_api_v1_catalog_drivers__driver_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/catalog/vehicles/{vehicle_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Удалить ТС, добавленное вручную
+         * @description Только без записей; иначе ТС делают неактивным.
+         */
+        delete: operations["delete_vehicle_api_v1_catalog_vehicles__vehicle_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Изменить ТС
+         * @description У ТС из платформы меняются только диагностическая карта и примечание.
+         */
+        patch: operations["update_vehicle_api_v1_catalog_vehicles__vehicle_id__patch"];
         trace?: never;
     };
     "/api/v1/exports/medical": {
@@ -829,6 +913,12 @@ export interface components {
             files: string[];
         };
         /**
+         * CatalogOrigin
+         * @description Откуда карточка справочника: из платформы ПРЕДРЕЙС или добавлена вручную в журналах.
+         * @enum {string}
+         */
+        CatalogOrigin: "platform" | "manual";
+        /**
          * CertificateOut
          * @description Сертификат пользователя: статус считается по сроку и признаку `is_valid` Предрейса.
          */
@@ -932,6 +1022,35 @@ export interface components {
          */
         DeletionStatus: "pending" | "approved" | "rejected";
         /**
+         * DriverCreate
+         * @description Водитель, добавляемый вручную (к любой организации, в т. ч. из платформы).
+         */
+        DriverCreate: {
+            gender?: components["schemas"]["Gender"] | null;
+            /** Birth Date */
+            birth_date?: string | null;
+            /**
+             * Snils
+             * @description СНИЛС, проверяется контрольное число
+             */
+            snils?: string | null;
+            /** License Number */
+            license_number?: string | null;
+            /** License Issued At */
+            license_issued_at?: string | null;
+            /** License Valid Until */
+            license_valid_until?: string | null;
+            /** Note */
+            note?: string | null;
+            /**
+             * Organization Id
+             * Format: uuid
+             */
+            organization_id: string;
+            /** Full Name */
+            full_name: string;
+        };
+        /**
          * DriverOut
          * @description Водитель в каталоге.
          */
@@ -959,10 +1078,45 @@ export interface components {
             license_issued_at: string | null;
             /** License Valid Until */
             license_valid_until: string | null;
+            origin: components["schemas"]["CatalogOrigin"];
             /** Is Active */
             is_active: boolean;
             /** Note */
             note: string | null;
+        };
+        /**
+         * DriverUpdate
+         * @description Правка водителя: у водителей из платформы меняются только поля журналов.
+         */
+        DriverUpdate: {
+            gender?: components["schemas"]["Gender"] | null;
+            /** Birth Date */
+            birth_date?: string | null;
+            /**
+             * Snils
+             * @description СНИЛС, проверяется контрольное число
+             */
+            snils?: string | null;
+            /** License Number */
+            license_number?: string | null;
+            /** License Issued At */
+            license_issued_at?: string | null;
+            /** License Valid Until */
+            license_valid_until?: string | null;
+            /** Note */
+            note?: string | null;
+            /** Full Name */
+            full_name?: string | null;
+            /** Is Active */
+            is_active?: boolean | null;
+        };
+        /**
+         * DriversCreate
+         * @description До 10 водителей за раз (ТЗ, стр. 16).
+         */
+        DriversCreate: {
+            /** Drivers */
+            drivers: components["schemas"]["DriverCreate"][];
         };
         /**
          * EJournalCreate
@@ -1333,6 +1487,47 @@ export interface components {
          */
         OcrStampType: "pre_medical" | "post_medical" | "technical";
         /**
+         * OrganizationCreate
+         * @description Организация, добавляемая вручную (бумажный клиент).
+         */
+        OrganizationCreate: {
+            /** Legal Form */
+            legal_form?: string | null;
+            /** Short Name */
+            short_name?: string | null;
+            /** Kpp */
+            kpp?: string | null;
+            /** Ogrn */
+            ogrn?: string | null;
+            /** Legal Address */
+            legal_address?: string | null;
+            /** Head Name */
+            head_name?: string | null;
+            /** Email */
+            email?: string | null;
+            /** Phone */
+            phone?: string | null;
+            contract_type?: components["schemas"]["ContractType"] | null;
+            /** Contract Number */
+            contract_number?: string | null;
+            /** Contract Date */
+            contract_date?: string | null;
+            /** Note */
+            note?: string | null;
+            /**
+             * Inn
+             * @description 10 цифр (организация) или 12 (ИП), проверяются контрольные разряды
+             */
+            inn: string;
+            /** Name */
+            name: string;
+            /**
+             * Contract Until
+             * @default 2026-12-31
+             */
+            contract_until: string | null;
+        };
+        /**
          * OrganizationOut
          * @description Организация в каталоге.
          */
@@ -1370,10 +1565,48 @@ export interface components {
             /** Contract Until */
             contract_until: string | null;
             work_format: components["schemas"]["WorkFormat"];
+            origin: components["schemas"]["CatalogOrigin"];
             /** Is Active */
             is_active: boolean;
             /** Note */
             note: string | null;
+        };
+        /**
+         * OrganizationUpdate
+         * @description Правка карточки: у организаций из платформы меняются только поля журналов.
+         */
+        OrganizationUpdate: {
+            /** Legal Form */
+            legal_form?: string | null;
+            /** Short Name */
+            short_name?: string | null;
+            /** Kpp */
+            kpp?: string | null;
+            /** Ogrn */
+            ogrn?: string | null;
+            /** Legal Address */
+            legal_address?: string | null;
+            /** Head Name */
+            head_name?: string | null;
+            /** Email */
+            email?: string | null;
+            /** Phone */
+            phone?: string | null;
+            contract_type?: components["schemas"]["ContractType"] | null;
+            /** Contract Number */
+            contract_number?: string | null;
+            /** Contract Date */
+            contract_date?: string | null;
+            /** Note */
+            note?: string | null;
+            /** Inn */
+            inn?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Contract Until */
+            contract_until?: string | null;
+            /** Is Active */
+            is_active?: boolean | null;
         };
         /** Page[DriverOut] */
         Page_DriverOut_: {
@@ -1737,6 +1970,32 @@ export interface components {
             ctx?: Record<string, never>;
         };
         /**
+         * VehicleCreate
+         * @description ТС, добавляемое вручную.
+         */
+        VehicleCreate: {
+            /** Vehicle Type */
+            vehicle_type?: string | null;
+            /** Diag Card Until */
+            diag_card_until?: string | null;
+            /** Note */
+            note?: string | null;
+            /**
+             * Organization Id
+             * Format: uuid
+             */
+            organization_id: string;
+            /** Brand */
+            brand: string;
+            /** Model */
+            model: string;
+            /**
+             * Plate
+             * @description Госномер; пробелы и регистр не важны
+             */
+            plate: string;
+        };
+        /**
          * VehicleOut
          * @description ТС в каталоге.
          */
@@ -1761,10 +2020,39 @@ export interface components {
             plate: string;
             /** Diag Card Until */
             diag_card_until: string | null;
+            origin: components["schemas"]["CatalogOrigin"];
             /** Is Active */
             is_active: boolean;
             /** Note */
             note: string | null;
+        };
+        /**
+         * VehicleUpdate
+         * @description Правка ТС: у ТС из платформы меняются только поля журналов.
+         */
+        VehicleUpdate: {
+            /** Vehicle Type */
+            vehicle_type?: string | null;
+            /** Diag Card Until */
+            diag_card_until?: string | null;
+            /** Note */
+            note?: string | null;
+            /** Brand */
+            brand?: string | null;
+            /** Model */
+            model?: string | null;
+            /** Plate */
+            plate?: string | null;
+            /** Is Active */
+            is_active?: boolean | null;
+        };
+        /**
+         * VehiclesCreate
+         * @description До 10 ТС за раз (ТЗ, стр. 16).
+         */
+        VehiclesCreate: {
+            /** Vehicles */
+            vehicles: components["schemas"]["VehicleCreate"][];
         };
         /**
          * WaybillKind
@@ -2693,6 +2981,7 @@ export interface operations {
             query?: {
                 q?: string | null;
                 only_active?: boolean | null;
+                origin?: components["schemas"]["CatalogOrigin"] | null;
                 page?: number;
                 page_size?: number;
             };
@@ -2709,6 +2998,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Page_OrganizationOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_organization_api_v1_catalog_organizations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationOut"];
                 };
             };
             /** @description Validation Error */
@@ -2756,6 +3078,39 @@ export interface operations {
             };
         };
     };
+    create_drivers_api_v1_catalog_drivers_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriversCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_vehicles_api_v1_catalog_vehicles_get: {
         parameters: {
             query?: {
@@ -2777,6 +3132,231 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Page_VehicleOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_vehicles_api_v1_catalog_vehicles_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VehiclesCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VehicleOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_organization_api_v1_catalog_organizations__org_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_organization_api_v1_catalog_organizations__org_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_driver_api_v1_catalog_drivers__driver_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                driver_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_driver_api_v1_catalog_drivers__driver_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                driver_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriverUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_vehicle_api_v1_catalog_vehicles__vehicle_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_vehicle_api_v1_catalog_vehicles__vehicle_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VehicleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VehicleOut"];
                 };
             };
             /** @description Validation Error */

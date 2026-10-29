@@ -16,7 +16,12 @@ from app.core.config import Settings
 from app.integrations.predreis.client import CatalogEntity
 from app.integrations.predreis.schemas import DriverPayload, OrganizationPayload, VehiclePayload
 from app.models.integration import InboxFailure, SyncState
-from app.modules.catalog.service import upsert_driver, upsert_organization, upsert_vehicle
+from app.modules.catalog.service import (
+    MissingReferenceError,
+    upsert_driver,
+    upsert_organization,
+    upsert_vehicle,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +88,7 @@ async def sync_entity(
                 payload = payload_cls.model_validate(item)
                 async with session.begin_nested():
                     await upsert(session, payload)
-            except (ValidationError, IntegrityError) as exc:
+            except (ValidationError, IntegrityError, MissingReferenceError) as exc:
                 reason = "catalog_invalid" if isinstance(exc, ValidationError) else "catalog_fk"
                 session.add(
                     InboxFailure(

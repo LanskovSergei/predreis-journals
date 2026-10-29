@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import logging
+import uuid
 from datetime import datetime, timezone
 from typing import Any
 
@@ -25,6 +26,7 @@ from app.domain.enums import (
     RecordStatus,
     Role,
 )
+from app.domain.validators import normalize_plate
 from app.integrations.predreis.cms import extract_cert_info
 from app.integrations.predreis.schemas import (
     MEDICAL_DETAIL_FIELDS,
@@ -42,8 +44,8 @@ logger = logging.getLogger(__name__)
 
 
 def _plate(value: str) -> str:
-    """Госномер для сравнения: без пробелов, в верхнем регистре."""
-    return "".join(value.split()).upper()
+    """Госномер для сравнения (единое правило с каталогом)."""
+    return normalize_plate(value)
 
 
 class IntegrationService:
@@ -103,10 +105,16 @@ class IntegrationService:
         return outcome
 
     # --- привязка к справочникам -------------------------------------------------------------
+    async def _by_predreis_id(self, model: Any, predreis_id: uuid.UUID) -> Any:
+        """Карточка по идентификатору Предрейса (у объединённой карточки наш id другой)."""
+        return (
+            await self.session.execute(select(model).where(model.predreis_id == predreis_id))
+        ).scalar_one_or_none()
+
     async def _find_org(self, ev: EplRecordEvent) -> Organization:
         """Организация по идентификатору либо по ИНН (и КПП, если с таким ИНН их несколько)."""
         if ev.organization_id:
-            org = await self.session.get(Organization, ev.organization_id)
+            org = await self._by_predreis_id(Organization, ev.organization_id)
             if org is not None:
                 return org
         found = (
@@ -133,7 +141,7 @@ class IntegrationService:
     async def _find_driver(self, ev: EplRecordEvent, org: Organization) -> Driver:
         """Водитель по идентификатору либо по ФИО и дате рождения в организации."""
         if ev.driver_id:
-            driver = await self.session.get(Driver, ev.driver_id)
+            driver = await self._by_predreis_id(Driver, ev.driver_id)
             if driver is not None:
                 return driver
         found = (
@@ -160,7 +168,7 @@ class IntegrationService:
     async def _find_vehicle(self, ev: EplRecordEvent, org: Organization) -> Vehicle:
         """ТС по идентификатору либо по госномеру в организации."""
         if ev.vehicle_id:
-            vehicle = await self.session.get(Vehicle, ev.vehicle_id)
+            vehicle = await self._by_predreis_id(Vehicle, ev.vehicle_id)
             if vehicle is not None:
                 return vehicle
         wanted = _plate(ev.vehicle_plate or "")

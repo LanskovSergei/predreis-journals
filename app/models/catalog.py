@@ -5,10 +5,10 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String, Text, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.domain.enums import ContractType, Gender, Role, WorkFormat
+from app.domain.enums import CatalogOrigin, ContractType, Gender, Role, WorkFormat
 from app.models.base import Base, TimestampMixin, enum_col
 
 
@@ -35,6 +35,12 @@ class Organization(TimestampMixin, Base):
     work_format: Mapped[WorkFormat] = mapped_column(
         enum_col(WorkFormat), default=WorkFormat.EPL, server_default="epl"
     )
+    # Откуда карточка. Идентификатор Предрейса хранится отдельно: у карточки, добавленной вручную
+    # и затем объединённой с платформой, наш id не меняется (на него ссылаются записи).
+    origin: Mapped[CatalogOrigin] = mapped_column(
+        enum_col(CatalogOrigin), default=CatalogOrigin.PLATFORM, server_default="platform"
+    )
+    predreis_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, unique=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     note: Mapped[str | None] = mapped_column(Text)
     synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -54,6 +60,12 @@ class Driver(TimestampMixin, Base):
     license_number: Mapped[str | None] = mapped_column(String(32))
     license_issued_at: Mapped[date | None] = mapped_column(Date)
     license_valid_until: Mapped[date | None] = mapped_column(Date)
+    # Откуда карточка. Идентификатор Предрейса хранится отдельно: у карточки, добавленной вручную
+    # и затем объединённой с платформой, наш id не меняется (на него ссылаются записи).
+    origin: Mapped[CatalogOrigin] = mapped_column(
+        enum_col(CatalogOrigin), default=CatalogOrigin.PLATFORM, server_default="platform"
+    )
+    predreis_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, unique=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     note: Mapped[str | None] = mapped_column(Text)
     synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -71,6 +83,12 @@ class Vehicle(TimestampMixin, Base):
     vehicle_type: Mapped[str | None] = mapped_column(String(128))
     plate: Mapped[str] = mapped_column(String(16), index=True)
     diag_card_until: Mapped[date | None] = mapped_column(Date)
+    # Откуда карточка. Идентификатор Предрейса хранится отдельно: у карточки, добавленной вручную
+    # и затем объединённой с платформой, наш id не меняется (на него ссылаются записи).
+    origin: Mapped[CatalogOrigin] = mapped_column(
+        enum_col(CatalogOrigin), default=CatalogOrigin.PLATFORM, server_default="platform"
+    )
+    predreis_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, unique=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     note: Mapped[str | None] = mapped_column(Text)
     synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
