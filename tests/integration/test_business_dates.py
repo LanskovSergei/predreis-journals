@@ -77,3 +77,38 @@ async def test_journal_without_new_signed_records_is_not_created(stack: Stack) -
         headers=stack.auth("manager"),
     )
     assert resp.status_code == 422
+
+
+async def test_archive_lifecycle_as_described_by_the_customer(stack: Stack) -> None:
+    """Подписанная запись удаляется только по запросу; в отправленном журнале — никак; СА отклонил журнал —
+    записи снова обычные подписанные (тип Б); СА подписал — изменения невозможны ни от какой роли."""
+    c, w = stack.client, stack.world
+    rid = await _signed(stack, performed_at=MAY.isoformat())
+    manager, sa = stack.auth("manager"), stack.auth("sa")
+    body = {"kind": "medical", "organization_id": str(w.org.id)} | MAY_PERIOD
+
+    journal = (await c.post("/api/v1/ejournals", json=body, headers=manager)).json()
+    await c.post(f"/api/v1/ejournals/{journal['id']}/submit", headers=manager)
+    blocked = await c.post(
+        f"/api/v1/medical/records/{rid}/deletion-request", json={}, headers=manager
+    )
+    assert blocked.status_code == 409 and blocked.json()["error"]["code"] == "in_journal"
+
+    rejected = await c.post(
+        f"/api/v1/ejournals/{journal['id']}/reject", json={"reason": "проверить"}, headers=sa
+    )
+    assert rejected.status_code == 200
+    record = (await c.get(f"/api/v1/medical/records/{rid}", headers=manager)).json()
+    assert (
+        record["status"] == "signed" and "request_deletion" in record["actions"]
+    )  # снова обычная запись Б
+
+    again = (await c.post("/api/v1/ejournals", json=body, headers=manager)).json()
+    await c.post(f"/api/v1/ejournals/{again['id']}/submit", headers=manager)
+    await c.post(f"/api/v1/ejournals/{again['id']}/sign", headers=sa)
+    await stack.run_worker()
+    final = (await c.get(f"/api/v1/medical/records/{rid}", headers=sa)).json()
+    assert final["status"] == "in_journal" and final["actions"] == []  # даже у СА действий нет
+    for who in ("manager", "admin", "sa"):
+        direct = await c.delete(f"/api/v1/records/medical/{rid}/signed", headers=stack.auth(who))
+        assert direct.status_code in (403, 409), (who, direct.status_code)
