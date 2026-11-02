@@ -47,7 +47,7 @@ PREP = [
 MEDICAL = """
 INSERT INTO medical_records (id, status, source, performed_at, snapshot, deletion_pending, organization_id,
     specialist_user_id, phase, driver_id, complaints, bp_systolic, bp_diastolic, pulse, temperature,
-    alcohol_mgl, harmful_factors, result)
+    alcohol_permille, harmful_factors, result)
 SELECT gen_random_uuid(),
        CASE WHEN g % 100 < 2 THEN 'unsigned' WHEN g % 100 < 10 THEN 'signed' ELSE 'in_journal' END,
        'manual', now() - (g * interval '3 minutes'),

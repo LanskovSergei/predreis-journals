@@ -7,7 +7,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AliasChoices, BaseModel, Field, field_validator
 
 from app.domain.enums import (
     Gender,
@@ -51,7 +51,14 @@ class MedicalRecordCreate(BaseModel):
     bp_diastolic: int = Field(ge=30, le=200)
     pulse: int = Field(ge=20, le=250)
     temperature: Decimal = Field(ge=30, le=45, decimal_places=1)
-    alcohol_mgl: Decimal = Field(default=Decimal("0.00"), ge=0, le=5, decimal_places=2)
+    alcohol_permille: Decimal = Field(
+        default=Decimal("0.00"),
+        ge=0,
+        le=5,
+        decimal_places=2,
+        validation_alias=AliasChoices("alcohol_permille", "alcohol_mgl"),
+        description="Проба на алкоголь, промилле (‰). Старое имя alcohol_mgl принимается на входе",
+    )
     harmful_factors: HarmfulFactors = HarmfulFactors.ABSENT
     harmful_factors_note: str | None = None
     result: InspectionResult
@@ -74,7 +81,13 @@ class MedicalRecordUpdate(BaseModel):
     bp_diastolic: int | None = Field(default=None, ge=30, le=200)
     pulse: int | None = Field(default=None, ge=20, le=250)
     temperature: Decimal | None = Field(default=None, ge=30, le=45, decimal_places=1)
-    alcohol_mgl: Decimal | None = Field(default=None, ge=0, le=5, decimal_places=2)
+    alcohol_permille: Decimal | None = Field(
+        default=None,
+        ge=0,
+        le=5,
+        decimal_places=2,
+        validation_alias=AliasChoices("alcohol_permille", "alcohol_mgl"),
+    )
     harmful_factors: HarmfulFactors | None = None
     harmful_factors_note: str | None = None
     result: InspectionResult | None = None
@@ -102,7 +115,7 @@ class MedicalRecordOut(BaseModel):
     bp_diastolic: int
     pulse: int
     temperature: Decimal
-    alcohol_mgl: Decimal
+    alcohol_permille: Decimal = Field(description="Проба на алкоголь, промилле (‰)")
     harmful_factors: HarmfulFactors | None
     harmful_factors_note: str | None
     result: InspectionResult

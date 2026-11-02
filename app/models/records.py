@@ -108,7 +108,8 @@ class MedicalRecord(RecordMixin, Base):
     bp_diastolic: Mapped[int] = mapped_column(SmallInteger)
     pulse: Mapped[int] = mapped_column(SmallInteger)
     temperature: Mapped[Decimal] = mapped_column(Numeric(3, 1))
-    alcohol_mgl: Mapped[Decimal] = mapped_column(Numeric(4, 2))
+    # Проба на алкоголь в промилле (‰); в шапке PDF — mg/L (Минздрав), значения там скрыты.
+    alcohol_permille: Mapped[Decimal] = mapped_column(Numeric(4, 2))
     # None — признак не определялся (автоматический осмотр «Водителя+» без живого медика).
     harmful_factors: Mapped[HarmfulFactors | None] = mapped_column(enum_col(HarmfulFactors))
     harmful_factors_note: Mapped[str | None] = mapped_column(Text)

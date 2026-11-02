@@ -4396,7 +4396,7 @@
             ],
             "title": "Temperature"
           },
-          "alcohol_mgl": {
+          "alcohol_permille": {
             "anyOf": [
               {
                 "type": "number",
@@ -4407,7 +4407,8 @@
                 "type": "string"
               }
             ],
-            "title": "Alcohol Mgl",
+            "title": "Alcohol Permille",
+            "description": "Проба на алкоголь, промилле (‰). Старое имя alcohol_mgl принимается на входе",
             "default": "0.00"
           },
           "harmful_factors": {
@@ -4519,9 +4520,10 @@
             "type": "string",
             "title": "Temperature"
           },
-          "alcohol_mgl": {
+          "alcohol_permille": {
             "type": "string",
-            "title": "Alcohol Mgl"
+            "title": "Alcohol Permille",
+            "description": "Проба на алкоголь, промилле (‰)"
           },
           "harmful_factors": {
             "anyOf": [
@@ -4627,7 +4629,7 @@
           "bp_diastolic",
           "pulse",
           "temperature",
-          "alcohol_mgl",
+          "alcohol_permille",
           "harmful_factors",
           "harmful_factors_note",
           "result",
@@ -4768,7 +4770,7 @@
             ],
             "title": "Temperature"
           },
-          "alcohol_mgl": {
+          "alcohol_permille": {
             "anyOf": [
               {
                 "type": "number",
@@ -4782,7 +4784,7 @@
                 "type": "null"
               }
             ],
-            "title": "Alcohol Mgl"
+            "title": "Alcohol Permille"
           },
           "harmful_factors": {
             "anyOf": [

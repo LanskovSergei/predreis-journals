@@ -27,7 +27,7 @@
     </BloodPressure>
     <Pulse>72</Pulse>
     <Temperature>36.6</Temperature>
-    <Alcohol>0.00</Alcohol>
+    <Alcohol unit="permille">0.00</Alcohol>
     <HarmfulFactors>absent</HarmfulFactors>
     <Result>admitted</Result>
   </MedicalExamination>

@@ -54,7 +54,7 @@ def _medical() -> MedicalRecord:
         bp_diastolic=84,
         pulse=72,
         temperature=Decimal("36.6"),
-        alcohol_mgl=Decimal("0.00"),
+        alcohol_permille=Decimal("0.00"),
         harmful_factors=HarmfulFactors.ABSENT,
         result=InspectionResult.ADMITTED,
         specialist_user_id=uuid.uuid4(),

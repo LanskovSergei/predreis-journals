@@ -294,8 +294,8 @@ class IntegrationService:
                 "bp_diastolic": ev.blood_pressure_diastolic,
                 "pulse": ev.pulse,
                 "temperature": ev.temperature,
-                # ЭПЛ присылает промилле; единицы (mg/L или ‰) уточняются, значение как есть.
-                "alcohol_mgl": ev.alcohol_ppm,
+                # ЭПЛ присылает промилле (‰); в системе храним промилле (решение заказчика).
+                "alcohol_permille": ev.alcohol_ppm,
                 # None: признак не определялся («Водитель+»), это не то же, что «отсутствуют».
                 "harmful_factors": (
                     None

@@ -50,7 +50,7 @@ async def _epl_record(
             bp_diastolic=80,
             pulse=70,
             temperature=36.6,
-            alcohol_mgl=0,
+            alcohol_permille=0,
             harmful_factors=HarmfulFactors.ABSENT,
             result=InspectionResult.ADMITTED,
         )

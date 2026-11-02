@@ -103,7 +103,7 @@
     </xs:restriction>
   </xs:simpleType>
   <xs:simpleType name="AlcoholType">
-    <xs:annotation><xs:documentation>Результат пробы на алкоголь. Единицы измерения уточняются (mg/L или ‰).</xs:documentation></xs:annotation>
+    <xs:annotation><xs:documentation>Результат пробы на алкоголь в промилле (‰), решение заказчика. В шапке отчётного PDF указано mg/L (требование Минздрава), значения там скрыты.</xs:documentation></xs:annotation>
     <xs:restriction base="xs:decimal">
       <xs:fractionDigits value="2"/>
       <xs:minInclusive value="0"/>
@@ -170,7 +170,15 @@
       <xs:element name="BloodPressure" type="rec:BloodPressureType"/>
       <xs:element name="Pulse" type="rec:PulseType"/>
       <xs:element name="Temperature" type="rec:TemperatureType"/>
-      <xs:element name="Alcohol" type="rec:AlcoholType"/>
+      <xs:element name="Alcohol">
+        <xs:complexType>
+          <xs:simpleContent>
+            <xs:extension base="rec:AlcoholType">
+              <xs:attribute name="unit" type="xs:string" fixed="permille" use="optional"/>
+            </xs:extension>
+          </xs:simpleContent>
+        </xs:complexType>
+      </xs:element>
       <xs:element name="HarmfulFactors" type="rec:HarmfulFactorsType" minOccurs="0"/>
       <xs:element name="HarmfulFactorsNote" type="rec:NonEmptyStringType" minOccurs="0"/>
       <xs:element name="Result" type="rec:ResultType"/>

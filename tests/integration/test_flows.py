@@ -242,7 +242,7 @@ async def test_filters_pagination_and_client_masking(
         "bp_systolic",
         "pulse",
         "temperature",
-        "alcohol_mgl",
+        "alcohol_permille",
         "harmful_factors",
     ):
         assert secret not in dumped
@@ -410,7 +410,7 @@ async def test_epl_medical_mapping(session: AsyncSession, storage: LocalStorage)
     assert rec.result is InspectionResult.NOT_ADMITTED
     assert rec.harmful_factors is HarmfulFactors.DETECTED
     assert rec.harmful_factors_note == "признаки опьянения"
-    assert str(rec.alcohol_mgl) == "0.35"
+    assert str(rec.alcohol_permille) == "0.35"
 
 
 async def test_epl_technical_title3(session: AsyncSession, storage: LocalStorage) -> None:

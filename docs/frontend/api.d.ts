@@ -1345,10 +1345,11 @@ export interface components {
             /** Temperature */
             temperature: number | string;
             /**
-             * Alcohol Mgl
+             * Alcohol Permille
+             * @description Проба на алкоголь, промилле (‰). Старое имя alcohol_mgl принимается на входе
              * @default 0.00
              */
-            alcohol_mgl: number | string;
+            alcohol_permille: number | string;
             /** @default absent */
             harmful_factors: components["schemas"]["HarmfulFactors"];
             /** Harmful Factors Note */
@@ -1405,8 +1406,11 @@ export interface components {
             pulse: number;
             /** Temperature */
             temperature: string;
-            /** Alcohol Mgl */
-            alcohol_mgl: string;
+            /**
+             * Alcohol Permille
+             * @description Проба на алкоголь, промилле (‰)
+             */
+            alcohol_permille: string;
             harmful_factors: components["schemas"]["HarmfulFactors"] | null;
             /** Harmful Factors Note */
             harmful_factors_note: string | null;
@@ -1451,8 +1455,8 @@ export interface components {
             pulse?: number | null;
             /** Temperature */
             temperature?: number | string | null;
-            /** Alcohol Mgl */
-            alcohol_mgl?: number | string | null;
+            /** Alcohol Permille */
+            alcohol_permille?: number | string | null;
             harmful_factors?: components["schemas"]["HarmfulFactors"] | null;
             /** Harmful Factors Note */
             harmful_factors_note?: string | null;

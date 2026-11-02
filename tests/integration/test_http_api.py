@@ -73,7 +73,7 @@ async def test_full_scenario_over_http(stack: Stack) -> None:
         "bp_systolic",
         "pulse",
         "temperature",
-        "alcohol_mgl",
+        "alcohol_permille",
         "harmful_factors",
     ):
         assert secret not in raw

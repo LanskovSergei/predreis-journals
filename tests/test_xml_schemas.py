@@ -111,10 +111,10 @@ def test_builder_is_deterministic() -> None:
 
 def test_decimal_formats_do_not_break_schema() -> None:
     """Температура и алкоголь без хвостовых нулей и экспоненты остаются валидными."""
-    rec = samples.medical(temperature=Decimal("37"), alcohol_mgl=Decimal("0E-2"))
+    rec = samples.medical(temperature=Decimal("37"), alcohol_permille=Decimal("0E-2"))
     data = build_record_xml(JournalKind.MEDICAL, rec)
     assert b"<Temperature>37</Temperature>" in data
-    assert b"<Alcohol>0.00</Alcohol>" in data
+    assert b'<Alcohol unit="permille">0.00</Alcohol>' in data
 
 
 @pytest.mark.parametrize(
@@ -313,3 +313,18 @@ def test_record_of_driver_without_birth_date_is_valid() -> None:
     }
     xml = build_record_xml(JournalKind.MEDICAL, record)
     assert validate_xml(xml, "record") == [] and b"BirthDate" not in xml
+
+
+def test_alcohol_unit_is_stated_in_the_record_xml() -> None:
+    """В машиночитаемой записи единица алкоголя указана явно: промилле (решение заказчика)."""
+    from lxml import etree
+
+    from app.domain.enums import JournalKind
+    from app.modules.signing.xml_builder import build_record_xml
+    from app.xmlschemas import validate_xml
+    from tests import xml_samples as s
+
+    xml = build_record_xml(JournalKind.MEDICAL, s.medical())
+    assert validate_xml(xml, "record") == []
+    alcohol = etree.fromstring(xml).find(".//{*}Alcohol")
+    assert alcohol is not None and alcohol.get("unit") == "permille"

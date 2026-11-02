@@ -447,3 +447,15 @@ async def test_mass_signing_limit_and_duplicates(stack: Stack) -> None:
     assert (
         exactly_fifty.status_code == 200 and exactly_fifty.json()["failed"] == 50
     )  # записей нет, но лимит не нарушен
+
+
+async def test_old_alcohol_field_name_is_still_accepted(stack: Stack) -> None:
+    """Поле переименовано в alcohol_permille; старое имя alcohol_mgl пока принимается на входе."""
+    body = medical_body(stack.world)
+    body.pop("alcohol_permille", None)
+    body["alcohol_mgl"] = "0.10"
+    created = await stack.client.post(
+        "/api/v1/medical/records", json=body, headers=stack.auth("medic")
+    )
+    assert created.status_code == 201 and created.json()["alcohol_permille"] == "0.10"
+    assert "alcohol_mgl" not in created.json()  # в ответах только новое имя

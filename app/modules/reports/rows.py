@@ -61,7 +61,7 @@ def medical_row(n: int, rec: MedicalRecord, doc: RecordDocument | None) -> dict[
         "blood_pressure": f"{rec.bp_systolic}/{rec.bp_diastolic}",
         "pulse": rec.pulse,
         "temperature": fmt_decimal(rec.temperature),
-        "alcohol_mgl": fmt_decimal(rec.alcohol_mgl),
+        "alcohol_permille": fmt_decimal(rec.alcohol_permille),
         "harmful_factors": {
             HarmfulFactors.ABSENT: "отсутствуют",
             HarmfulFactors.DETECTED: "выявлены",

@@ -12,7 +12,7 @@ MEDICAL_SECRET_FIELDS: frozenset[str] = frozenset(
         "blood_pressure",
         "pulse",
         "temperature",
-        "alcohol_mgl",
+        "alcohol_permille",
         "harmful_factors",
     }
 )

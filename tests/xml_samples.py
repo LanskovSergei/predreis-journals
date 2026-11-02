@@ -69,7 +69,7 @@ def medical(source: RecordSource = RecordSource.MANUAL, **over: object) -> Medic
         "bp_diastolic": 84,
         "pulse": 72,
         "temperature": Decimal("36.6"),
-        "alcohol_mgl": Decimal("0.00"),
+        "alcohol_permille": Decimal("0.00"),
         "harmful_factors": HarmfulFactors.ABSENT,
         "result": InspectionResult.ADMITTED,
         "specialist_user_id": U("22222222-2222-4222-8222-222222222222"),

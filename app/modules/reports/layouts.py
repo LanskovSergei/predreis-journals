@@ -94,7 +94,7 @@ def medical_cells(row: Mapping[str, Any]) -> list[str]:
         str(row["blood_pressure"]),
         str(row["pulse"]),
         str(row["temperature"]),
-        str(row["alcohol_mgl"]),
+        str(row["alcohol_permille"]),
         str(row["harmful_factors"]),
         row["conclusion"],
         _signature(row["signature"]),
