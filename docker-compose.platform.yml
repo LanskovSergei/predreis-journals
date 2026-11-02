@@ -1,0 +1,137 @@
+# Электронные журналы на сервере платформы ПРЕДРЕЙС — четвёртый набор рядом с /opt/predreis, /opt/supabase,
+# /opt/monitoring. Запуск: docker compose -f docker-compose.platform.yml up -d --build (подробно: docs/DEPLOY.md).
+#
+# Разделение с платформой сохранено: своя база (к сети платформы НЕ подключена — медицинские данные изолированы),
+# свой Redis, свои миграции и резервные копии. Общее — только сеть predreis_net: через неё nginx платформы ходит
+# на journals_api:8000, а потребитель читает очередь RabbitMQ (rabbitmq:5672, vhost predreis).
+#
+# Имена сервисов уникальные (journals-*): контейнер в двух сетях по имени «postgres» или «redis» мог бы попасть
+# в платформенные сервисы. Предел памяти всего набора — 3,5 ГБ (согласовано с платформой).
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+x-app: &app
+  build: .
+  restart: unless-stopped
+  logging: *logging
+  env_file: .env
+  environment: &app-env
+    JOURNALS_DATABASE_URL: postgresql+asyncpg://journals:${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в .env}@journals-db:5432/journals
+    JOURNALS_REDIS_URL: redis://journals-redis:6379/0
+    JOURNALS_STORAGE_DIR: /var/lib/journals/storage
+  volumes:
+    - ${JOURNALS_STORAGE_HOST_DIR:-/opt/journals/storage}:/var/lib/journals/storage
+
+services:
+  journals-db:
+    image: postgres:16
+    container_name: journals_db
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_USER: journals
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в .env}
+      POSTGRES_DB: journals
+    command: ["postgres", "-c", "shared_buffers=256MB", "-c", "max_connections=50"]
+    shm_size: 256mb
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U journals"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    mem_limit: 1g
+    memswap_limit: 1g
+    cpus: 2
+    networks: [journals]
+
+  journals-redis:
+    image: redis:7-alpine
+    container_name: journals_redis
+    restart: unless-stopped
+    logging: *logging
+    command: ["redis-server", "--maxmemory", "96mb", "--maxmemory-policy", "noeviction"]
+    mem_limit: 128m
+    memswap_limit: 128m
+    networks: [journals]
+
+  journals-migrate:
+    <<: *app
+    container_name: journals_migrate
+    restart: "no"
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      journals-db:
+        condition: service_healthy
+    mem_limit: 384m
+    memswap_limit: 384m
+    networks: [journals]
+
+  journals-api:
+    <<: *app
+    container_name: journals_api  # это имя и порт 8000 прописаны в nginx платформы
+    # Порт не публикуется на хост: API доступен только nginx платформы через predreis_net.
+    command:
+      - uvicorn
+      - app.main:app
+      - --host=0.0.0.0
+      - --port=8000
+      - --proxy-headers
+      - --forwarded-allow-ips=*  # снаружи недоступен, адреса приходят от nginx платформы
+      - --no-access-log  # строка запроса с фамилиями не должна попадать в журнал
+      - --root-path=/journals  # префикс на домене платформы; nginx его срезает (ссылки документации верные)
+    depends_on:
+      journals-migrate:
+        condition: service_completed_successfully
+      journals-redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    mem_limit: 1g  # пик крупной PDF-выгрузки — около 330 МБ
+    memswap_limit: 1g
+    cpus: 2
+    networks: [journals, predreis_net]
+
+  journals-worker:
+    <<: *app
+    container_name: journals_worker
+    command: ["arq", "app.workers.settings.WorkerSettings"]
+    depends_on:
+      journals-migrate:
+        condition: service_completed_successfully
+      journals-redis:
+        condition: service_started
+    mem_limit: 1g  # сборка ZIP электронного журнала и PDF
+    memswap_limit: 1g
+    cpus: 2
+    networks: [journals, predreis_net]
+
+  journals-consumer:
+    <<: *app
+    container_name: journals_consumer
+    command: ["python", "-m", "app.workers.consumer"]
+    depends_on:
+      journals-migrate:
+        condition: service_completed_successfully
+    mem_limit: 256m
+    memswap_limit: 256m
+    networks: [journals, predreis_net]  # predreis_net — для rabbitmq:5672
+
+volumes:
+  pgdata:
+    name: journals_pgdata
+
+networks:
+  journals:
+    name: journals_net
+  predreis_net:
+    external: true

@@ -5,6 +5,46 @@
 оповещений разобраны как YAML; конфигурации Caddy, nginx и `docker-compose.dev.yml` в моей среде проверить нечем
 (там нет Docker, Caddy и nginx), поэтому после первого запуска сверьте их по разделу «Проверка после запуска».
 
+## 0. Основной вариант: на сервере платформы ПРЕДРЕЙС
+
+Решение заказчика: журналы — часть платформы для пользователя (тот же домен, без переходов), но отдельный сервис
+для бэкенда. Они ставятся четвёртым набором Docker Compose рядом с `/opt/predreis`, `/opt/supabase`,
+`/opt/monitoring` и открываются на `https://predreis-online.ru/journals/…`.
+
+| Общее с платформой | Своё у журналов |
+|---|---|
+| сервер, домен и nginx (`predreis_nginx`) | PostgreSQL `journals_db` (к сети платформы **не** подключён) |
+| RabbitMQ `rabbitmq:5672`, vhost `predreis`, очередь `journal.events.outgoing` | Redis, миграции, резервные копии |
+| вход пользователя (токен платформы) | контейнеры API, воркера, потребителя; предел памяти 3,5 ГБ на весь набор |
+
+**Порядок запуска:**
+
+1. Код: `git clone … /opt/journals && cd /opt/journals`.
+2. Каталог файлов: `mkdir -p /opt/journals/storage && chown 10001:10001 /opt/journals/storage` (приложение работает
+   не от root, uid 10001).
+3. Настройки: `cp .env.example .env` и заполнить: `POSTGRES_PASSWORD` (длинный случайный), `JOURNALS_PREDREIS_CLIENT_ID`,
+   `JOURNALS_PREDREIS_CLIENT_SECRET`, `JOURNALS_RABBITMQ_URL=amqp://<пользователь>:<пароль>@rabbitmq:5672/predreis`
+   (учётные данные передаются вне чата), `JOURNALS_CORS_ORIGINS=[]` (тот же домен — CORS не нужен),
+   `JOURNALS_METRICS_TOKEN`. Адрес базы, Redis, хранилища и префикс `/journals` (`uvicorn --root-path`) задаёт сам compose.
+4. Запуск: `docker compose -f docker-compose.platform.yml up -d --build`. Миграции выполняются автоматически.
+5. Проверка изнутри: `docker exec journals_api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/ready').read())"`.
+6. nginx платформы: вставить [`deploy/platform/nginx-journals.conf`](../deploy/platform/nginx-journals.conf) в `server { }`,
+   затем `docker exec predreis_nginx nginx -t && docker exec predreis_nginx nginx -s reload`. Адрес задан через
+   переменную и resolver: если журналы остановлены, nginx платформы всё равно запустится и перезагрузится.
+7. Снаружи: `curl https://predreis-online.ru/journals/health` → `{"status":"ok"}`; документация API —
+   `https://predreis-online.ru/journals/docs`.
+8. Резервные копии: [`deploy/platform/backup.sh`](../deploy/platform/backup.sh) по cron (база берётся из контейнера
+   `journals_db`, файлы — из `/opt/journals/storage`); копии — на отдельный диск и вне сервера.
+9. Мониторинг: Prometheus из `/opt/monitoring` подключить к сети `predreis_net` и собирать
+   `http://journals_api:8000/metrics` с заголовком `Authorization: Bearer <JOURNALS_METRICS_TOKEN>`; правила тревог —
+   [`deploy/alerts.yml`](../deploy/alerts.yml). Снаружи `/journals/metrics` закрыт.
+
+**Память** (предел без подкачки): база 1 ГБ, API 1 ГБ (пик крупной PDF-выгрузки около 330 МБ), воркер 1 ГБ, потребитель
+256 МБ, Redis 128 МБ — 3,4 ГБ; миграции 384 МБ на время запуска. Диск: 25–35 ГБ файлов в год, база около 1 ГБ на
+800 тысяч записей.
+
+Разделы ниже описывают отдельный сервер; на сервере платформы они справочные (прокси и TLS уже настроены платформой).
+
 ## 1. Что нужно
 
 | Компонент | Требование |

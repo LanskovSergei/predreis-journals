@@ -77,3 +77,25 @@ async def test_cors_allows_the_frontend_without_cookies(monkeypatch: pytest.Monk
     assert "access-control-allow-credentials" not in ok.headers
     assert "authorization" in ok.headers["access-control-allow-headers"].lower()
     assert "access-control-allow-origin" not in other.headers
+
+
+@pytest.mark.asyncio
+async def test_root_path_for_the_platform_domain(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Под доменом платформы (uvicorn --root-path=/journals) документация ссылается на префикс, а маршруты
+    работают без него (nginx срезает префикс перед передачей)."""
+    from app.main import create_app
+
+    get_settings.cache_clear()
+    try:
+        app = create_app()
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app, root_path="/journals"), base_url="http://t"
+        ) as client:
+            spec = (await client.get("/openapi.json")).json()
+            docs = (await client.get("/docs")).text
+            health = await client.get("/health")
+    finally:
+        get_settings.cache_clear()
+    assert {"url": "/journals"} in spec.get("servers", [])
+    assert "/journals/openapi.json" in docs
+    assert health.status_code == 200

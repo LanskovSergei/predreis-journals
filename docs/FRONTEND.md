@@ -5,7 +5,11 @@
 
 ## 1. Быстрый старт
 
-- Базовый адрес API: `https://<домен журналов>/api/v1`. Swagger — `/docs`.
+- Базовый адрес API: **`https://predreis-online.ru/journals/api/v1`** (журналы — часть платформы, тот же домен, CORS не
+  нужен). Swagger — `/journals/docs`. На стенде разработчика — `http://localhost:8000/api/v1`.
+- **Вход:** пользователь уже вошёл в платформу; передавайте журналам тот же токен в заголовке
+  `Authorization: Bearer <токен платформы>`, журналы проверят его у ПРЕДРЕЙС. Отдельная форма входа не нужна
+  (`POST /auth/login` остаётся для стенда и отдельного запуска).
 - Типы: `docs/frontend/api.d.ts` (создаётся командой `make types`, то есть
   `npx openapi-typescript docs/openapi.json -o docs/frontend/api.d.ts`). Пример использования с
   `openapi-fetch`: `createClient<paths>({ baseUrl })`.
