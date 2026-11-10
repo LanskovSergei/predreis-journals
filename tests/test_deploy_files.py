@@ -148,3 +148,19 @@ def test_platform_nginx_snippet_cannot_take_the_platform_down() -> None:
     assert "location ^~ /journals/metrics" in conf
     backup = (ROOT / "deploy" / "platform" / "backup.sh").read_text(encoding="utf-8")
     assert "set -euo pipefail" in backup and "pg_restore --list" in backup and ".part" in backup
+
+
+def test_platform_compose_gives_way_to_the_platform_on_cpu() -> None:
+    """На сервере платформы 2 ядра: журналы не больше ядра на контейнер и с половинным приоритетом."""
+    compose = _load("docker-compose.platform.yml")
+    for name, svc in compose["services"].items():
+        assert float(svc["cpus"]) <= 1.0, name
+        assert svc["cpu_shares"] < 1024, name  # 1024 — вес контейнеров платформы по умолчанию
+    assert compose["networks"]["predreis_net"]["name"] == "${PREDREIS_NETWORK:-predreis_net}"
+
+
+def test_env_example_has_no_duplicate_keys() -> None:
+    """В примере настроек каждый ключ один раз: иначе неясно, какое значение победит."""
+    lines = (ROOT / ".env.example").read_text(encoding="utf-8").splitlines()
+    keys = [ln.split("=", 1)[0] for ln in lines if ln and not ln.startswith("#") and "=" in ln]
+    assert len(keys) == len(set(keys)), sorted({k for k in keys if keys.count(k) > 1})

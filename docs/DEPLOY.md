@@ -9,12 +9,14 @@
 
 Решение заказчика: журналы — часть платформы для пользователя (тот же домен, без переходов), но отдельный сервис
 для бэкенда. Они ставятся четвёртым набором Docker Compose рядом с `/opt/predreis`, `/opt/supabase`,
-`/opt/monitoring` и открываются на `https://predreis-online.ru/journals/…`.
+`/opt/monitoring` и открываются на `https://<домен платформы>/journals/…` (сейчас сервер Selectel `moscow3`,
+домен `предрейс-онлайн.рф`).
 
 | Общее с платформой | Своё у журналов |
 |---|---|
 | сервер, домен и nginx (`predreis_nginx`) | PostgreSQL `journals_db` (к сети платформы **не** подключён) |
-| RabbitMQ `rabbitmq:5672`, vhost `predreis`, очередь `journal.events.outgoing` | Redis, миграции, резервные копии |
+| RabbitMQ `predreis_rabbitmq:5672`, vhost `predreis`, очередь `journal.events.outgoing` | Redis, миграции, резервные копии |
+| API платформы изнутри: `http://predreis_backend:8000` (без домена и DNS) | процессор: не больше ядра на контейнер, приоритет ниже платформы |
 | вход пользователя (токен платформы) | контейнеры API, воркера, потребителя; предел памяти 3,5 ГБ на весь набор |
 
 **Порядок запуска:**
@@ -22,15 +24,29 @@
 1. Код: `git clone … /opt/journals && cd /opt/journals`.
 2. Каталог файлов: `mkdir -p /opt/journals/storage && chown 10001:10001 /opt/journals/storage` (приложение работает
    не от root, uid 10001).
-3. Настройки: `cp .env.example .env` и заполнить: `POSTGRES_PASSWORD` (длинный случайный), `JOURNALS_PREDREIS_CLIENT_ID`,
-   `JOURNALS_PREDREIS_CLIENT_SECRET`, `JOURNALS_RABBITMQ_URL=amqp://<пользователь>:<пароль>@rabbitmq:5672/predreis`
-   (учётные данные передаются вне чата), `JOURNALS_CORS_ORIGINS=[]` (тот же домен — CORS не нужен),
-   `JOURNALS_METRICS_TOKEN`. Адрес базы, Redis, хранилища и префикс `/journals` (`uvicorn --root-path`) задаёт сам compose.
+3. Настройки: `cp .env.example .env && chmod 600 .env` и заполнить:
+   - `POSTGRES_PASSWORD` — `openssl rand -hex 24` (своя база журналов);
+   - `PREDREIS_NETWORK=predreis_predreis_net` — имя сети платформы на этом сервере (`docker network ls`);
+   - `JOURNALS_PREDREIS_BASE_URL=http://predreis_backend:8000` — API платформы изнутри, без домена;
+   - `JOURNALS_PREDREIS_CLIENT_ID`, `JOURNALS_PREDREIS_CLIENT_SECRET` — сервисный клиент журналов;
+   - `JOURNALS_RABBITMQ_URL=amqp://<пользователь>:<пароль>@predreis_rabbitmq:5672/predreis` (учётные данные — вне чата);
+   - `JOURNALS_CORS_ORIGINS=[]` (тот же домен), `JOURNALS_METRICS_TOKEN` — `openssl rand -hex 24`;
+   - `JOURNALS_EPL_IMPORT_FROM` — дата начала журналов (до запуска потребителя).
+   Адрес базы, Redis, хранилища и префикс `/journals` (`uvicorn --root-path`) задаёт сам compose.
 4. Запуск: `docker compose -f docker-compose.platform.yml up -d --build`. Миграции выполняются автоматически.
 5. Проверка изнутри: `docker exec journals_api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/ready').read())"`.
-6. nginx платформы: вставить [`deploy/platform/nginx-journals.conf`](../deploy/platform/nginx-journals.conf) в `server { }`,
-   затем `docker exec predreis_nginx nginx -t && docker exec predreis_nginx nginx -s reload`. Адрес задан через
-   переменную и resolver: если журналы остановлены, nginx платформы всё равно запустится и перезагрузится.
+6. nginx платформы — единственная правка на стороне платформы. Фрагмент
+   [`deploy/platform/nginx-journals.conf`](../deploy/platform/nginx-journals.conf) вставляется в `server { }` HTTPS-домена
+   платформы перед `location / {`. Порядок:
+   - резервная копия: `cp -p /opt/predreis/nginx/nginx.conf /opt/predreis/nginx/nginx.conf.bak-$(date +%F)`;
+   - правка **с сохранением inode** — файл подключён в контейнер отдельным файлом, и после `sed -i` или редактора,
+     который заменяет файл, контейнер продолжит видеть старую версию: правьте копию и записывайте
+     `cat nginx.conf.new > nginx.conf`;
+   - `docker exec predreis_nginx nginx -t` и только при успехе `docker exec predreis_nginx nginx -s reload`
+     (мягкая перезагрузка, соединения не рвутся);
+   - если `nginx.conf` хранится в репозитории платформы (узлы переключения берут код из GitHub), внесите фрагмент и
+     туда: иначе следующее обновление его затрёт. На узлах без журналов `/journals` будет отвечать 502, а nginx не
+     упадёт — адрес задан через resolver.
 7. Снаружи: `curl https://predreis-online.ru/journals/health` → `{"status":"ok"}`; документация API —
    `https://predreis-online.ru/journals/docs`.
 8. Резервные копии: [`deploy/platform/backup.sh`](../deploy/platform/backup.sh) по cron (база берётся из контейнера

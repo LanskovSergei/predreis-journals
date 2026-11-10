@@ -3,10 +3,11 @@
 #
 # Разделение с платформой сохранено: своя база (к сети платформы НЕ подключена — медицинские данные изолированы),
 # свой Redis, свои миграции и резервные копии. Общее — только сеть predreis_net: через неё nginx платформы ходит
-# на journals_api:8000, а потребитель читает очередь RabbitMQ (rabbitmq:5672, vhost predreis).
+# на journals_api:8000, а потребитель читает очередь RabbitMQ (vhost predreis). Имя сети — PREDREIS_NETWORK.
 #
 # Имена сервисов уникальные (journals-*): контейнер в двух сетях по имени «postgres» или «redis» мог бы попасть
-# в платформенные сервисы. Предел памяти всего набора — 3,5 ГБ (согласовано с платформой).
+# в платформенные сервисы. Предел памяти всего набора — 3,5 ГБ (согласовано с платформой). Процессор: не больше
+# ядра на контейнер и половинный вес (cpu_shares 512) — при нехватке процессора платформа в приоритете.
 
 x-logging: &logging
   driver: json-file
@@ -47,7 +48,8 @@ services:
       retries: 10
     mem_limit: 1g
     memswap_limit: 1g
-    cpus: 2
+    cpus: 1.0
+    cpu_shares: 512  # при нехватке процессора платформа в приоритете
     networks: [journals]
 
   journals-redis:
@@ -58,6 +60,8 @@ services:
     command: ["redis-server", "--maxmemory", "96mb", "--maxmemory-policy", "noeviction"]
     mem_limit: 128m
     memswap_limit: 128m
+    cpus: 0.25
+    cpu_shares: 512
     networks: [journals]
 
   journals-migrate:
@@ -70,6 +74,8 @@ services:
         condition: service_healthy
     mem_limit: 384m
     memswap_limit: 384m
+    cpus: 0.5
+    cpu_shares: 512
     networks: [journals]
 
   journals-api:
@@ -98,7 +104,8 @@ services:
       start_period: 20s
     mem_limit: 1g  # пик крупной PDF-выгрузки — около 330 МБ
     memswap_limit: 1g
-    cpus: 2
+    cpus: 1.0
+    cpu_shares: 512  # при нехватке процессора платформа в приоритете
     networks: [journals, predreis_net]
 
   journals-worker:
@@ -112,7 +119,8 @@ services:
         condition: service_started
     mem_limit: 1g  # сборка ZIP электронного журнала и PDF
     memswap_limit: 1g
-    cpus: 2
+    cpus: 1.0
+    cpu_shares: 512  # при нехватке процессора платформа в приоритете
     networks: [journals, predreis_net]
 
   journals-consumer:
@@ -124,6 +132,8 @@ services:
         condition: service_completed_successfully
     mem_limit: 256m
     memswap_limit: 256m
+    cpus: 0.5
+    cpu_shares: 512
     networks: [journals, predreis_net]  # predreis_net — для rabbitmq:5672
 
 volumes:
@@ -135,3 +145,5 @@ networks:
     name: journals_net
   predreis_net:
     external: true
+    # Имя сети платформы: на сервере Selectel — predreis_predreis_net (задайте PREDREIS_NETWORK в .env)
+    name: ${PREDREIS_NETWORK:-predreis_net}
