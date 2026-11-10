@@ -111,4 +111,97 @@ export class JournalsService {
     const { data } = await httpClient.post(`${BASE_PATH}/auth/login`, { email, password })
     return data.access_token
   }
+
+  // --- Catalog ---
+  static async getOrganizationsPage(params: Record<string, unknown>): Promise<Page<any>> {
+    const { data } = await httpClient.get(`${BASE_PATH}/catalog/organizations`, { params })
+    return data
+  }
+
+  static async createOrganization(body: Record<string, unknown>): Promise<any> {
+    const { data } = await httpClient.post(`${BASE_PATH}/catalog/organizations`, body)
+    return data
+  }
+
+  static async updateOrganization(id: string, body: Record<string, unknown>): Promise<any> {
+    const { data } = await httpClient.patch(`${BASE_PATH}/catalog/organizations/${id}`, body)
+    return data
+  }
+
+  static async getDriversPage(params: Record<string, unknown>): Promise<Page<any>> {
+    const { data } = await httpClient.get(`${BASE_PATH}/catalog/drivers`, { params })
+    return data
+  }
+
+  static async createDriver(body: Record<string, unknown>): Promise<any> {
+    const { data } = await httpClient.post(`${BASE_PATH}/catalog/drivers`, body)
+    return data
+  }
+
+  static async getVehiclesPage(params: Record<string, unknown>): Promise<Page<any>> {
+    const { data } = await httpClient.get(`${BASE_PATH}/catalog/vehicles`, { params })
+    return data
+  }
+
+  static async createVehicle(body: Record<string, unknown>): Promise<any> {
+    const { data } = await httpClient.post(`${BASE_PATH}/catalog/vehicles`, body)
+    return data
+  }
+
+  // --- EJournals ---
+  static async getEJournals(params: Record<string, unknown>): Promise<any[]> {
+    const { data } = await httpClient.get(`${BASE_PATH}/ejournals`, { params })
+    return data
+  }
+
+  static async createEJournal(body: Record<string, unknown>): Promise<any> {
+    const { data } = await httpClient.post(`${BASE_PATH}/ejournals`, body)
+    return data
+  }
+
+  static async submitEJournal(id: string): Promise<void> {
+    await httpClient.post(`${BASE_PATH}/ejournals/${id}/submit`)
+  }
+
+  static async signEJournal(id: string): Promise<void> {
+    await httpClient.post(`${BASE_PATH}/ejournals/${id}/sign`)
+  }
+
+  static async rejectEJournal(id: string, reason: string): Promise<void> {
+    await httpClient.post(`${BASE_PATH}/ejournals/${id}/reject`, { reason })
+  }
+
+  static async deleteEJournal(id: string): Promise<void> {
+    await httpClient.delete(`${BASE_PATH}/ejournals/${id}`)
+  }
+
+  static async getEJournalFile(id: string, what: 'preview' | 'download'): Promise<{ blob: Blob; filename: string }> {
+    const response = await httpClient.get(`${BASE_PATH}/ejournals/${id}/${what}`, { responseType: 'blob' })
+    const header = String(response.headers['content-disposition'] ?? '')
+    const star = /filename\*=UTF-8''([^;]+)/i.exec(header)
+    const plain = /filename="?([^";]+)"?/i.exec(header)
+    const filename = star ? decodeURIComponent(star[1]) : plain ? plain[1] : `journal_${id}.pdf`
+    return { blob: response.data as Blob, filename }
+  }
+
+  // --- Deletion Requests ---
+  static async getDeletionRequests(status: string): Promise<any[]> {
+    const { data } = await httpClient.get(`${BASE_PATH}/deletion-requests`, { params: { status } })
+    return data
+  }
+
+  static async resolveDeletionRequest(id: string, decision: 'approve' | 'reject', comment: string): Promise<void> {
+    await httpClient.post(`${BASE_PATH}/deletion-requests/${id}/${decision}`, { comment })
+  }
+
+  static async getRecord(kind: Kind, id: string): Promise<AnyRecord> {
+    const { data } = await httpClient.get(`${BASE_PATH}/${kind}/records/${id}`)
+    return data
+  }
+
+  // --- Specialists ---
+  static async getSpecialistsList(role: 'medic' | 'mechanic'): Promise<any> {
+    const { data } = await httpClient.get(`${BASE_PATH}/specialists`, { params: { role } })
+    return data
+  }
 }

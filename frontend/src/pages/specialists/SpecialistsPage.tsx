@@ -1,10 +1,8 @@
-import { useEffect, useState } from 'react'
-import { Alert, App, Card, Segmented, Space, Table, Tag } from 'antd'
-import { fetchSpecialistsList } from '@/api/journals'
-import { errorMessage } from '@/api/client'
-import type { SpecialistRow, SpecialistsList } from '@/api/types'
-import { PageHeader } from '@/components/PageHeader'
-import { formatDate } from '@/utils/labels'
+import { Alert, Card, Segmented, Space, Table, Tag } from 'antd'
+import type { SpecialistRow } from '../../shared/types/api.types'
+import { PageHeader } from '../../shared/components/PageHeader'
+import { formatDate } from '../../shared/utils/labels'
+import { useSpecialists } from './hooks/useSpecialists'
 
 const CERT = {
   active: { label: 'Действует', color: 'success' },
@@ -12,24 +10,8 @@ const CERT = {
   missing: { label: 'Нет сертификата', color: 'default' },
 } as const
 
-/** Медики и механики: сертификаты для подписи и сколько записей ждут их подписи. */
 export function SpecialistsPage() {
-  const { message } = App.useApp()
-  const [role, setRole] = useState<'medic' | 'mechanic'>('medic')
-  const [data, setData] = useState<SpecialistsList | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    fetchSpecialistsList(role)
-      .then((d) => !cancelled && setData(d))
-      .catch((err) => !cancelled && message.error(errorMessage(err, 'Не удалось загрузить специалистов')))
-      .finally(() => !cancelled && setLoading(false))
-    return () => {
-      cancelled = true
-    }
-  }, [role, message])
+  const { role, setRole, data, loading } = useSpecialists()
 
   return (
     <Space orientation="vertical" size="large" style={{ width: '100%' }}>
@@ -42,9 +24,9 @@ export function SpecialistsPage() {
           { value: 'mechanic', label: 'Механики' },
         ]}
       />
-      {data && !data.certificates_available ? (
+      {data && !data.certificates_available && (
         <Alert type="warning" showIcon title="Сведения о сертификатах сейчас недоступны: ПРЕДРЕЙС не ответил. Статусы могут быть неполными." />
-      ) : null}
+      )}
       <Card styles={{ body: { padding: 0 } }}>
         <Table<SpecialistRow>
           rowKey="user_id"
@@ -62,7 +44,7 @@ export function SpecialistsPage() {
               render: (_: unknown, s: SpecialistRow) => (
                 <Space size={4} wrap>
                   <Tag color={CERT[s.status].color}>{CERT[s.status].label}</Tag>
-                  {s.expiring_soon ? <Tag color="warning">Скоро истекает</Tag> : null}
+                  {s.expiring_soon && <Tag color="warning">Скоро истекает</Tag>}
                 </Space>
               ),
             },
