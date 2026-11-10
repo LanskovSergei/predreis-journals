@@ -15,6 +15,8 @@ export interface Me {
   organization_id: string | null
   permissions: string[]
   journals: Kind[]
+  /** false — предварительный показ: интерфейс пока скрыт для этого пользователя */
+  ui_enabled?: boolean
 }
 
 export interface Page<T> {
@@ -140,4 +142,84 @@ export interface DeleteBatchResult {
   deleted: number
   failed: number
   results: { record_id: string; ok: boolean; code?: string | null; message?: string | null }[]
+}
+
+export type EJournalStatus = 'draft' | 'awaiting_signature' | 'signing' | 'signed' | 'rejected'
+
+export interface EJournal {
+  id: string
+  kind: Kind
+  organization_id: string
+  period_from: string
+  period_to: string
+  status: EJournalStatus
+  record_count: number
+  created_by: string
+  submitted_at: string | null
+  signed_by: string | null
+  signed_at: string | null
+  reject_reason: string | null
+  sign_error?: string | null
+  created_at: string
+}
+
+export type DeletionStatus = 'pending' | 'approved' | 'rejected'
+
+export interface DeletionRequest {
+  id: string
+  record_kind: Kind
+  record_id: string
+  status: DeletionStatus
+  requested_by: string
+  reason: string | null
+  created_at: string
+  resolved_at: string | null
+  resolution_comment: string | null
+}
+
+export interface OrganizationFull extends Organization {
+  kpp: string | null
+  ogrn: string | null
+  legal_address: string | null
+  contract_type: 'med' | 'tech' | 'medtech' | null
+  contract_number: string | null
+  contract_date: string | null
+  contract_until: string | null
+  epl_details?: {
+    is_active?: boolean
+    offer_accepted?: boolean
+    mchd_active?: boolean
+    contract_valid?: boolean
+    daily_limit_left?: number
+  } | null
+  work_format: 'epl' | 'paper' | 'hybrid'
+  origin: 'platform' | 'manual'
+  note: string | null
+}
+
+export interface DriverFull extends Driver {
+  gender: 'M' | 'F' | null
+  origin: 'platform' | 'manual'
+  is_active: boolean
+}
+
+export interface VehicleFull extends Vehicle {
+  vehicle_type: string | null
+  origin: 'platform' | 'manual'
+  is_active: boolean
+}
+
+export interface SpecialistRow {
+  user_id: string
+  full_name: string
+  role: 'medic' | 'mechanic'
+  status: 'active' | 'expired' | 'missing'
+  valid_to: string | null
+  expiring_soon: boolean
+  records?: RecordCounters | null
+}
+
+export interface SpecialistsList {
+  items: SpecialistRow[]
+  certificates_available: boolean
 }

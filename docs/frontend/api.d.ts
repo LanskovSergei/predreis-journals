@@ -2988,6 +2988,7 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string | null;
+                /** @description true — только активные; иначе все, включая неактивные */
                 only_active?: boolean | null;
                 origin?: components["schemas"]["CatalogOrigin"] | null;
                 page?: number;

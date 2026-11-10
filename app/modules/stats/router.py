@@ -7,10 +7,11 @@ from typing import Any
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.db import get_session
 from app.core.security import Principal, get_principal
 from app.domain.contracts import journal_allowed
-from app.domain.enums import CatalogOrigin, JournalKind
+from app.domain.enums import CatalogOrigin, JournalKind, Role
 from app.domain.permissions import CLIENT_ROLES, PERMISSION_ROLES, has_permission
 from app.models.catalog import Organization
 from app.modules.records.base import RECORD_PERMS
@@ -27,6 +28,7 @@ async def me(
     """Профиль, права и журналы, которые показывать (у клиента — по договору его организации)."""
     return {
         "journals": await available_journals(session, principal),
+        "ui_enabled": ui_enabled(principal),
         "user_id": principal.user_id,
         "role": principal.role,
         "full_name": principal.full_name,
@@ -60,3 +62,11 @@ async def available_journals(session: AsyncSession, principal: Principal) -> lis
             return []
         kinds = [k for k in kinds if journal_allowed(org.contract_type, k)]
     return [k.value for k in kinds]
+
+
+def ui_enabled(principal: Principal) -> bool:
+    """Показывать ли интерфейс журналов (предварительный показ: JOURNALS_UI_ALLOWED_USERS)."""
+    allowed = {x.strip().lower() for x in get_settings().ui_allowed_users.split(",") if x.strip()}
+    if not allowed or principal.role is Role.SA:
+        return True
+    return str(principal.user_id).lower() in allowed or (principal.email or "").lower() in allowed

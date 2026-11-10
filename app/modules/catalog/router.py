@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
@@ -35,7 +35,9 @@ def _service(session: AsyncSession) -> CatalogService:
 @router.get("/organizations", response_model=Page[OrganizationOut], summary="Каталог организаций")
 async def list_organizations(
     q: str | None = None,
-    only_active: bool | None = None,
+    only_active: bool | None = Query(
+        None, description="true — только активные; иначе все, включая неактивные"
+    ),
     origin: CatalogOrigin | None = None,
     params: PageParams = Depends(page_params),
     principal: Principal = Depends(get_principal),

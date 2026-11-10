@@ -1753,8 +1753,10 @@
                   "type": "null"
                 }
               ],
+              "description": "true — только активные; иначе все, включая неактивные",
               "title": "Only Active"
-            }
+            },
+            "description": "true — только активные; иначе все, включая неактивные"
           },
           {
             "name": "origin",
