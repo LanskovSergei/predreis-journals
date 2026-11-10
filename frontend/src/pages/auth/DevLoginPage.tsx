@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { App, Button, Card, Flex, Form, Input, Typography } from 'antd'
-import { devLogin } from '@/api/journals'
-import { errorMessage } from '@/api/client'
-import { session } from '@/auth/session'
+import { JournalsService } from '../core/api/journals.service'
+import { ApiErrorUtils } from '../shared/utils/error.utils'
+import { TokenService } from '../core/auth/token.service'
 
 /** Вход для стенда разработчика. В бою вход только через платформу (общий токен). */
 export function DevLoginPage() {
@@ -12,10 +12,11 @@ export function DevLoginPage() {
   const submit = async (values: { email: string; password: string }) => {
     setBusy(true)
     try {
-      session.setTokens(await devLogin(values.email, values.password))
+      const token = await JournalsService.devLogin(values.email, values.password)
+      TokenService.setTokens(token)
       window.location.assign('/journals/')
     } catch (err) {
-      message.error(errorMessage(err, 'Не удалось войти'))
+      message.error(ApiErrorUtils.getMessage(err, 'Не удалось войти'))
     } finally {
       setBusy(false)
     }

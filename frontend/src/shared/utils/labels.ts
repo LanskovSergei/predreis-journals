@@ -1,5 +1,5 @@
 import { inBusinessTz } from './time'
-import type { Phase, RecordSource, RecordStatus, Result, Role } from '@/api/types'
+import type { Phase, RecordSource, RecordStatus, Result, Role } from '../types/api.types'
 
 export const roleLabels: Record<Role, string> = {
   client: 'Клиент',

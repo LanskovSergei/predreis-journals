@@ -12,11 +12,11 @@ import {
   UserOutlined,
 } from '@ant-design/icons'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { useAuth } from '@/auth/AuthContext'
-import { goToLogin, goToPlatform, session } from '@/auth/session'
-import { BrandLogo } from '@/components/BrandLogo'
-import { brandColors } from '@/theme/antdTheme'
-import { roleLabels } from '@/utils/labels'
+import { useAuth } from '../auth/useAuth'
+import { TokenService } from '../auth/token.service'
+import { BrandLogo } from '../../shared/components/BrandLogo'
+import { brandColors } from '../theme/antdTheme'
+import { roleLabels } from '../../shared/utils/labels'
 import styles from './AppLayout.module.css'
 
 const { Header, Sider, Content } = Layout
@@ -30,7 +30,7 @@ interface NavItem {
 
 /** Оболочка в стиле платформы: тёмное меню слева, шапка с ФИО и ролью, контент на сером фоне. */
 export function AppLayout() {
-  const { me, hasJournal } = useAuth()
+  const { user, hasJournalAccess } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const screens = Grid.useBreakpoint()
@@ -39,14 +39,14 @@ export function AppLayout() {
 
   const nav: NavItem[] = useMemo(() => {
     const items: NavItem[] = [{ key: 'dashboard', label: 'Сводка', icon: <DashboardOutlined />, path: '/' }]
-    if (hasJournal('medical')) {
+    if (hasJournalAccess('medical')) {
       items.push({ key: 'medical', label: 'Медосмотры', icon: <MedicineBoxOutlined />, path: '/medical' })
     }
-    if (hasJournal('technical')) {
+    if (hasJournalAccess('technical')) {
       items.push({ key: 'technical', label: 'Техконтроль', icon: <ToolOutlined />, path: '/technical' })
     }
     return items
-  }, [hasJournal])
+  }, [hasJournalAccess])
 
   const selectedKey =
     nav.find((item) => item.path !== '/' && location.pathname.startsWith(item.path))?.key ??
@@ -57,19 +57,19 @@ export function AppLayout() {
     if (isMobile) setCollapsed(true)
   }
 
-  const platformUser = session.platformUser()
+  const platformUser = TokenService.getPlatformUser()
   const fullName =
-    me?.full_name ||
+    user?.full_name ||
     [platformUser?.lastName, platformUser?.firstName, platformUser?.middleName].filter(Boolean).join(' ')
-  const roleLabel = me ? roleLabels[me.role] ?? me.role : ''
+  const roleLabel = user ? roleLabels[user.role] ?? user.role : ''
 
   const logout = () => {
-    session.clear()
-    goToLogin()
+    TokenService.clear()
+    TokenService.redirectToLogin()
   }
 
   const userMenu: MenuProps['items'] = [
-    { key: 'profile', icon: <SettingOutlined />, label: 'Настройки профиля', onClick: () => goToPlatform('/settings/profile') },
+    { key: 'profile', icon: <SettingOutlined />, label: 'Настройки профиля', onClick: () => TokenService.redirectToPlatform('/settings/profile') },
     { key: 'logout', icon: <LogoutOutlined />, label: 'Выйти', onClick: logout },
   ]
 
@@ -108,7 +108,7 @@ export function AppLayout() {
                 key: 'platform',
                 icon: <ArrowLeftOutlined />,
                 label: 'Вернуться в Предрейс',
-                onClick: () => goToPlatform(),
+                onClick: () => TokenService.redirectToPlatform(),
               },
             ]}
           />

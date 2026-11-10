@@ -1,6 +1,6 @@
 import { Button, Result } from 'antd'
 import { useNavigate } from 'react-router-dom'
-import { goToPlatform } from '@/auth/session'
+import { TokenService } from '../core/auth/token.service'
 
 export function NoAccessPage({ reason }: { reason: string }) {
   return (
@@ -9,7 +9,7 @@ export function NoAccessPage({ reason }: { reason: string }) {
       title="Журналы недоступны"
       subTitle={reason}
       extra={
-        <Button type="primary" onClick={() => goToPlatform()}>
+        <Button type="primary" onClick={() => TokenService.redirectToPlatform()}>
           Вернуться в Предрейс
         </Button>
       }

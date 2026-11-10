@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Select } from 'antd'
-import { fetchSpecialists, searchDrivers, searchOrganizations, searchVehicles } from '@/api/journals'
+import { JournalsService } from '../../core/api/journals.service'
 
 interface Option {
   value: string
@@ -39,7 +39,7 @@ type SelectProps = {
 
 export function OrganizationSelect({ value, onChange, placeholder = 'Организация', ...rest }: SelectProps) {
   const { options, loading, search } = useRemoteOptions(
-    async (q) => (await searchOrganizations(q)).map((o) => ({ value: o.id, label: o.short_name || o.name })),
+    async (q) => (await JournalsService.searchOrganizations(q)).map((o) => ({ value: o.id, label: o.short_name || o.name })),
     [],
   )
   return (
@@ -60,7 +60,7 @@ export function DriverSelect({ organizationId, value, onChange, ...rest }: Selec
   const { options, loading, search } = useRemoteOptions(
     async (q) =>
       organizationId
-        ? (await searchDrivers(organizationId, q)).map((d) => ({ value: d.id, label: d.full_name }))
+        ? (await JournalsService.searchDrivers(organizationId, q)).map((d) => ({ value: d.id, label: d.full_name }))
         : [],
     [organizationId],
   )
@@ -83,7 +83,7 @@ export function VehicleSelect({ organizationId, value, onChange, ...rest }: Sele
   const { options, loading, search } = useRemoteOptions(
     async (q) =>
       organizationId
-        ? (await searchVehicles(organizationId, q)).map((v) => ({
+        ? (await JournalsService.searchVehicles(organizationId, q)).map((v) => ({
             value: v.id,
             label: `${v.brand} ${v.model}, ${v.plate}`,
           }))
@@ -107,7 +107,7 @@ export function VehicleSelect({ organizationId, value, onChange, ...rest }: Sele
 
 export function SpecialistSelect({ role, value, onChange, ...rest }: SelectProps & { role: 'medic' | 'mechanic' }) {
   const { options, loading } = useRemoteOptions(
-    async () => (await fetchSpecialists(role)).map((s) => ({ value: s.user_id, label: s.full_name })),
+    async () => (await JournalsService.getSpecialists(role)).map((s) => ({ value: s.user_id, label: s.full_name })),
     [role],
   )
   return (

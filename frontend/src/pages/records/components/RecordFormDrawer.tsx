@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { App, Button, DatePicker, Drawer, Form, Input, InputNumber, Radio, Space } from 'antd'
 import type { Dayjs } from 'dayjs'
-import { fromPickerValue, nowForPicker, toPickerValue } from '@/utils/time'
-import { createRecord, fetchStandardTime, updateRecord } from '@/api/journals'
-import { errorMessage } from '@/api/client'
-import type { AnyRecord, Kind, MedicalRecord, TechnicalRecord } from '@/api/types'
-import { useAuth } from '@/auth/AuthContext'
-import { DriverSelect, OrganizationSelect, SpecialistSelect, VehicleSelect } from '@/components/CatalogSelects'
+import { fromPickerValue, nowForPicker, toPickerValue } from '../../../shared/utils/time'
+import { JournalsService } from '../../../core/api/journals.service'
+import { ApiErrorUtils } from '../../../shared/utils/error.utils'
+import type { AnyRecord, Kind, MedicalRecord, TechnicalRecord } from '../../../shared/types/api.types'
+import { useAuth } from '../../../core/auth/useAuth'
+import { DriverSelect, OrganizationSelect, SpecialistSelect, VehicleSelect } from '../../../shared/components/CatalogSelects'
 
 interface Props {
   kind: Kind
@@ -18,14 +18,14 @@ interface Props {
 
 /** Добавление и правка записи. По ТЗ поля предзаполнены, результат осмотра выбирается вручную. */
 export function RecordFormDrawer({ kind, open, record, onClose, onSaved }: Props) {
-  const { me } = useAuth()
+  const { user } = useAuth()
   const { message } = App.useApp()
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
   const [timeHint, setTimeHint] = useState<string | null>(null)
   const [timeTouched, setTimeTouched] = useState(false)
   const isEdit = Boolean(record)
-  const isSpecialist = me?.role === 'medic' || me?.role === 'mechanic'
+  const isSpecialist = user?.role === 'medic' || user?.role === 'mechanic'
   const organizationId = Form.useWatch('organization_id', form) as string | undefined
   const driverId = Form.useWatch('driver_id', form) as string | undefined
   const vehicleId = Form.useWatch('vehicle_id', form) as string | undefined
@@ -63,7 +63,7 @@ export function RecordFormDrawer({ kind, open, record, onClose, onSaved }: Props
     const params: Record<string, string> =
       kind === 'medical' ? { driver_id: subject, ...(phase ? { phase } : {}) } : { vehicle_id: subject }
     let cancelled = false
-    fetchStandardTime(kind, params)
+    JournalsService.getStandardTime(kind, params)
       .then(({ time }) => {
         if (cancelled || !time) return
         const [h, m] = time.split(':').map(Number)
@@ -86,12 +86,12 @@ export function RecordFormDrawer({ kind, open, record, onClose, onSaved }: Props
     }
     setSaving(true)
     try {
-      if (record) await updateRecord(kind, record.id, body)
-      else await createRecord(kind, body)
+      if (record) await JournalsService.updateRecord(kind, record.id, body)
+      else await JournalsService.createRecord(kind, body)
       message.success(record ? 'Изменения сохранены' : 'Запись добавлена')
       onSaved()
     } catch (err) {
-      message.error(errorMessage(err, 'Не удалось сохранить запись'))
+      message.error(ApiErrorUtils.getMessage(err, 'Не удалось сохранить запись'))
     } finally {
       setSaving(false)
     }
