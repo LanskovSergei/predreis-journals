@@ -539,3 +539,23 @@ async def test_contract_term_of_platform_organization_is_read_only(stack: Stack)
     )
     assert changed.status_code == 200 and changed.json()["contract_until"] == "2030-01-01"
     assert "epl_details" in changed.json()  # поле есть в ответе (у ручной организации пустое)
+
+
+async def test_only_active_false_means_all_organizations(stack: Stack) -> None:
+    """only_active=false — «не только активные», то есть все; раньше возвращались одни неактивные (пусто)."""
+    c, h = stack.client, stack.auth("manager")
+    everyone = (
+        await c.get("/api/v1/catalog/organizations", params={"page_size": 100}, headers=h)
+    ).json()["total"]
+    not_only = await c.get(
+        "/api/v1/catalog/organizations",
+        params={"only_active": "false", "page_size": 100},
+        headers=h,
+    )
+    assert not_only.status_code == 200 and not_only.json()["total"] == everyone > 0
+    only = await c.get(
+        "/api/v1/catalog/organizations",
+        params={"only_active": "true", "page_size": 100},
+        headers=h,
+    )
+    assert all(o["is_active"] for o in only.json()["items"])

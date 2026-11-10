@@ -290,8 +290,8 @@ class CatalogService:
                 Organization.name.ilike(pattern, escape="\\")
                 | Organization.inn.like(pattern, escape="\\")
             )
-        if only_active is not None:
-            stmt = stmt.where(Organization.is_active == only_active)
+        if only_active:  # true — только активные; false или не указан — все, включая неактивные
+            stmt = stmt.where(Organization.is_active.is_(True))
         if origin is not None:
             stmt = stmt.where(Organization.origin == origin)
         rows, total = await self._page(
