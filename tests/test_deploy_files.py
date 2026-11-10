@@ -138,13 +138,17 @@ def test_platform_nginx_snippet_cannot_take_the_platform_down() -> None:
     """Фрагмент nginx: адрес через resolver и переменную (nginx платформы не упадёт без журналов),
     префикс срезается, метрики наружу не отдаются."""
     conf = (ROOT / "deploy" / "platform" / "nginx-journals.conf").read_text(encoding="utf-8")
-    assert (
-        "resolver 127.0.0.11" in conf
-        and "set $journals_upstream http://journals_api:8000;" in conf
-    )
-    assert (
-        "proxy_pass $journals_upstream;" in conf and "rewrite ^/journals/(.*)$ /$1 break;" in conf
-    )
+    assert "resolver 127.0.0.11" in conf
+    assert "set $journals_upstream http://journals_api:8000;" in conf
+    assert "proxy_pass $journals_upstream;" in conf
+    assert "set $journals_frontend http://journals_frontend:80;" in conf
+    assert "proxy_pass $journals_frontend;" in conf
+    assert "rewrite ^/journals/(.*)$ /$1 break;" in conf  # у API префикс срезается
+    assert "location ^~ /journals/api/" in conf and "location ^~ /journals/ {" in conf
+    for exact in ("docs", "openapi.json", "health", "ready"):
+        assert f"location = /journals/{exact}" in conf
+    # при ^~ nginx не проверяет регулярные выражения: в журнальном фрагменте их быть не должно
+    assert "location ~" not in conf
     assert "location ^~ /journals/metrics" in conf
     backup = (ROOT / "deploy" / "platform" / "backup.sh").read_text(encoding="utf-8")
     assert "set -euo pipefail" in backup and "pg_restore --list" in backup and ".part" in backup
@@ -184,3 +188,15 @@ def test_settings_load_from_the_env_example_as_is(monkeypatch) -> None:  # type:
             monkeypatch.setenv(key, value)
     settings = Settings(_env_file=None)
     assert settings.epl_import_from is None and settings.metrics_token is None
+
+
+def test_frontend_container_serves_only_static_files() -> None:
+    """Контейнер фронтенда: только в сети платформы (базе и API он не нужен), с пределами ресурсов;
+    сборка из зафиксированных зависимостей (package-lock.json, npm ci)."""
+    svc = _load("docker-compose.platform.yml")["services"]["journals-frontend"]
+    assert svc["container_name"] == "journals_frontend" and svc["networks"] == ["predreis_net"]
+    assert "ports" not in svc
+    dockerfile = (ROOT / "frontend" / "Dockerfile").read_text(encoding="utf-8")
+    assert "npm ci" in dockerfile and (ROOT / "frontend" / "package-lock.json").exists()
+    conf = (ROOT / "frontend" / "nginx.conf").read_text(encoding="utf-8")
+    assert "try_files $uri /journals/index.html;" in conf  # маршруты приложения отдают index.html

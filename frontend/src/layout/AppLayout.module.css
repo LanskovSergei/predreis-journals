@@ -1,0 +1,48 @@
+/* Раскладка — по AppLayout.module.css платформы */
+.root { min-height: 100vh; max-width: 100vw; overflow-x: clip; }
+.sider {
+  position: sticky !important; top: 0; align-self: flex-start; z-index: 100;
+  height: 100vh !important; height: 100dvh !important; overflow: hidden !important;
+}
+.sider :global(.ant-layout-sider-children) { height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+.logo {
+  height: 64px; display: flex; align-items: center; justify-content: center;
+  padding: 0 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.12); flex: 0 0 auto;
+}
+.siderMenu { flex: 1 1 auto; min-height: 0; border-inline-end: none !important; overflow-y: auto; }
+.siderMenu:global(.ant-menu-dark.ant-menu-inline) :global(.ant-menu-item) {
+  margin-inline: 8px; width: calc(100% - 16px); border-radius: 8px;
+}
+.siderMenu:global(.ant-menu-dark.ant-menu-inline) :global(.ant-menu-item-selected) {
+  background: rgba(255, 255, 255, 0.14) !important; color: #fff !important;
+}
+.siderMenu :global(.ant-menu-item-icon .anticon) { color: rgba(255, 255, 255, 0.85) !important; }
+.siderFooter { flex: 0 0 auto; border-top: 1px solid rgba(255, 255, 255, 0.12); padding-bottom: 8px; }
+.footerMenu { border-inline-end: none !important; }
+.footerMenu:global(.ant-menu-dark.ant-menu-inline) :global(.ant-menu-item) {
+  margin-inline: 8px; width: calc(100% - 16px); border-radius: 8px; font-size: 13px;
+}
+.mainLayout { min-width: 0; }
+.header {
+  display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 0 16px !important;
+  background: #fff; border-bottom: 1px solid #c5cecd; position: sticky; top: 0; z-index: 50;
+}
+.userMeta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 0; max-width: 280px; }
+.userName { font-size: 13px; line-height: 1.25; color: rgba(0, 0, 0, 0.78); }
+.roleTag {
+  display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--predreis-tag-bg);
+  color: var(--predreis-primary); font-size: 11px; font-weight: 600; line-height: 1.4;
+}
+.mobileTopBar { display: flex; align-items: center; gap: 8px; padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 8px; }
+.mobileTopBarSpacer { flex: 1 1 auto; }
+.mobileTopBarBtn:global(.ant-btn) {
+  width: 40px !important; height: 40px !important; min-width: 40px !important; padding: 0 !important;
+  border-radius: 12px !important; color: var(--predreis-primary) !important;
+  background: rgba(28, 31, 65, 0.05) !important; border: 1px solid rgba(28, 31, 65, 0.06) !important;
+}
+.content { margin: 16px; min-height: calc(100vh - 64px - 32px); min-width: 0; max-width: 100%; overflow-x: auto; }
+.overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); border: none; z-index: 90; cursor: pointer; }
+@media (max-width: 768px) {
+  .sider { position: fixed !important; inset: 0 auto 0 0; align-self: auto; }
+  .content { margin: 8px; padding: 8px; overflow-x: clip; }
+}

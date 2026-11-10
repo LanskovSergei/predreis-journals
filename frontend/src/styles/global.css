@@ -1,0 +1,39 @@
+/* Общие стили — как у платформы (styles/global.css, fonts.css, formLayout.css). */
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap');
+
+:root {
+  --predreis-primary: #1c1f41;
+  --predreis-secondary: #8285bf;
+  --predreis-accent: #674a95;
+  --predreis-bg: #f5f5f5;
+  --predreis-surface: #ffffff;
+  --predreis-text: #262626;
+  --predreis-text-secondary: #5c5c6a;
+  --predreis-border: #c5cecd;
+  --predreis-tag-bg: #e8ebf5;
+  --predreis-font-body: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { margin: 0; min-height: 100%; }
+body {
+  font-family: var(--predreis-font-body);
+  -webkit-font-smoothing: antialiased;
+  background: var(--predreis-bg);
+  color: var(--predreis-text);
+}
+h1, h2, h3, h4, h5, .ant-typography { font-family: var(--predreis-font-body); }
+a { color: var(--predreis-accent); }
+a:hover { color: var(--predreis-secondary); }
+
+/* Панель фильтров — как filterBar / filterControl у платформы */
+.filterBar { width: 100%; }
+.filterBar .ant-space-item { min-width: 0; flex: 1 1 160px; max-width: 320px; }
+.filterBar > .ant-space-item > .ant-select,
+.filterBar > .ant-space-item > .ant-picker,
+.filterBar > .ant-space-item > .ant-input,
+.filterBar > .ant-space-item > .ant-input-affix-wrapper { width: 100% !important; min-width: 0 !important; }
+
+/* ТЗ: запись с примечанием подсвечивается в архиве */
+.row-with-note > td { background: #fff8e6 !important; }
+.row-with-note:hover > td { background: #fff1cc !important; }

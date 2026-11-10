@@ -136,6 +136,17 @@ services:
     cpu_shares: 512
     networks: [journals, predreis_net]  # predreis_net — для rabbitmq:5672
 
+  journals-frontend:
+    build: ./frontend
+    container_name: journals_frontend  # nginx платформы отдаёт сюда всё под /journals/, кроме API
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 64m
+    memswap_limit: 64m
+    cpus: 0.25
+    cpu_shares: 512
+    networks: [predreis_net]  # только статика: ни базы, ни API ему не нужны
+
 volumes:
   pgdata:
     name: journals_pgdata

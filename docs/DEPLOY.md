@@ -33,11 +33,13 @@
    - `JOURNALS_CORS_ORIGINS=[]` (тот же домен), `JOURNALS_METRICS_TOKEN` — `openssl rand -hex 24`;
    - `JOURNALS_EPL_IMPORT_FROM` — дата начала журналов (до запуска потребителя).
    Адрес базы, Redis, хранилища и префикс `/journals` (`uvicorn --root-path`) задаёт сам compose.
-4. Запуск: `docker compose -f docker-compose.platform.yml up -d --build`. Миграции выполняются автоматически.
+4. Запуск: `docker compose -f docker-compose.platform.yml up -d --build`. Миграции выполняются автоматически; вместе с API
+   собирается и запускается фронтенд `journals_frontend` (статика, 64 МБ, только сеть платформы).
 5. Проверка изнутри: `docker exec journals_api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/ready').read())"`.
 6. nginx платформы — единственная правка на стороне платформы. Фрагмент
    [`deploy/platform/nginx-journals.conf`](../deploy/platform/nginx-journals.conf) вставляется в `server { }` HTTPS-домена
-   платформы перед `location / {`. Порядок:
+   платформы перед `location / {`. `/journals/api/…`, документация API и проверки здоровья уходят в `journals_api:8000`,
+   остальное под `/journals/` — в `journals_frontend:80`. Порядок:
    - резервная копия: `cp -p /opt/predreis/nginx/nginx.conf /opt/predreis/nginx/nginx.conf.bak-$(date +%F)`;
    - правка **с сохранением inode** — файл подключён в контейнер отдельным файлом, и после `sed -i` или редактора,
      который заменяет файл, контейнер продолжит видеть старую версию: правьте копию и записывайте
