@@ -3,6 +3,10 @@ import { Button, Dropdown, Grid, Layout, Menu, Typography, type MenuProps } from
 import {
   ArrowLeftOutlined,
   DashboardOutlined,
+  DatabaseOutlined,
+  DeleteOutlined,
+  FileProtectOutlined,
+  TeamOutlined,
   LogoutOutlined,
   MedicineBoxOutlined,
   MenuFoldOutlined,
@@ -30,7 +34,7 @@ interface NavItem {
 
 /** Оболочка в стиле платформы: тёмное меню слева, шапка с ФИО и ролью, контент на сером фоне. */
 export function AppLayout() {
-  const { me, hasJournal } = useAuth()
+  const { me, hasJournal, can } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const screens = Grid.useBreakpoint()
@@ -45,8 +49,18 @@ export function AppLayout() {
     if (hasJournal('technical')) {
       items.push({ key: 'technical', label: 'Техконтроль', icon: <ToolOutlined />, path: '/technical' })
     }
+    if (can('ejournal:view')) {
+      items.push({ key: 'ejournals', label: 'Эл. журналы', icon: <FileProtectOutlined />, path: '/ejournals' })
+    }
+    if (can('medical:delete_signed') || can('technical:delete_signed')) {
+      items.push({ key: 'deletions', label: 'Запросы на удаление', icon: <DeleteOutlined />, path: '/deletion-requests' })
+    }
+    if (can('catalog:view')) {
+      items.push({ key: 'catalog', label: 'Каталог', icon: <DatabaseOutlined />, path: '/catalog' })
+      items.push({ key: 'specialists', label: 'Специалисты', icon: <TeamOutlined />, path: '/specialists' })
+    }
     return items
-  }, [hasJournal])
+  }, [hasJournal, can])
 
   const selectedKey =
     nav.find((item) => item.path !== '/' && location.pathname.startsWith(item.path))?.key ??
