@@ -15,6 +15,8 @@ export interface Me {
   organization_id: string | null
   permissions: string[]
   journals: Kind[]
+  /** false — предварительный показ: интерфейс пока скрыт для этого пользователя */
+  ui_enabled?: boolean
 }
 
 export interface Page<T> {

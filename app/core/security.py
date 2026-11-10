@@ -45,6 +45,7 @@ class Principal:
     full_name: str
     ip: str | None = None
     session_id: str | None = None
+    email: str | None = None
 
 
 def parse_role(value: str) -> Role:
@@ -75,6 +76,7 @@ def principal_from_user(
         full_name=user.full_name,
         ip=ip,
         session_id=hashlib.sha256(token.encode()).hexdigest()[:16] if token else None,
+        email=user.email,
     )
 
 

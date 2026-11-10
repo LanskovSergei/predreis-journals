@@ -13,7 +13,7 @@ import { DeletionRequestsPage } from '@/pages/DeletionRequestsPage'
 import { CatalogPage } from '@/pages/CatalogPage'
 import { SpecialistsPage } from '@/pages/SpecialistsPage'
 import type { ReactNode } from 'react'
-import { JournalNotAvailable, NoAccessPage, NotFoundPage } from '@/pages/StatusPages'
+import { ComingSoonPage, JournalNotAvailable, NoAccessPage, NotFoundPage } from '@/pages/StatusPages'
 import type { Kind } from '@/api/types'
 import { antdTheme } from '@/theme/antdTheme'
 import '@/styles/global.css'
@@ -33,6 +33,8 @@ function Protected() {
   const { me, loading, error } = useAuth()
   if (loading) return <PageLoader fullScreen tip="Загрузка журналов…" />
   if (error || !me) return <NoAccessPage reason={error ?? 'Не удалось определить пользователя'} />
+  // Предварительный показ: пока журналы открыты не всем, остальные видят «скоро появятся»
+  if (me.ui_enabled === false) return <ComingSoonPage />
   return <AppLayout />
 }
 

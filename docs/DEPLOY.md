@@ -31,7 +31,9 @@
    - `JOURNALS_PREDREIS_CLIENT_ID`, `JOURNALS_PREDREIS_CLIENT_SECRET` — сервисный клиент журналов;
    - `JOURNALS_RABBITMQ_URL=amqp://<пользователь>:<пароль>@predreis_rabbitmq:5672/predreis` (учётные данные — вне чата);
    - `JOURNALS_CORS_ORIGINS=[]` (тот же домен), `JOURNALS_METRICS_TOKEN` — `openssl rand -hex 24`;
-   - `JOURNALS_EPL_IMPORT_FROM` — дата начала журналов (до запуска потребителя).
+   - `JOURNALS_EPL_IMPORT_FROM` — дата начала журналов (до запуска потребителя);
+   - `JOURNALS_UI_ALLOWED_USERS` — предварительный показ: почты или идентификаторы через запятую; интерфейс видят
+     только они и суперадмины, остальным — «Журналы скоро появятся». В день запуска очистить и перезапустить API.
    Адрес базы, Redis, хранилища и префикс `/journals` (`uvicorn --root-path`) задаёт сам compose.
 4. Запуск: `docker compose -f docker-compose.platform.yml up -d --build`. Миграции выполняются автоматически; вместе с API
    собирается и запускается фронтенд `journals_frontend` (статика, 64 МБ, только сеть платформы).

@@ -17,6 +17,21 @@ export function NoAccessPage({ reason }: { reason: string }) {
   )
 }
 
+export function ComingSoonPage() {
+  return (
+    <Result
+      status="info"
+      title="Журналы скоро появятся"
+      subTitle="Раздел готовится к запуску. Как только он откроется, он появится в меню ПРЕДРЕЙС."
+      extra={
+        <Button type="primary" onClick={() => goToPlatform()}>
+          Вернуться в Предрейс
+        </Button>
+      }
+    />
+  )
+}
+
 export function NotFoundPage() {
   const navigate = useNavigate()
   return (
