@@ -164,3 +164,23 @@ def test_env_example_has_no_duplicate_keys() -> None:
     lines = (ROOT / ".env.example").read_text(encoding="utf-8").splitlines()
     keys = [ln.split("=", 1)[0] for ln in lines if ln and not ln.startswith("#") and "=" in ln]
     assert len(keys) == len(set(keys)), sorted({k for k in keys if keys.count(k) > 1})
+
+
+def test_settings_load_from_the_env_example_as_is(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """Пример настроек читается целиком, включая пустые значения: пустое значение — «не задано».
+
+    На сервере пустая строка JOURNALS_EPL_IMPORT_FROM= уронила миграции ошибкой разбора даты.
+    """
+    import os
+
+    from app.core.config import Settings
+
+    for key in [k for k in os.environ if k.startswith("JOURNALS_")]:
+        monkeypatch.delenv(key)
+    lines = (ROOT / ".env.example").read_text(encoding="utf-8").splitlines()
+    for line in lines:
+        if line and not line.startswith("#") and "=" in line and line.startswith("JOURNALS_"):
+            key, value = line.split("=", 1)
+            monkeypatch.setenv(key, value)
+    settings = Settings(_env_file=None)
+    assert settings.epl_import_from is None and settings.metrics_token is None

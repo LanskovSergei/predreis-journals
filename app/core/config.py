@@ -13,7 +13,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Настройки приложения. Читаются из переменных окружения с префиксом JOURNALS_."""
 
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="JOURNALS_", extra="ignore")
+    # env_ignore_empty: пустое значение в .env означает «не задано» (берётся умолчание);
+    # иначе, например, пустая JOURNALS_EPL_IMPORT_FROM= роняла запуск ошибкой разбора даты.
+    model_config = SettingsConfigDict(
+        env_file=".env", env_prefix="JOURNALS_", extra="ignore", env_ignore_empty=True
+    )
 
     app_name: str = "Электронные журналы"
     env: str = "dev"
