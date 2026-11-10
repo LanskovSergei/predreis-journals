@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { App, Button, Card, Flex, Form, Input, Typography } from 'antd'
-import { JournalsService } from '../core/api/journals.service'
-import { ApiErrorUtils } from '../shared/utils/error.utils'
-import { TokenService } from '../core/auth/token.service'
+import { JournalsService } from '../../core/api/journals.service'
+import { ApiErrorUtils } from '../../shared/utils/error.utils'
+import { TokenService } from '../../core/auth/token.service'
 
 /** Вход для стенда разработчика. В бою вход только через платформу (общий токен). */
 export function DevLoginPage() {

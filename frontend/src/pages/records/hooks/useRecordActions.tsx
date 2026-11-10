@@ -3,7 +3,7 @@ import { App, Space, Typography, Input } from 'antd'
 import { JournalsService } from '../../../core/api/journals.service'
 import { ApiErrorUtils } from '../../../shared/utils/error.utils'
 import type { AnyRecord, Kind, RecordAction } from '../../../shared/types/api.types'
-import { formatDateTime, saveBlob } from '../../../utils/labels'
+import { formatDateTime, saveBlob } from '../../../shared/utils/labels'
 import { getDriverName, getVehicleLabel } from '../utils/recordLabels'
 
 export function useRecordActions(

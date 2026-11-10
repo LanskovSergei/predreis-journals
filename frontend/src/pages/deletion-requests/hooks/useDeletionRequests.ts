@@ -5,7 +5,7 @@ import { ApiErrorUtils } from '../../../shared/utils/error.utils'
 import type { AnyRecord, DeletionRequest, DeletionStatus } from '../../../shared/types/api.types'
 
 export function useDeletionRequests() {
-  const { message, modal } = App.useApp()
+  const { message } = App.useApp()
   const [status, setStatus] = useState<DeletionStatus>('pending')
   const [items, setItems] = useState<DeletionRequest[]>([])
   const [loading, setLoading] = useState(true)

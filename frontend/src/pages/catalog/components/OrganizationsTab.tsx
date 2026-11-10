@@ -42,13 +42,13 @@ function FormatCell({ o }: { o: OrganizationFull }) {
 
 export function OrganizationsTab({ canManage }: { canManage: boolean }) {
   const {
-    q, setQ,
+    setQ,
     origin, setOrigin,
     page, setPage,
     data, loading,
     editing, setEditing,
     saving, save
-  } = useOrganizations(canManage)
+  } = useOrganizations()
 
   return (
     <Space orientation="vertical" size="middle" style={{ width: '100%' }}>

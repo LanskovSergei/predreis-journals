@@ -1,6 +1,6 @@
 import { Button, Result } from 'antd'
 import { useNavigate } from 'react-router-dom'
-import { TokenService } from '../core/auth/token.service'
+import { TokenService } from '../../core/auth/token.service'
 
 export function NoAccessPage({ reason }: { reason: string }) {
   return (
@@ -24,7 +24,7 @@ export function ComingSoonPage() {
       title="Журналы скоро появятся"
       subTitle="Раздел готовится к запуску. Как только он откроется, он появится в меню ПРЕДРЕЙС."
       extra={
-        <Button type="primary" onClick={() => goToPlatform()}>
+        <Button type="primary" onClick={() => TokenService.redirectToPlatform()}>
           Вернуться в Предрейс
         </Button>
       }

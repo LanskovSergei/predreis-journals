@@ -4,7 +4,7 @@ import { JournalsService } from '../../../core/api/journals.service'
 import { ApiErrorUtils } from '../../../shared/utils/error.utils'
 import type { OrganizationFull, Page } from '../../../shared/types/api.types'
 
-export function useOrganizations(canManage: boolean) {
+export function useOrganizations() {
   const { message } = App.useApp()
   const [q, setQ] = useState('')
   const [origin, setOrigin] = useState<string | undefined>()

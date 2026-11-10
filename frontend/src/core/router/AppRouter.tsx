@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider, Outlet } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { TokenService } from '../auth/token.service'
