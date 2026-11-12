@@ -151,3 +151,32 @@ def test_real_sample_from_predreis() -> None:
         cert.status(last_day) == "active"
         and cert.status(last_day + timedelta(days=1)) == "expired"
     )
+
+
+def test_valid_certificate_without_dates_from_production_is_active() -> None:
+    """Ответ рабочего ПРЕДРЕЙС (12.11.2026): только отпечаток, сроков и серийного номера нет, is_valid=true.
+
+    Раньше такой сертификат считался «нет сертификата», и медики видели «Подписать не получится».
+    """
+    cert = parse_certificate(
+        {
+            "user_id": str(UID),
+            "last_name": "Егорова",
+            "first_name": "Александра",
+            "middle_name": "Львовна",
+            "role": "medic",
+            "cert_cn": "Егорова Александра Львовна",
+            "thumbprint": "4d91cd686704477a453a2a6406a3ac242f7cedde",
+            "serial": None,
+            "issuer": None,
+            "valid_from": None,
+            "valid_to": None,
+            "is_valid": True,
+        }
+    )
+    assert cert is not None and cert.full_name == "Егорова Александра Львовна"
+    assert cert.status(NOW) == "active" and not cert.expiring_soon(NOW)
+    dated = parse_certificate(valid_item(user_id=str(UID)))
+    assert dated is not None
+    # при нескольких сертификатах предпочтение — тому, у которого известен срок
+    assert best_certificate([cert, dated], NOW) is dated

@@ -14,7 +14,11 @@ export function DashboardCertificateAlert({ cert }: Props) {
       <Alert
         type="success"
         showIcon
-        title={`Сертификат для подписи действует до ${formatDate(cert.valid_to)}`}
+        title={
+            cert.valid_to
+              ? `Сертификат для подписи действует до ${formatDate(cert.valid_to)}`
+              : 'Сертификат для подписи действует'
+          }
       />
     )
   }

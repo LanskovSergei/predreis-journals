@@ -80,7 +80,9 @@ class UserCertificate:
         """active, expired или missing (данных о сертификате нет)."""
         now = now or datetime.now(timezone.utc)
         if self.valid_to is None:
-            return "missing"
+            # ПРЕДРЕЙС может не передать сроки (только отпечаток): решает его признак is_valid.
+            # Записи без сертификата в хранилище приходят с is_valid=false — это «нет сертификата».
+            return "active" if self.is_valid else "missing"
         if self.valid_from is not None and now < self.valid_from:
             return "missing"
         return "active" if (self.is_valid and now <= self.valid_to) else "expired"
