@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { App, Button, DatePicker, Drawer, Form, Input, InputNumber, Radio, Space } from 'antd'
+import { App, Button, DatePicker, Drawer, Form, Input, InputNumber, Radio, Segmented, Space, TimePicker } from 'antd'
 import type { Dayjs } from 'dayjs'
 import { fromPickerValue, nowForPicker, toPickerValue } from '../../../shared/utils/time'
 import { JournalsService } from '../../../core/api/journals.service'
@@ -7,6 +7,7 @@ import { ApiErrorUtils } from '../../../shared/utils/error.utils'
 import type { AnyRecord, Kind, MedicalRecord, TechnicalRecord } from '../../../shared/types/api.types'
 import { useAuth } from '../../../core/auth/useAuth'
 import { DriverSelect, OrganizationSelect, SpecialistSelect, VehicleSelect } from '../../../shared/components/CatalogSelects'
+import { MAX_PERIOD_DAYS, VITAL_FIELDS, randomVitals } from '../utils/vitals'
 
 interface Props {
   kind: Kind
@@ -19,11 +20,13 @@ interface Props {
 /** Добавление и правка записи. По ТЗ поля предзаполнены, результат осмотра выбирается вручную. */
 export function RecordFormDrawer({ kind, open, record, onClose, onSaved }: Props) {
   const { user } = useAuth()
-  const { message } = App.useApp()
+  const { message, modal } = App.useApp()
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
   const [timeHint, setTimeHint] = useState<string | null>(null)
   const [timeTouched, setTimeTouched] = useState(false)
+  // ТЗ: дата осмотра — один день или период (по записи на каждый день)
+  const [mode, setMode] = useState<'day' | 'period'>('day')
   const isEdit = Boolean(record)
   const isSpecialist = user?.role === 'medic' || user?.role === 'mechanic'
   const organizationId = Form.useWatch('organization_id', form) as string | undefined
@@ -35,23 +38,22 @@ export function RecordFormDrawer({ kind, open, record, onClose, onSaved }: Props
     if (!open) return
     setTimeHint(null)
     setTimeTouched(false)
+    setMode('day')
     form.resetFields()
     if (record) {
       form.setFieldsValue({ ...record, performed_at: toPickerValue(record.performed_at) })
     } else if (kind === 'medical') {
       form.setFieldsValue({
         performed_at: nowForPicker(),
+        period_time: nowForPicker(),
         phase: 'pre',
         complaints: 'отсутствуют',
-        bp_systolic: 120,
-        bp_diastolic: 80,
-        pulse: 72,
-        temperature: 36.6,
+        ...randomVitals(),
         alcohol_permille: 0,
         harmful_factors: 'absent',
       })
     } else {
-      form.setFieldsValue({ performed_at: nowForPicker() })
+      form.setFieldsValue({ performed_at: nowForPicker(), period_time: nowForPicker() })
     }
   }, [open, record, kind, form])
 
@@ -69,6 +71,7 @@ export function RecordFormDrawer({ kind, open, record, onClose, onSaved }: Props
         const [h, m] = time.split(':').map(Number)
         const current = (form.getFieldValue('performed_at') as Dayjs | undefined) ?? nowForPicker()
         form.setFieldValue('performed_at', current.hour(h).minute(m).second(0))
+        form.setFieldValue('period_time', nowForPicker().hour(h).minute(m).second(0))
         setTimeHint(`Подставлено время предыдущей записи: ${time}`)
       })
       .catch(() => undefined)
@@ -77,10 +80,69 @@ export function RecordFormDrawer({ kind, open, record, onClose, onSaved }: Props
     }
   }, [open, isEdit, timeTouched, kind, driverId, vehicleId, phase, form])
 
+  /** Период: по записи на каждый день с одним временем; показатели — свои у каждой, если их не правили. */
+  const submitPeriod = async (values: Record<string, unknown>) => {
+    const [from, to] = values.period as [Dayjs, Dayjs]
+    const days = to.startOf('day').diff(from.startOf('day'), 'day') + 1
+    if (days > MAX_PERIOD_DAYS) {
+      message.error(`Период — не больше ${MAX_PERIOD_DAYS} дней`)
+      return
+    }
+    const time = values.period_time as Dayjs
+    const vitalsEdited = kind === 'medical' && form.isFieldsTouched(VITAL_FIELDS)
+    const { period: _period, period_time: _time, ...base } = values
+    void _period
+    void _time
+    setSaving(true)
+    let created = 0
+    const failed: string[] = []
+    try {
+      for (let i = 0; i < days; i += 1) {
+        const day = from.add(i, 'day').hour(time.hour()).minute(time.minute()).second(0)
+        const body: Record<string, unknown> = {
+          ...base,
+          ...(kind === 'medical' && !vitalsEdited ? randomVitals() : {}),
+          performed_at: fromPickerValue(day),
+          note: typeof base.note === 'string' && base.note.trim() ? base.note.trim() : null,
+        }
+        try {
+          await JournalsService.createRecord(kind, body)
+          created += 1
+        } catch (err) {
+          failed.push(`${day.format('DD.MM.YYYY')}: ${ApiErrorUtils.getMessage(err, 'не удалось сохранить')}`)
+        }
+      }
+    } finally {
+      setSaving(false)
+    }
+    if (failed.length) {
+      modal.warning({
+        title: `Добавлено записей: ${created}, не получилось: ${failed.length}`,
+        content: (
+          <ul style={{ paddingLeft: 18, margin: 0 }}>
+            {failed.map((f) => (
+              <li key={f}>{f}</li>
+            ))}
+          </ul>
+        ),
+      })
+    } else {
+      message.success(`Добавлено записей: ${created}`)
+    }
+    if (created > 0) onSaved()
+  }
+
   const submit = async () => {
     const values = await form.validateFields()
+    if (!record && mode === 'period') {
+      await submitPeriod(values)
+      return
+    }
+    const { period: _p, period_time: _t, ...single } = values
+    void _p
+    void _t
     const body: Record<string, unknown> = {
-      ...values,
+      ...single,
       performed_at: fromPickerValue(values.performed_at as Dayjs),
       note: values.note?.trim() ? values.note.trim() : null,
     }
@@ -155,22 +217,65 @@ export function RecordFormDrawer({ kind, open, record, onClose, onSaved }: Props
           </Form.Item>
         ) : null}
 
-        <Form.Item
-          name="performed_at"
-          label="Дата и время (по Москве)"
-          rules={[{ required: true, message: 'Укажите дату и время' }]}
-          extra={timeHint ?? undefined}
-        >
-          <DatePicker
-            showTime={{ format: 'HH:mm' }}
-            format="DD.MM.YYYY HH:mm"
-            style={{ width: '100%' }}
-            onChange={() => {
-              setTimeTouched(true)
-              setTimeHint(null)
-            }}
-          />
-        </Form.Item>
+        {!isEdit ? (
+          <Form.Item label="Дата осмотра">
+            <Segmented
+              value={mode}
+              onChange={(v) => setMode(v as 'day' | 'period')}
+              options={[
+                { value: 'day', label: 'Один день' },
+                { value: 'period', label: 'Период' },
+              ]}
+            />
+          </Form.Item>
+        ) : null}
+
+        {mode === 'day' || isEdit ? (
+          <Form.Item
+            name="performed_at"
+            label="Дата и время (по Москве)"
+            rules={[{ required: true, message: 'Укажите дату и время' }]}
+            extra={timeHint ?? undefined}
+          >
+            <DatePicker
+              showTime={{ format: 'HH:mm' }}
+              format="DD.MM.YYYY HH:mm"
+              style={{ width: '100%' }}
+              onChange={() => {
+                setTimeTouched(true)
+                setTimeHint(null)
+              }}
+            />
+          </Form.Item>
+        ) : (
+          <Space.Compact block style={{ gap: 12 }}>
+            <Form.Item
+              name="period"
+              label="Период"
+              rules={[{ required: true, message: 'Выберите период' }]}
+              extra={`По записи на каждый день, не больше ${MAX_PERIOD_DAYS}`}
+              style={{ flex: 2 }}
+            >
+              <DatePicker.RangePicker format="DD.MM.YYYY" style={{ width: '100%' }} placeholder={['С даты', 'По дату']} />
+            </Form.Item>
+            <Form.Item
+              name="period_time"
+              label="Время (по Москве)"
+              rules={[{ required: true, message: 'Укажите время' }]}
+              extra={timeHint ?? undefined}
+              style={{ flex: 1 }}
+            >
+              <TimePicker
+                format="HH:mm"
+                style={{ width: '100%' }}
+                onChange={() => {
+                  setTimeTouched(true)
+                  setTimeHint(null)
+                }}
+              />
+            </Form.Item>
+          </Space.Compact>
+        )}
 
         {kind === 'medical' ? (
           <>

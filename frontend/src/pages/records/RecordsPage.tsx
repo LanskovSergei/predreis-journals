@@ -112,7 +112,8 @@ export function RecordsPage({ kind }: { kind: Kind }) {
         kind={kind}
         filters={filters}
         searchText={searchText}
-        isManager={isManager}
+        // фильтр по организации — всем, кто выбирает организацию в форме (менеджеры, медик, механик)
+        isManager={isManager || hasPermission(`${kind}:create`)}
         isClient={isClient}
         searchPlaceholder={text.search}
         onFilterChange={setFilter}
