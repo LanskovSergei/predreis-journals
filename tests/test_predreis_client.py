@@ -373,3 +373,18 @@ def test_revocation_block_is_optional_and_validated() -> None:
     assert parse_sign_status(base | {"revocation": {"status": "revoked"}}).ocsp_status == "revoked"
     assert parse_sign_status(base | {"revocation": {"status": "что-то"}}).ocsp_status is None
     assert parse_sign_status(base | {"ocsp_status": "unknown"}).ocsp_status == "unknown"
+
+
+def test_signature_with_line_breaks_from_cryptopro_is_accepted() -> None:
+    """КриптоПро отдаёт base64 с переносами строк (рабочий ПРЕДРЕЙС, 13.11.2026): подпись принимается.
+
+    Раньше строгое декодирование отвергало такой ответ, и записи оставались «Подписывается…».
+    Посторонние символы (не пробельные) по-прежнему ошибка.
+    """
+    cms = bytes(range(256)) * 20  # подпись ~5 КБ, как в рабочем ответе
+    raw = base64.b64encode(cms).decode()
+    wrapped = "\r\n".join(raw[i : i + 64] for i in range(0, len(raw), 64)) + "\r\n"
+    item = {"id": "1", "external_id": "e", "status": "signed", "signature_b64": wrapped}
+    assert parse_sign_status(item).signature == cms
+    with pytest.raises(UpstreamError):
+        parse_sign_status({**item, "signature_b64": raw[:100] + "*" + raw[100:]})

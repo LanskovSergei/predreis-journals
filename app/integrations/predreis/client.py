@@ -139,7 +139,10 @@ def _b64(value: Any) -> bytes | None:
     if not value:
         return None
     try:
-        return base64.b64decode(value, validate=True)
+        # КриптоПро отдаёт base64 с переносами строк (по 64/76 символов): пробельные символы —
+        # часть оформления, их убираем; любые другие посторонние символы по-прежнему ошибка.
+        compact = "".join(value.split()) if isinstance(value, str) else value
+        return base64.b64decode(compact, validate=True)
     except (ValueError, TypeError) as exc:
         raise UpstreamError("Предрейс вернул подпись в неверном формате") from exc
 
