@@ -16,11 +16,11 @@ TECHNICAL_ALIGNS = ["c", "c", "c", "l", "c", "c", "c", "l", "l"]
 
 MEDICAL_HEADER = [
     HeaderCell("№", 0, 0, rowspan=2),
-    HeaderCell("Дата проведения медицинского осмотра", 1, 0, rowspan=2),
-    HeaderCell("Время проведения медицинского осмотра", 2, 0, rowspan=2),
+    HeaderCell("Дата проведения медицинского осмотра", 1, 0, rowspan=2, rotate=True),
+    HeaderCell("Время проведения медицинского осмотра", 2, 0, rowspan=2, rotate=True),
     HeaderCell("Ф.И.О. водителя", 3, 0, rowspan=2),
-    HeaderCell("Дата рождения", 4, 0, rowspan=2),
-    HeaderCell("Пол водителя", 5, 0, rowspan=2),
+    HeaderCell("Дата рождения", 4, 0, rowspan=2, rotate=True),
+    HeaderCell("Пол водителя", 5, 0, rowspan=2, rotate=True),
     HeaderCell(
         "Результаты исследований, указанные в п. 12 Порядка проведения предсменных, "
         "послесменных медицинских осмотров",

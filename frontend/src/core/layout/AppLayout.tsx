@@ -43,6 +43,9 @@ export function AppLayout() {
 
   const nav: NavItem[] = useMemo(() => {
     const items: NavItem[] = [{ key: 'dashboard', label: 'Сводка', icon: <DashboardOutlined />, path: '/' }]
+    if (hasPermission('catalog:view')) {
+      items.push({ key: 'catalog', label: 'Каталог', icon: <DatabaseOutlined />, path: '/catalog' })
+    }
     if (hasJournalAccess('medical')) {
       items.push({ key: 'medical', label: 'Медосмотры', icon: <MedicineBoxOutlined />, path: '/medical' })
     }
@@ -56,7 +59,6 @@ export function AppLayout() {
       items.push({ key: 'deletions', label: 'Запросы на удаление', icon: <DeleteOutlined />, path: '/deletion-requests' })
     }
     if (hasPermission('catalog:view')) {
-      items.push({ key: 'catalog', label: 'Каталог', icon: <DatabaseOutlined />, path: '/catalog' })
       items.push({ key: 'specialists', label: 'Специалисты', icon: <TeamOutlined />, path: '/specialists' })
     }
     return items
@@ -121,7 +123,7 @@ export function AppLayout() {
               {
                 key: 'platform',
                 icon: <ArrowLeftOutlined />,
-                label: 'Вернуться в Предрейс',
+                label: 'Вернуться на платформу',
                 onClick: () => TokenService.redirectToPlatform(),
               },
             ]}

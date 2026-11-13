@@ -15,7 +15,7 @@ export function SpecialistsPage() {
 
   return (
     <Space orientation="vertical" size="large" style={{ width: '100%' }}>
-      <PageHeader title="Специалисты" subtitle="Сертификаты медиков и механиков для подписи записей и записи, ждущие их подписи" />
+      <PageHeader title="Специалисты" subtitle="Сертификаты медиков и механиков. Статистика подписанных записей." />
       <Segmented
         value={role}
         onChange={(v) => setRole(v as 'medic' | 'mechanic')}
@@ -48,9 +48,16 @@ export function SpecialistsPage() {
                 </Space>
               ),
             },
+            {
+              title: '№ сертификата',
+              key: 'serial',
+              width: 180,
+              render: (_: unknown, s: SpecialistRow) => s.certificates?.find((c) => c.serial)?.serial || '—',
+            },
             { title: 'Действует до', dataIndex: 'valid_to', width: 130, render: (v: string | null) => formatDate(v) },
             { title: 'На подпись', key: 'to_sign', width: 110, render: (_: unknown, s: SpecialistRow) => s.records?.to_sign ?? '—' },
             { title: 'Подписано', key: 'signed', width: 110, render: (_: unknown, s: SpecialistRow) => s.records?.signed ?? '—' },
+            { title: 'Из них ЭПЛ', key: 'epl', width: 110, render: (_: unknown, s: SpecialistRow) => s.records?.epl ?? '—' },
             { title: 'Всего', key: 'total', width: 90, render: (_: unknown, s: SpecialistRow) => s.records?.total ?? '—' },
           ]}
         />

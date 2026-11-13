@@ -7,9 +7,10 @@ interface Props {
   kinds: Kind[]
   stats: Stats | null
   loading: boolean
+  canCreate: (kind: Kind) => boolean
 }
 
-export function DashboardJournalsStats({ kinds, stats, loading }: Props) {
+export function DashboardJournalsStats({ kinds, stats, loading, canCreate }: Props) {
   const navigate = useNavigate()
 
   const getCounters = (kind: Kind): RecordCounters | null | undefined => stats?.[kind]
@@ -25,7 +26,14 @@ export function DashboardJournalsStats({ kinds, stats, loading }: Props) {
                 {JOURNAL_CONFIG[k].title}
               </Space>
             }
-            extra={<Button type="link" onClick={() => navigate(`/${k}`)}>Открыть архив</Button>}
+            extra={
+              <Space>
+                {canCreate(k) && (
+                  <Button type="link" onClick={() => navigate(`/${k}?create=1`)}>Добавить запись</Button>
+                )}
+                <Button type="link" onClick={() => navigate(`/${k}`)}>Открыть архив</Button>
+              </Space>
+            }
             loading={loading}
           >
             <Row gutter={16}>

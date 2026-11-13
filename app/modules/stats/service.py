@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ForbiddenError
 from app.core.security import Principal
-from app.domain.enums import RecordStatus, Role
+from app.domain.enums import RecordStatus, Role, WorkFormat
 from app.domain.permissions import Permission, has_permission
 from app.models.catalog import Driver, Organization
 from app.models.records import MedicalRecord, TechnicalRecord
@@ -32,10 +32,19 @@ class CountPair(BaseModel):
     total: int
 
 
+class OrganizationStats(BaseModel):
+    """Организации на сводке: активные, всего, на бумаге и на ЭПЛ."""
+
+    active: int
+    total: int
+    paper: int
+    epl: int
+
+
 class StatsOut(BaseModel):
     """Статистика для роли. Для медика и механика показывается только их журнал."""
 
-    organizations: CountPair | None = None
+    organizations: OrganizationStats | None = None
     drivers: CountPair | None = None
     medical: RecordCounters | None = None
     technical: RecordCounters | None = None
@@ -75,6 +84,18 @@ class StatsService:
         orgs_active = (
             await self.session.execute(select(func.count(Organization.id)).where(active_org))
         ).scalar_one()
+        paper = (
+            await self.session.execute(
+                select(func.count(Organization.id)).where(Organization.work_format == WorkFormat.PAPER)
+            )
+        ).scalar_one()
+        epl = (
+            await self.session.execute(
+                select(func.count(Organization.id)).where(
+                    Organization.work_format.in_([WorkFormat.EPL, WorkFormat.HYBRID])
+                )
+            )
+        ).scalar_one()
         drivers_total = (await self.session.execute(select(func.count(Driver.id)))).scalar_one()
         drivers_active = (
             await self.session.execute(
@@ -84,7 +105,9 @@ class StatsService:
             )
         ).scalar_one()
         return StatsOut(
-            organizations=CountPair(active=orgs_active, total=orgs_total),
+            organizations=OrganizationStats(
+                active=orgs_active, total=orgs_total, paper=paper, epl=epl
+            ),
             drivers=CountPair(active=drivers_active, total=drivers_total),
             medical=await self._counters(MedicalRecord, None),
             technical=await self._counters(TechnicalRecord, None),

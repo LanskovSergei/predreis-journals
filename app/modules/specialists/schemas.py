@@ -34,11 +34,12 @@ class MyCertificatesOut(BaseModel):
 
 
 class RecordCounters(BaseModel):
-    """Счётчики записей специалиста: «на подпись / подписанных / всего»."""
+    """Счётчики записей специалиста: «на подпись / подписанных / всего», включая ЭПЛ."""
 
     to_sign: int
     signed: int
     total: int
+    epl: int = 0
 
 
 class SpecialistOut(BaseModel):

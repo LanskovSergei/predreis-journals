@@ -138,6 +138,11 @@ export class JournalsService {
     return data
   }
 
+  static async updateDriver(id: string, body: Record<string, unknown>): Promise<any> {
+    const { data } = await httpClient.patch(`${BASE_PATH}/catalog/drivers/${id}`, body)
+    return data
+  }
+
   static async getVehiclesPage(params: Record<string, unknown>): Promise<Page<any>> {
     const { data } = await httpClient.get(`${BASE_PATH}/catalog/vehicles`, { params })
     return data

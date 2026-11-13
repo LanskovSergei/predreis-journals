@@ -88,10 +88,11 @@ export interface RecordCounters {
   to_sign: number
   signed: number
   total: number
+  epl?: number
 }
 
 export interface Stats {
-  organizations?: { active: number; total: number } | null
+  organizations?: { active: number; total: number; paper: number; epl: number } | null
   drivers?: { active: number; total: number } | null
   medical?: RecordCounters | null
   technical?: RecordCounters | null
@@ -216,6 +217,7 @@ export interface SpecialistRow {
   status: 'active' | 'expired' | 'missing'
   valid_to: string | null
   expiring_soon: boolean
+  certificates?: { serial: string | null; owner: string | null; valid_to: string | null }[]
   records?: RecordCounters | null
 }
 

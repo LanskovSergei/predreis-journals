@@ -30,15 +30,19 @@ def fmt_decimal(value: Decimal) -> str:
     return str(value).replace(".", ",")
 
 
-def signature_view(doc: RecordDocument | None) -> dict[str, str] | None:
-    """Данные подписи для ячейки таблицы."""
-    if doc is None or doc.cert_serial is None:
+def signature_view(
+    doc: RecordDocument | None, specialist_name: str | None = None
+) -> dict[str, str] | None:
+    """Данные подписи для ячейки таблицы (сертификат или хотя бы ФИО специалиста)."""
+    owner = (doc.cert_subject if doc else None) or specialist_name or ""
+    serial = (doc.cert_serial if doc else None) or ""
+    if not serial and not owner:
         return None
     return {
-        "serial": doc.cert_serial,
-        "owner": doc.cert_subject or "",
-        "valid_from": fmt_date(doc.cert_valid_from) if doc.cert_valid_from else "",
-        "valid_to": fmt_date(doc.cert_valid_to) if doc.cert_valid_to else "",
+        "serial": serial or "—",
+        "owner": owner,
+        "valid_from": fmt_date(doc.cert_valid_from) if doc and doc.cert_valid_from else "",
+        "valid_to": fmt_date(doc.cert_valid_to) if doc and doc.cert_valid_to else "",
     }
 
 
@@ -69,7 +73,7 @@ def medical_row(n: int, rec: MedicalRecord, doc: RecordDocument | None) -> dict[
         }[rec.harmful_factors],
         "conclusion": "допущен" if rec.result is InspectionResult.ADMITTED else "не допущен",
         "phase": pre,
-        "signature": signature_view(doc),
+        "signature": signature_view(doc, rec.snapshot.get("specialist", {}).get("full_name")),
     }
     return redact_medical(row)
 
@@ -86,5 +90,5 @@ def technical_row(n: int, rec: TechnicalRecord, doc: RecordDocument | None) -> d
         "odometer": rec.odometer,
         "conclusion": "пройден" if rec.result is InspectionResult.ADMITTED else "не пройден",
         "specialist_name": rec.snapshot.get("specialist", {}).get("full_name", ""),
-        "signature": signature_view(doc),
+        "signature": signature_view(doc, rec.snapshot.get("specialist", {}).get("full_name")),
     }

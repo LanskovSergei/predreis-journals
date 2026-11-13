@@ -126,7 +126,7 @@ async def test_super_admin_sees_personal_counters(stack: Stack) -> None:
 
     sa = (await c.get("/api/v1/specialists?role=medic", headers=stack.auth("sa"))).json()
     medic = next(i for i in sa["items"] if i["user_id"] == str(w.medic.id))
-    assert medic["records"] == {"to_sign": 1, "signed": 2, "total": 3}
+    assert medic["records"] == {"to_sign": 1, "signed": 2, "total": 3, "epl": 0}
 
     stack.predreis.certificates = [cert(w.mechanic.id, "Механиков Дмитрий", "mechanic")]
     clear_cache()
@@ -135,6 +135,7 @@ async def test_super_admin_sees_personal_counters(stack: Stack) -> None:
         "to_sign": 0,
         "signed": 0,
         "total": 0,
+        "epl": 0,
     }
 
 

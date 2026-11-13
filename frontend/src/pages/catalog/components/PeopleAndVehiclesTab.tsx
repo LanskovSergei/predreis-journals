@@ -1,5 +1,6 @@
+import { useEffect } from 'react'
 import { Space, Tag, Table, Input, Button } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
+import { EditOutlined, PlusOutlined } from '@ant-design/icons'
 import type { DriverFull, VehicleFull } from '../../../shared/types/api.types'
 import { formatDate } from '../../../shared/utils/labels'
 import { OrganizationSelect } from '../../../shared/components/CatalogSelects'
@@ -7,21 +8,55 @@ import { usePeopleAndVehicles } from '../hooks/usePeopleAndVehicles'
 import { PersonVehicleFormModal } from './PersonVehicleFormModal'
 
 const ORIGIN = { platform: 'Платформа', manual: 'Вручную' } as const
+const GENDER = { M: 'М', F: 'Ж' } as const
 
-export function PeopleAndVehiclesTab({ kind, canManage }: { kind: 'drivers' | 'vehicles'; canManage: boolean }) {
+export function PeopleAndVehiclesTab({
+  kind,
+  canManage,
+  startCreate,
+  onCreateConsumed,
+}: {
+  kind: 'drivers' | 'vehicles'
+  canManage: boolean
+  startCreate?: boolean
+  onCreateConsumed?: () => void
+}) {
   const {
     orgId, setOrgId,
     setQ,
     page, setPage,
     data, loading,
-    adding, setAdding,
-    saving, save
+    editing, setEditing,
+    saving, save,
   } = usePeopleAndVehicles(kind)
+
+  useEffect(() => {
+    if (startCreate) {
+      setEditing('new')
+      onCreateConsumed?.()
+    }
+  }, [startCreate, setEditing, onCreateConsumed])
 
   const driverColumns = [
     { title: 'ФИО', dataIndex: 'full_name' },
     { title: 'Дата рождения', dataIndex: 'birth_date', width: 140, render: (v: string | null) => formatDate(v) },
+    {
+      title: 'Пол',
+      dataIndex: 'gender',
+      width: 70,
+      render: (v: 'M' | 'F' | null) => (v ? GENDER[v] : '—'),
+    },
     { title: 'Источник', dataIndex: 'origin', width: 120, render: (v: 'platform' | 'manual') => <Tag bordered={false}>{ORIGIN[v]}</Tag> },
+    ...(canManage
+      ? [{
+          title: '',
+          key: 'edit',
+          width: 60,
+          render: (_: unknown, row: DriverFull) => (
+            <Button size="small" type="text" icon={<EditOutlined />} aria-label="Изменить" onClick={() => setEditing(row)} />
+          ),
+        }]
+      : []),
   ]
   const vehicleColumns = [
     { title: 'Марка и модель', key: 'bm', render: (_: unknown, v: VehicleFull) => `${v.brand} ${v.model}` },
@@ -37,7 +72,7 @@ export function PeopleAndVehiclesTab({ kind, canManage }: { kind: 'drivers' | 'v
         <Input.Search allowClear placeholder={kind === 'drivers' ? 'ФИО' : 'Марка, модель или госномер'} disabled={!orgId}
           onSearch={(v) => { setQ(v.trim()); setPage(1) }} />
         {canManage && (
-          <Button type="primary" icon={<PlusOutlined />} disabled={!orgId} onClick={() => setAdding(true)}>
+          <Button type="primary" icon={<PlusOutlined />} disabled={!orgId} onClick={() => setEditing('new')}>
             {kind === 'drivers' ? 'Добавить водителя' : 'Добавить ТС'}
           </Button>
         )}
@@ -53,9 +88,9 @@ export function PeopleAndVehiclesTab({ kind, canManage }: { kind: 'drivers' | 'v
       />
       <PersonVehicleFormModal
         kind={kind}
-        adding={adding}
+        editing={kind === 'drivers' ? editing : editing === 'new' ? 'new' : null}
         saving={saving}
-        onClose={() => setAdding(false)}
+        onClose={() => setEditing(null)}
         onSave={save}
       />
     </Space>

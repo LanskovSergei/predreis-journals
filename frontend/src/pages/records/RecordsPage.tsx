@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Button, Card, Space } from 'antd'
 import { FilePdfOutlined, PlusOutlined } from '@ant-design/icons'
 import { useSearchParams } from 'react-router-dom'
+import dayjs, { type Dayjs } from 'dayjs'
 import { useAuth } from '../../core/auth/useAuth'
 import { PageHeader } from '../../shared/components/PageHeader'
 import type { AnyRecord, Kind } from '../../shared/types/api.types'
@@ -28,6 +29,39 @@ const TEXT = {
   },
 } as const
 
+function filtersFromParams(params: URLSearchParams): RecordsFilters {
+  const from = params.get('date_from')
+  const to = params.get('date_to')
+  const range: RecordsFilters['range'] =
+    from || to ? [from ? dayjs(from) : null, to ? dayjs(to) : null] : undefined
+  return {
+    organizationId: params.get('organization_id') ?? undefined,
+    signed: params.get('signed') ?? undefined,
+    result: params.get('result') ?? undefined,
+    note: params.get('note') ?? undefined,
+    text: params.get('q') ?? undefined,
+    range,
+  }
+}
+
+function writeFilterParams(params: URLSearchParams, patch: RecordsFilters) {
+  const next = new URLSearchParams(params)
+  const setOrDel = (key: string, value?: string | null) => {
+    if (value) next.set(key, value)
+    else next.delete(key)
+  }
+  setOrDel('organization_id', patch.organizationId)
+  setOrDel('signed', patch.signed)
+  setOrDel('result', patch.result)
+  setOrDel('note', patch.note)
+  setOrDel('q', patch.text)
+  const from = patch.range?.[0] as Dayjs | null | undefined
+  const to = patch.range?.[1] as Dayjs | null | undefined
+  setOrDel('date_from', from?.isValid() ? from.format('YYYY-MM-DD') : undefined)
+  setOrDel('date_to', to?.isValid() ? to.format('YYYY-MM-DD') : undefined)
+  return next
+}
+
 export function RecordsPage({ kind }: { kind: Kind }) {
   const text = TEXT[kind]
   const { user, hasPermission } = useAuth()
@@ -40,10 +74,8 @@ export function RecordsPage({ kind }: { kind: Kind }) {
   const canExport = hasPermission(`${kind}:export`)
   const canCreate = hasPermission(`${kind}:create`)
 
-  const [filters, setFilters] = useState<RecordsFilters>(() => ({
-    signed: params.get('signed') ?? undefined,
-  }))
-  const [searchText, setSearchText] = useState('')
+  const filters = useMemo(() => filtersFromParams(params), [params])
+  const [searchText, setSearchText] = useState(params.get('q') ?? '')
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<string[]>([])
   const [formOpen, setFormOpen] = useState(params.get('create') === '1')
@@ -60,7 +92,7 @@ export function RecordsPage({ kind }: { kind: Kind }) {
   )
 
   const setFilter = (patch: Partial<RecordsFilters>) => {
-    setFilters((f) => ({ ...f, ...patch }))
+    setParams(writeFilterParams(params, { ...filters, ...patch }), { replace: true })
     setPage(1)
     setSelected([])
   }

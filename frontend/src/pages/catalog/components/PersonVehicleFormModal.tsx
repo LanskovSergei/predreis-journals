@@ -1,22 +1,31 @@
 import { useEffect } from 'react'
-import { Modal, Form, Input, DatePicker, Radio } from 'antd'
+import { Modal, Form, Input, DatePicker, Radio, Typography } from 'antd'
+import dayjs from 'dayjs'
+import type { DriverFull } from '../../../shared/types/api.types'
 
 interface Props {
   kind: 'drivers' | 'vehicles'
-  adding: boolean
+  editing: DriverFull | 'new' | null
   saving: boolean
   onClose: () => void
-  onSave: (values: any) => Promise<void>
+  onSave: (values: Record<string, unknown>) => Promise<void>
 }
 
-export function PersonVehicleFormModal({ kind, adding, saving, onClose, onSave }: Props) {
+export function PersonVehicleFormModal({ kind, editing, saving, onClose, onSave }: Props) {
   const [form] = Form.useForm()
+  const isEdit = editing !== null && editing !== 'new'
+  const isPlatform = isEdit && editing.origin === 'platform'
 
   useEffect(() => {
-    if (adding) {
-      form.resetFields()
+    if (!editing) return
+    form.resetFields()
+    if (editing !== 'new' && kind === 'drivers') {
+      form.setFieldsValue({
+        ...editing,
+        birth_date: editing.birth_date ? dayjs(editing.birth_date) : undefined,
+      })
     }
-  }, [adding, form])
+  }, [editing, form, kind])
 
   const handleOk = () => {
     form.validateFields().then(onSave).catch(() => {})
@@ -24,20 +33,29 @@ export function PersonVehicleFormModal({ kind, adding, saving, onClose, onSave }
 
   return (
     <Modal
-      title={kind === 'drivers' ? 'Новый водитель' : 'Новое ТС'}
-      open={adding}
+      title={kind === 'drivers' ? (isEdit ? 'Водитель' : 'Новый водитель') : 'Новое ТС'}
+      open={editing !== null}
       onCancel={onClose}
       onOk={handleOk}
-      okText="Добавить"
+      okText={isEdit ? 'Сохранить' : 'Добавить'}
       cancelText="Отмена"
       confirmLoading={saving}
       destroyOnHidden
     >
+      {isPlatform && (
+        <Typography.Paragraph type="secondary">
+          ФИО и дату рождения водителя с платформы ведёт ПРЕДРЕЙС. Пол можно дополнить здесь, если его не было в карточке.
+        </Typography.Paragraph>
+      )}
       <Form form={form} layout="vertical" requiredMark="optional">
         {kind === 'drivers' ? (
           <>
-            <Form.Item name="full_name" label="ФИО" rules={[{ required: true, message: 'Укажите ФИО' }]}><Input /></Form.Item>
-            <Form.Item name="birth_date" label="Дата рождения"><DatePicker format="DD.MM.YYYY" style={{ width: '100%' }} /></Form.Item>
+            <Form.Item name="full_name" label="ФИО" rules={[{ required: true, message: 'Укажите ФИО' }]}>
+              <Input disabled={isPlatform} />
+            </Form.Item>
+            <Form.Item name="birth_date" label="Дата рождения">
+              <DatePicker format="DD.MM.YYYY" style={{ width: '100%' }} disabled={isPlatform} />
+            </Form.Item>
             <Form.Item name="gender" label="Пол">
               <Radio.Group optionType="button" options={[{ value: 'M', label: 'М' }, { value: 'F', label: 'Ж' }]} />
             </Form.Item>

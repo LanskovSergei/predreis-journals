@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Space, Tag, Tooltip, Typography, Table, Input, Select, Button } from 'antd'
 import { EditOutlined, PlusOutlined } from '@ant-design/icons'
 import type { OrganizationFull } from '../../../shared/types/api.types'
@@ -40,9 +41,17 @@ function FormatCell({ o }: { o: OrganizationFull }) {
   )
 }
 
-export function OrganizationsTab({ canManage }: { canManage: boolean }) {
+export function OrganizationsTab({
+  canManage,
+  startCreate,
+  onCreateConsumed,
+}: {
+  canManage: boolean
+  startCreate?: boolean
+  onCreateConsumed?: () => void
+}) {
   const {
-    setQ,
+    qInput, setQInput,
     origin, setOrigin,
     page, setPage,
     data, loading,
@@ -50,10 +59,23 @@ export function OrganizationsTab({ canManage }: { canManage: boolean }) {
     saving, save
   } = useOrganizations()
 
+  useEffect(() => {
+    if (startCreate) {
+      setEditing('new')
+      onCreateConsumed?.()
+    }
+  }, [startCreate, setEditing, onCreateConsumed])
+
   return (
     <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Space wrap className="filterBar">
-        <Input.Search allowClear placeholder="Название или ИНН" onSearch={(v) => { setQ(v.trim()); setPage(1) }} />
+        <Input.Search
+          allowClear
+          placeholder="Название или ИНН"
+          value={qInput}
+          onChange={(e) => setQInput(e.target.value)}
+          onSearch={(v) => setQInput(v)}
+        />
         <Select allowClear placeholder="Источник" value={origin} onChange={(v) => { setOrigin(v); setPage(1) }}
           options={[{ value: 'platform', label: 'Платформа' }, { value: 'manual', label: 'Добавлены вручную' }]} />
         {canManage && (

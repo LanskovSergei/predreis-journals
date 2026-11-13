@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.errors import ForbiddenError, UpstreamError
 from app.core.security import Principal
-from app.domain.enums import RecordStatus, Role
+from app.domain.enums import RecordSource, RecordStatus, Role
 from app.domain.permissions import Permission, has_permission
 from app.integrations.predreis.certificates import (
     UserCertificate,
@@ -121,7 +121,11 @@ class SpecialistsService:
             by_user.setdefault(cert.user_id, []).append(cert)
             names[cert.user_id] = cert.full_name or names.get(cert.user_id, "")
         # специалисты, известные журналам, даже без записи о сертификате в Предрейсе
-        known = (await self.session.execute(select(User).where(User.role == role))).scalars().all()
+        known = (
+            await self.session.execute(
+                select(User).where(User.role == role, User.is_active.is_(True))
+            )
+        ).scalars().all()
         for user in known:
             names.setdefault(user.id, user.full_name)
             names[user.id] = names[user.id] or user.full_name
@@ -139,7 +143,9 @@ class SpecialistsService:
                     valid_to=best.valid_to if best else None,
                     expiring_soon=best.expiring_soon() if best else False,
                     certificates=[to_out(c) for c in user_certs],
-                    records=counters.get(user_id, RecordCounters(to_sign=0, signed=0, total=0))
+                    records=counters.get(
+                        user_id, RecordCounters(to_sign=0, signed=0, total=0, epl=0)
+                    )
                     if principal.role is Role.SA
                     else None,
                 )
@@ -148,18 +154,22 @@ class SpecialistsService:
         return SpecialistsOut(items=items, certificates_available=available)
 
     async def _counters(self, role: Role) -> dict[uuid.UUID, RecordCounters]:
-        """Счётчики записей по специалистам одним запросом."""
+        """Счётчики записей по специалистам одним запросом (включая подписи ЭПЛ)."""
         model = SPECIALIST_ROLES[role]
         unsigned = case((model.status == RecordStatus.UNSIGNED, 1), else_=0)
+        from_epl = case((model.source == RecordSource.EPL, 1), else_=0)
         rows = await self.session.execute(
-            select(model.specialist_user_id, func.sum(unsigned), func.count()).group_by(
-                model.specialist_user_id
-            )
+            select(
+                model.specialist_user_id, func.sum(unsigned), func.count(), func.sum(from_epl)
+            ).group_by(model.specialist_user_id)
         )
         result: dict[uuid.UUID, RecordCounters] = {}
-        for user_id, to_sign, total in rows.all():
+        for user_id, to_sign, total, epl in rows.all():
             waiting = int(to_sign or 0)
             result[user_id] = RecordCounters(
-                to_sign=waiting, signed=int(total) - waiting, total=int(total)
+                to_sign=waiting,
+                signed=int(total) - waiting,
+                total=int(total),
+                epl=int(epl or 0),
             )
         return result

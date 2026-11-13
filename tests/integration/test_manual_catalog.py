@@ -189,6 +189,10 @@ async def test_platform_cards_keep_platform_fields(stack: Stack) -> None:
     assert (
         await c.patch(f"/api/v1/catalog/drivers/{w.driver.id}", json={"snils": SNILS}, headers=h)
     ).json()["snils"] == SNILS
+    gender = await c.patch(
+        f"/api/v1/catalog/drivers/{w.driver.id}", json={"gender": "M"}, headers=h
+    )
+    assert gender.status_code == 200 and gender.json()["gender"] == "M"
     assert (
         await c.patch(
             f"/api/v1/catalog/vehicles/{w.vehicle.id}", json={"plate": "А000АА77"}, headers=h

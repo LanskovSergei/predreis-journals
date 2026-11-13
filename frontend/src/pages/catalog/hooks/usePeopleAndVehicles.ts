@@ -11,7 +11,7 @@ export function usePeopleAndVehicles(kind: 'drivers' | 'vehicles') {
   const [page, setPage] = useState(1)
   const [data, setData] = useState<Page<DriverFull | VehicleFull> | null>(null)
   const [loading, setLoading] = useState(false)
-  const [adding, setAdding] = useState(false)
+  const [editing, setEditing] = useState<DriverFull | 'new' | null>(null)
   const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
@@ -22,9 +22,11 @@ export function usePeopleAndVehicles(kind: 'drivers' | 'vehicles') {
     setLoading(true)
     try {
       const params = { organization_id: orgId, q: q || undefined, page, page_size: 10 }
-      setData(kind === 'drivers' 
-        ? await JournalsService.getDriversPage(params) 
-        : await JournalsService.getVehiclesPage(params))
+      setData(
+        kind === 'drivers'
+          ? await JournalsService.getDriversPage(params)
+          : await JournalsService.getVehiclesPage(params),
+      )
     } catch (err) {
       message.error(ApiErrorUtils.getMessage(err, 'Не удалось загрузить список'))
     } finally {
@@ -36,20 +38,35 @@ export function usePeopleAndVehicles(kind: 'drivers' | 'vehicles') {
     void load()
   }, [load])
 
-  const save = async (values: any) => {
+  const save = async (values: Record<string, unknown>) => {
     setSaving(true)
     try {
       if (kind === 'drivers') {
-        await JournalsService.createDriver({ 
-          ...values, 
-          organization_id: orgId, 
-          birth_date: values.birth_date ? values.birth_date.format('YYYY-MM-DD') : null 
-        })
+        const birth =
+          values.birth_date && typeof values.birth_date === 'object' && 'format' in values.birth_date
+            ? (values.birth_date as { format: (f: string) => string }).format('YYYY-MM-DD')
+            : (values.birth_date as string | null | undefined) ?? null
+        const body: Record<string, unknown> = { ...values, organization_id: orgId, birth_date: birth }
+        if (editing && editing !== 'new') {
+          await JournalsService.updateDriver(editing.id, {
+            gender: body.gender ?? null,
+            snils: body.snils ?? null,
+            ...(editing.origin === 'manual' ? { full_name: body.full_name, birth_date: body.birth_date } : {}),
+          })
+        } else {
+          await JournalsService.createDriver(body)
+        }
       } else {
         await JournalsService.createVehicle({ ...values, organization_id: orgId })
       }
-      message.success(kind === 'drivers' ? 'Водитель добавлен' : 'ТС добавлено')
-      setAdding(false)
+      message.success(
+        editing && editing !== 'new'
+          ? 'Изменения сохранены'
+          : kind === 'drivers'
+            ? 'Водитель добавлен'
+            : 'ТС добавлено',
+      )
+      setEditing(null)
       await load()
     } catch (err) {
       message.error(ApiErrorUtils.getMessage(err, 'Не удалось сохранить'))
@@ -63,7 +80,7 @@ export function usePeopleAndVehicles(kind: 'drivers' | 'vehicles') {
     q, setQ,
     page, setPage,
     data, loading,
-    adding, setAdding,
-    saving, save
+    editing, setEditing,
+    saving, save,
   }
 }

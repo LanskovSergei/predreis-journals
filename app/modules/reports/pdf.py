@@ -50,6 +50,7 @@ class HeaderCell:
     row: int
     colspan: int = 1
     rowspan: int = 1
+    rotate: bool = False
 
 
 @dataclass(slots=True)
@@ -138,7 +139,10 @@ def _layout(spec: RegistrySpec) -> _Layout:
     spanned: list[tuple[HeaderCell, float]] = []
     for cell in spec.header:
         width = sum(widths[cell.col : cell.col + cell.colspan]) - 2 * PAD
-        need = _lines_height(len(_wrap(cell.text, FONT_BOLD, HEAD_PT, width)), HEAD_PT) + 2 * PAD
+        if cell.rotate:
+            need = stringWidth(cell.text, FONT_BOLD, HEAD_PT) + 4 * PAD
+        else:
+            need = _lines_height(len(_wrap(cell.text, FONT_BOLD, HEAD_PT, width)), HEAD_PT) + 2 * PAD
         if cell.rowspan == 1:
             head[cell.row] = max(head[cell.row], need)
         else:
@@ -243,12 +247,19 @@ def _draw_header(c: Canvas, spec: RegistrySpec, lay: _Layout, y: float) -> float
         c.rect(x0, bottom, x1 - x0, top - bottom, stroke=1, fill=1)
         c.setFillColor(colors.black)
         c.setFont(FONT_BOLD, HEAD_PT)
-        lines = _wrap(cell.text, FONT_BOLD, HEAD_PT, x1 - x0 - 2 * PAD)
-        block = _lines_height(len(lines), HEAD_PT)
-        baseline = (top + bottom) / 2 + block / 2 - HEAD_PT
-        for line in lines:
-            c.drawCentredString((x0 + x1) / 2, baseline, line)
-            baseline -= _lines_height(1, HEAD_PT)
+        if cell.rotate:
+            c.saveState()
+            c.translate((x0 + x1) / 2, (top + bottom) / 2)
+            c.rotate(90)
+            c.drawCentredString(0, -HEAD_PT * 0.35, cell.text)
+            c.restoreState()
+        else:
+            lines = _wrap(cell.text, FONT_BOLD, HEAD_PT, x1 - x0 - 2 * PAD)
+            block = _lines_height(len(lines), HEAD_PT)
+            baseline = (top + bottom) / 2 + block / 2 - HEAD_PT
+            for line in lines:
+                c.drawCentredString((x0 + x1) / 2, baseline, line)
+                baseline -= _lines_height(1, HEAD_PT)
     return tops[-1]
 
 

@@ -10,7 +10,7 @@ export function NoAccessPage({ reason }: { reason: string }) {
       subTitle={reason}
       extra={
         <Button type="primary" onClick={() => TokenService.redirectToPlatform()}>
-          Вернуться в Предрейс
+          Вернуться на платформу
         </Button>
       }
     />
@@ -25,7 +25,7 @@ export function ComingSoonPage() {
       subTitle="Раздел готовится к запуску. Как только он откроется, он появится в меню ПРЕДРЕЙС."
       extra={
         <Button type="primary" onClick={() => TokenService.redirectToPlatform()}>
-          Вернуться в Предрейс
+          Вернуться на платформу
         </Button>
       }
     />

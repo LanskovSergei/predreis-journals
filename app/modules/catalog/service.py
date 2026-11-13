@@ -387,7 +387,8 @@ PLATFORM_ORG_FIELDS = {
     "is_active",
     "contract_until",  # срок договора ведёт Предрейс
 }
-PLATFORM_DRIVER_FIELDS = {"full_name", "gender", "birth_date", "license_number", "is_active"}
+# Пол можно дополнить в журналах: у части водителей с платформы поле раньше не приходило.
+PLATFORM_DRIVER_FIELDS = {"full_name", "birth_date", "license_number", "is_active"}
 PLATFORM_VEHICLE_FIELDS = {"brand", "model", "vehicle_type", "plate", "is_active"}
 
 

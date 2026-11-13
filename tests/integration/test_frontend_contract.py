@@ -338,7 +338,7 @@ async def test_stats_shape_by_role(stack: Stack) -> None:
     )
     manager = (await c.get("/api/v1/stats/overview", headers=stack.auth("manager"))).json()
     assert (
-        set(manager["organizations"]) == {"active", "total"}
+        set(manager["organizations"]) == {"active", "total", "paper", "epl"}
         and manager["organizations"]["total"] >= 1
     )
     assert set(manager["drivers"]) == {"active", "total"}

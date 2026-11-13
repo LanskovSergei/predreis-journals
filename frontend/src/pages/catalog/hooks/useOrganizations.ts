@@ -6,6 +6,7 @@ import type { OrganizationFull, Page } from '../../../shared/types/api.types'
 
 export function useOrganizations() {
   const { message } = App.useApp()
+  const [qInput, setQInput] = useState('')
   const [q, setQ] = useState('')
   const [origin, setOrigin] = useState<string | undefined>()
   const [page, setPage] = useState(1)
@@ -24,6 +25,14 @@ export function useOrganizations() {
       setLoading(false)
     }
   }, [q, origin, page, message])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setQ(qInput)
+      setPage(1)
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [qInput])
 
   useEffect(() => {
     void load()
@@ -55,7 +64,7 @@ export function useOrganizations() {
   }
 
   return {
-    q, setQ,
+    qInput, setQInput,
     origin, setOrigin,
     page, setPage,
     data, loading,
