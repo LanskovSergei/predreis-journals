@@ -134,7 +134,7 @@ export class JournalsService {
   }
 
   static async createDriver(body: Record<string, unknown>): Promise<any> {
-    const { data } = await httpClient.post(`${BASE_PATH}/catalog/drivers`, body)
+    const { data } = await httpClient.post(`${BASE_PATH}/catalog/drivers`, { drivers: [body] })
     return data
   }
 
@@ -144,7 +144,7 @@ export class JournalsService {
   }
 
   static async createVehicle(body: Record<string, unknown>): Promise<any> {
-    const { data } = await httpClient.post(`${BASE_PATH}/catalog/vehicles`, body)
+    const { data } = await httpClient.post(`${BASE_PATH}/catalog/vehicles`, { vehicles: [body] })
     return data
   }
 
@@ -186,7 +186,7 @@ export class JournalsService {
 
   // --- Deletion Requests ---
   static async getDeletionRequests(status: string): Promise<any[]> {
-    const { data } = await httpClient.get(`${BASE_PATH}/deletion-requests`, { params: { status } })
+    const { data } = await httpClient.get(`${BASE_PATH}/deletion-requests`, { params: { status_filter: status } })
     return data
   }
 
