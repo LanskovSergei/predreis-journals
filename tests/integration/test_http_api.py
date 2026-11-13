@@ -199,7 +199,7 @@ async def test_pagination_filters_and_ordering(stack: Stack) -> None:
         ("client", "GET", "/api/v1/medical/records", 200),
         ("client", "GET", "/api/v1/catalog/organizations", 403),
         ("manager", "GET", "/api/v1/catalog/organizations", 200),
-        ("medic", "GET", "/api/v1/catalog/drivers", 403),
+        ("medic", "GET", "/api/v1/catalog/drivers", 200),  # выбор водителя в форме записи
         ("medic", "GET", "/api/v1/deletion-requests", 403),
         ("sa", "GET", "/api/v1/deletion-requests", 200),
         ("medic", "GET", "/api/v1/ejournals", 403),

@@ -7,14 +7,15 @@ from collections.abc import Sequence
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import ColumnElement, Select, func, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationFailedError
 from app.core.security import Principal
 from app.core.sqlutil import contains_pattern
-from app.domain.enums import CatalogOrigin, Role, WorkFormat
+from app.domain.contracts import journals_for
+from app.domain.enums import CatalogOrigin, ContractType, JournalKind, Role, WorkFormat
 from app.domain.permissions import Permission, has_permission
 from app.domain.validators import normalize_plate
 from app.integrations.predreis.schemas import (
@@ -255,6 +256,36 @@ class CatalogService:
         if not has_permission(principal.role, permission):
             raise ForbiddenError("Недостаточно прав", code="permission_denied")
 
+    @staticmethod
+    def _picker_kinds(principal: Principal) -> frozenset[JournalKind] | None:
+        """Доступ к каталогу: None — полный (менеджеры), иначе — «для выбора в форме записи».
+
+        Медик и механик раздела «Каталог» не видят, но выбирают в форме организацию, водителя и ТС:
+        только активные организации, по договору которых ведётся их журнал.
+        """
+        if has_permission(principal.role, Permission.CATALOG_VIEW):
+            return None
+        kinds = frozenset(
+            kind
+            for kind, permission in (
+                (JournalKind.MEDICAL, Permission.MEDICAL_CREATE),
+                (JournalKind.TECHNICAL, Permission.TECHNICAL_CREATE),
+            )
+            if has_permission(principal.role, permission)
+        )
+        if not kinds:
+            raise ForbiddenError("Недостаточно прав", code="permission_denied")
+        return kinds
+
+    @staticmethod
+    def _orgs_for_picker(kinds: frozenset[JournalKind]) -> Any:
+        """Условие: организация активна и по её договору ведётся хотя бы один из журналов kinds."""
+        contracts = [ct for ct in ContractType if journals_for(ct) & kinds]
+        condition: ColumnElement[bool] = Organization.contract_type.in_(contracts)
+        if journals_for(None) & kinds:  # вид договора не указан — ведутся оба журнала
+            condition = or_(condition, Organization.contract_type.is_(None))
+        return Organization.is_active.is_(True) & condition
+
     async def _page(
         self, stmt: Select[Any], params: PageParams, order: Any
     ) -> tuple[list[Any], int]:
@@ -282,8 +313,10 @@ class CatalogService:
         origin: CatalogOrigin | None = None,
     ) -> Page[Organization]:
         """Каталог организаций: сортировка по наименованию, поиск по названию/ИНН."""
-        self._require(principal, Permission.CATALOG_VIEW)
+        kinds = self._picker_kinds(principal)
         stmt = select(Organization)
+        if kinds is not None:
+            stmt = stmt.where(self._orgs_for_picker(kinds))
         if q:
             pattern = contains_pattern(q)
             stmt = stmt.where(
@@ -307,8 +340,12 @@ class CatalogService:
         q: str | None,
     ) -> Page[Driver]:
         """Водители: фильтр по организации и поиск по ФИО."""
-        self._require(principal, Permission.CATALOG_VIEW)
+        kinds = self._picker_kinds(principal)
         stmt = select(Driver)
+        if kinds is not None:
+            stmt = stmt.join(Organization, Organization.id == Driver.organization_id).where(
+                self._orgs_for_picker(kinds), Driver.is_active.is_(True)
+            )
         if organization_id:
             stmt = stmt.where(Driver.organization_id == organization_id)
         if q:
@@ -324,8 +361,12 @@ class CatalogService:
         q: str | None,
     ) -> Page[Vehicle]:
         """ТС: фильтр по организации и поиск по госномеру."""
-        self._require(principal, Permission.CATALOG_VIEW)
+        kinds = self._picker_kinds(principal)
         stmt = select(Vehicle)
+        if kinds is not None:
+            stmt = stmt.join(Organization, Organization.id == Vehicle.organization_id).where(
+                self._orgs_for_picker(kinds), Vehicle.is_active.is_(True)
+            )
         if organization_id:
             stmt = stmt.where(Vehicle.organization_id == organization_id)
         if q:

@@ -202,9 +202,10 @@ async def test_catalog_search_and_filters(stack: Stack) -> None:
     assert (
         await c.get("/api/v1/catalog/vehicles", headers=stack.auth("client"))
     ).status_code == 403
+    # механик выбирает ТС в форме записи — список ему доступен (раздела «Каталог» у него нет)
     assert (
         await c.get("/api/v1/catalog/vehicles", headers=stack.auth("mechanic"))
-    ).status_code == 403
+    ).status_code == 200
 
 
 async def test_technical_flow_over_http(stack: Stack) -> None:
