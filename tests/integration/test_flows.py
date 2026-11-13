@@ -48,7 +48,7 @@ from app.modules.medical.service import MedicalService
 from app.modules.records.schemas import MedicalFilters, PageParams, TechnicalFilters
 from app.modules.reports.service import ExportRequest, ReportService
 from app.modules.signing.service import SigningService
-from app.modules.technical.schemas import TechnicalRecordCreate
+from app.modules.technical.schemas import TechnicalRecordCreate, TechnicalRecordUpdate
 from app.modules.technical.service import TechnicalService
 from tests.factories import (
     FakeSigner,
@@ -280,6 +280,51 @@ async def test_client_of_organization_not_on_platform_has_no_access(session: Asy
             principal(Role.CLIENT, org_id=org.id), MedicalFilters(), PAGE
         )
     assert exc.value.code == "not_platform_org"
+
+
+async def test_odometer_marks_follow_moved_and_deleted_neighbours(session: AsyncSession) -> None:
+    """Сценарий тестировщика: дату выезда с 400 км перенесли на месяц назад — метки соседей пересчитаны.
+
+    Раньше у записи от 02.11 оставалось «Одометр больше следующего выезда (400)», хотя 400 км
+    стал предыдущим выездом; устаревшие метки не снимались и мешали подписи.
+    """
+    w = await seed(session)
+    mech = principal(Role.MECHANIC, w.mechanic.id)
+    svc = TechnicalService(session)
+    base = {
+        "organization_id": w.org.id,
+        "vehicle_id": w.vehicle.id,
+        "result": InspectionResult.ADMITTED,
+    }
+    nov2 = await svc.create(
+        mech, TechnicalRecordCreate(**base, performed_at=PERFORMED, odometer=480)
+    )
+    nov3 = await svc.create(
+        mech,
+        TechnicalRecordCreate(**base, performed_at=PERFORMED + timedelta(days=1), odometer=400),
+    )
+    nov4 = await svc.create(
+        mech,
+        TechnicalRecordCreate(**base, performed_at=PERFORMED + timedelta(days=2), odometer=550),
+    )
+    assert "больше следующего выезда (400)" in ((await svc.get_out(mech, nov2.id)).note or "")
+    assert "меньше предыдущего выезда (480)" in (nov3.note or "")
+
+    moved = await svc.update(
+        mech, nov3.id, TechnicalRecordUpdate(performed_at=PERFORMED - timedelta(days=32))
+    )
+    assert moved.note is None  # 400 теперь самый ранний выезд — претензий нет
+    assert (await svc.get_out(mech, nov2.id)).note is None  # метка соседа снята
+    assert (await svc.get_out(mech, nov4.id)).note is None
+
+    # удаление: выезд, из-за которого стояла метка, удалён — метка снимается
+    low = await svc.create(
+        mech,
+        TechnicalRecordCreate(**base, performed_at=PERFORMED + timedelta(days=3), odometer=100),
+    )
+    assert "больше следующего выезда (100)" in ((await svc.get_out(mech, nov4.id)).note or "")
+    await svc.delete_unsigned(mech, low.id)
+    assert (await svc.get_out(mech, nov4.id)).note is None
 
 
 async def test_odometer_issue_adds_note(session: AsyncSession) -> None:

@@ -7,11 +7,12 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import Principal
 from app.domain import fsm
 from app.domain.enums import JournalKind, RecordSource, RecordStatus, Role
-from app.domain.validators import merge_auto_note, odometer_issues
+from app.domain.validators import merge_auto_note, odometer_issues, refresh_odometer_note
 from app.models.catalog import Driver, User, Vehicle
 from app.models.documents import RecordDocument, SignJob
 from app.models.records import TECHNICAL_PLATE, TechnicalRecord
@@ -24,6 +25,66 @@ from app.modules.technical.schemas import (
     TechnicalRecordOut,
     TechnicalRecordUpdate,
 )
+
+
+async def odometer_issues_for(
+    session: AsyncSession,
+    vehicle_id: uuid.UUID,
+    performed_at: datetime,
+    odometer: int,
+    exclude_id: uuid.UUID | None = None,
+) -> list[str]:
+    """Сверяет одометр с предыдущим и следующим выездом того же ТС (по дате осмотра)."""
+    base = select(TechnicalRecord.odometer).where(TechnicalRecord.vehicle_id == vehicle_id)
+    if exclude_id:
+        base = base.where(TechnicalRecord.id != exclude_id)
+    previous = (
+        await session.execute(
+            base.where(TechnicalRecord.performed_at < performed_at)
+            .order_by(TechnicalRecord.performed_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    following = (
+        await session.execute(
+            base.where(TechnicalRecord.performed_at > performed_at)
+            .order_by(TechnicalRecord.performed_at.asc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    return odometer_issues(previous, odometer, following)
+
+
+async def refresh_odometer_neighbours(
+    session: AsyncSession,
+    vehicle_id: uuid.UUID,
+    moments: list[datetime],
+    skip_id: uuid.UUID | None = None,
+) -> None:
+    """Пересчитывает метки одометра у соседних выездов ТС вокруг указанных моментов.
+
+    Нужен после создания, правки (дата, одометр, ТС) и удаления записи: у соседей меняется
+    «предыдущий» или «следующий» выезд. Подписанные записи не меняются никогда.
+    """
+    targets: dict[uuid.UUID, TechnicalRecord] = {}
+    for moment in moments:
+        for condition, order in (
+            (TechnicalRecord.performed_at < moment, TechnicalRecord.performed_at.desc()),
+            (TechnicalRecord.performed_at > moment, TechnicalRecord.performed_at.asc()),
+        ):
+            stmt = select(TechnicalRecord).where(
+                TechnicalRecord.vehicle_id == vehicle_id, condition
+            )
+            if skip_id:
+                stmt = stmt.where(TechnicalRecord.id != skip_id)
+            neighbour = (await session.execute(stmt.order_by(order).limit(1))).scalar_one_or_none()
+            if neighbour is not None and neighbour.status is RecordStatus.UNSIGNED:
+                targets[neighbour.id] = neighbour
+    for record in targets.values():
+        issues = await odometer_issues_for(
+            session, vehicle_id, record.performed_at, record.odometer, exclude_id=record.id
+        )
+        record.note = refresh_odometer_note(record.note, issues)
 
 
 class TechnicalService(BaseRecordService):
@@ -125,6 +186,10 @@ class TechnicalService(BaseRecordService):
             items=items, total=total, page=params.page, page_size=params.page_size
         )
 
+    async def _after_removed(self, record: Any) -> None:
+        """После удаления записи соседние выезды ТС получают актуальные метки одометра."""
+        await refresh_odometer_neighbours(self.session, record.vehicle_id, [record.performed_at])
+
     async def _odometer_issues(
         self,
         vehicle_id: uuid.UUID,
@@ -133,24 +198,9 @@ class TechnicalService(BaseRecordService):
         exclude_id: uuid.UUID | None = None,
     ) -> list[str]:
         """Проверяет нарастающую последовательность показаний одометра по ТС."""
-        base = select(TechnicalRecord.odometer).where(TechnicalRecord.vehicle_id == vehicle_id)
-        if exclude_id:
-            base = base.where(TechnicalRecord.id != exclude_id)
-        previous = (
-            await self.session.execute(
-                base.where(TechnicalRecord.performed_at < performed_at)
-                .order_by(TechnicalRecord.performed_at.desc())
-                .limit(1)
-            )
-        ).scalar_one_or_none()
-        following = (
-            await self.session.execute(
-                base.where(TechnicalRecord.performed_at > performed_at)
-                .order_by(TechnicalRecord.performed_at.asc())
-                .limit(1)
-            )
-        ).scalar_one_or_none()
-        return odometer_issues(previous, odometer, following)
+        return await odometer_issues_for(
+            self.session, vehicle_id, performed_at, odometer, exclude_id=exclude_id
+        )
 
     async def _optional_driver(
         self, driver_id: uuid.UUID | None, organization_id: uuid.UUID
@@ -190,6 +240,9 @@ class TechnicalService(BaseRecordService):
         )
         self.session.add(record)
         await self.session.flush()
+        await refresh_odometer_neighbours(
+            self.session, vehicle.id, [data.performed_at], skip_id=record.id
+        )
         await append_audit(
             self.session,
             principal,
@@ -215,6 +268,7 @@ class TechnicalService(BaseRecordService):
         fsm.ensure_editable(record.status, record.source)
         await self._ensure_idle(record.id)
         changes = data.model_dump(exclude_unset=True)
+        old_vehicle_id, old_performed_at = record.vehicle_id, record.performed_at
         specialist_requested = "specialist_user_id" in changes
         requested_specialist = changes.pop("specialist_user_id", None)
         nullable = {"note", "driver_id"}
@@ -242,7 +296,14 @@ class TechnicalService(BaseRecordService):
             issues = await self._odometer_issues(
                 vehicle.id, record.performed_at, record.odometer, exclude_id=record.id
             )
-            record.note = merge_auto_note(record.note, issues)
+            record.note = refresh_odometer_note(record.note, issues)
+            # порядок выездов мог измениться — у соседей старого и нового места свои метки
+            await refresh_odometer_neighbours(
+                self.session, old_vehicle_id, [old_performed_at], skip_id=record.id
+            )
+            await refresh_odometer_neighbours(
+                self.session, record.vehicle_id, [record.performed_at], skip_id=record.id
+            )
         await append_audit(
             self.session,
             principal,

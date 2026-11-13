@@ -343,6 +343,8 @@ class BaseRecordService:
         fsm.ensure_deletable_unsigned(record.status, record.source)
         await self._ensure_idle(record.id)
         await self.session.delete(record)
+        await self.session.flush()
+        await self._after_removed(record)
         await append_audit(
             self.session,
             principal,
@@ -373,6 +375,9 @@ class BaseRecordService:
         return StandardTimeOut(
             time=local.strftime("%H:%M"), performed_at=record.performed_at, record_id=record.id
         )
+
+    async def _after_removed(self, record: Any) -> None:
+        """Действия после удаления записи (у техконтроля — пересчёт меток одометра соседей)."""
 
     async def delete_unsigned_many(
         self, principal: Principal, record_ids: list[uuid.UUID]

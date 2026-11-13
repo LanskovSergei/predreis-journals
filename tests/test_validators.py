@@ -73,3 +73,17 @@ def test_plate_normalization_handles_layout_and_spaces() -> None:
     assert normalize_plate(" о 224 ек 790 ") == "О224ЕК790"
     assert normalize_plate("O224EK790") == "О224ЕК790"  # латиница
     assert normalize_plate("а123-вс77") == "А123ВС77"
+
+
+def test_odometer_marks_are_recalculated_not_accumulated() -> None:
+    """Метки одометра пересчитываются: устаревшие убираются, текст человека остаётся."""
+    from app.domain.validators import refresh_odometer_note
+
+    stale = "Проверить по путевому; Одометр больше следующего выезда (400)"
+    assert refresh_odometer_note(stale, []) == "Проверить по путевому"
+    assert refresh_odometer_note("Одометр больше следующего выезда (400)", []) is None
+    assert (
+        refresh_odometer_note(stale, ["Одометр меньше предыдущего выезда (500)"])
+        == "Проверить по путевому; Одометр меньше предыдущего выезда (500)"
+    )
+    assert refresh_odometer_note(None, []) is None

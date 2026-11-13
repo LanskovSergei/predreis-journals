@@ -36,6 +36,20 @@ def odometer_issues(previous: int | None, current: int, following: int | None) -
     return issues
 
 
+_ODOMETER_MARKS = ("Одометр меньше предыдущего выезда (", "Одометр больше следующего выезда (")
+
+
+def refresh_odometer_note(note: str | None, issues: list[str]) -> str | None:
+    """Пересчитывает метки одометра в «Примечании»: устаревшие убираются, актуальные добавляются.
+
+    Порядок выездов меняется при правке даты, одометра или удалении соседней записи — метка,
+    поставленная раньше, может стать неверной. Текст, написанный человеком, сохраняется.
+    """
+    parts = [p.strip() for p in (note or "").split(";")]
+    kept = [p for p in parts if p and not p.startswith(_ODOMETER_MARKS)]
+    return "; ".join([*kept, *issues]) or None
+
+
 def birth_date_issue(birth_date: date, on_date: date) -> str | None:
     """Возвращает описание проблемы с датой рождения водителя или None."""
     if birth_date >= on_date:

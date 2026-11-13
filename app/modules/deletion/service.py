@@ -16,7 +16,7 @@ from app.domain import fsm
 from app.domain.enums import DeletionStatus, JournalKind
 from app.domain.permissions import RECORD_PERMS, has_permission
 from app.models.documents import DeletionRequest, RecordDocument
-from app.models.records import AnyRecord
+from app.models.records import AnyRecord, TechnicalRecord
 from app.modules.audit.service import append_audit
 from app.modules.integration import outbox
 from app.modules.records.queries import load_record
@@ -71,6 +71,12 @@ class DeletionService:
         )
         await self.session.delete(record)
         await self.session.flush()
+        if isinstance(record, TechnicalRecord):
+            from app.modules.technical.service import refresh_odometer_neighbours
+
+            await refresh_odometer_neighbours(
+                self.session, record.vehicle_id, [record.performed_at]
+            )
         return keys
 
     async def _delete_files(self, keys: list[str]) -> None:
