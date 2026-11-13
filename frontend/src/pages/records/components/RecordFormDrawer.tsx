@@ -26,7 +26,7 @@ export function RecordFormDrawer({ kind, open, record, onClose, onSaved }: Props
   const [timeHint, setTimeHint] = useState<string | null>(null)
   const [timeTouched, setTimeTouched] = useState(false)
   // ТЗ: дата осмотра — один день или период (по записи на каждый день)
-  const [mode, setMode] = useState<'day' | 'period'>('day')
+  const [mode, setMode] = useState<'day' | 'period' | 'days'>('day')
   const isEdit = Boolean(record)
   const isSpecialist = user?.role === 'medic' || user?.role === 'mechanic'
   const organizationId = Form.useWatch('organization_id', form) as string | undefined
@@ -82,23 +82,32 @@ export function RecordFormDrawer({ kind, open, record, onClose, onSaved }: Props
 
   /** Период: по записи на каждый день с одним временем; показатели — свои у каждой, если их не правили. */
   const submitPeriod = async (values: Record<string, unknown>) => {
-    const [from, to] = values.period as [Dayjs, Dayjs]
-    const days = to.startOf('day').diff(from.startOf('day'), 'day') + 1
-    if (days > MAX_PERIOD_DAYS) {
-      message.error(`Период — не больше ${MAX_PERIOD_DAYS} дней`)
+    let dates: Dayjs[]
+    if (mode === 'days') {
+      // отдельные дни: без повторов, по порядку
+      const picked = [...((values.days as Dayjs[] | undefined) ?? [])].sort((a, b) => a.valueOf() - b.valueOf())
+      dates = picked.filter((d, i) => i === 0 || !d.isSame(picked[i - 1], 'day'))
+    } else {
+      const [from, to] = values.period as [Dayjs, Dayjs]
+      const count = to.startOf('day').diff(from.startOf('day'), 'day') + 1
+      dates = Array.from({ length: count }, (_, i) => from.add(i, 'day'))
+    }
+    if (dates.length > MAX_PERIOD_DAYS) {
+      message.error(`За раз — не больше ${MAX_PERIOD_DAYS} дней`)
       return
     }
     const time = values.period_time as Dayjs
     const vitalsEdited = kind === 'medical' && form.isFieldsTouched(VITAL_FIELDS)
-    const { period: _period, period_time: _time, ...base } = values
+    const { period: _period, period_time: _time, days: _days, ...base } = values
     void _period
     void _time
+    void _days
     setSaving(true)
     let created = 0
     const failed: string[] = []
     try {
-      for (let i = 0; i < days; i += 1) {
-        const day = from.add(i, 'day').hour(time.hour()).minute(time.minute()).second(0)
+      for (const date of dates) {
+        const day = date.hour(time.hour()).minute(time.minute()).second(0)
         const body: Record<string, unknown> = {
           ...base,
           ...(kind === 'medical' && !vitalsEdited ? randomVitals() : {}),
@@ -134,13 +143,14 @@ export function RecordFormDrawer({ kind, open, record, onClose, onSaved }: Props
 
   const submit = async () => {
     const values = await form.validateFields()
-    if (!record && mode === 'period') {
+    if (!record && mode !== 'day') {
       await submitPeriod(values)
       return
     }
-    const { period: _p, period_time: _t, ...single } = values
+    const { period: _p, period_time: _t, days: _d, ...single } = values
     void _p
     void _t
+    void _d
     const body: Record<string, unknown> = {
       ...single,
       performed_at: fromPickerValue(values.performed_at as Dayjs),
@@ -218,13 +228,14 @@ export function RecordFormDrawer({ kind, open, record, onClose, onSaved }: Props
         ) : null}
 
         {!isEdit ? (
-          <Form.Item label="Дата осмотра">
+          <Form.Item label="Дата осмотра" required>
             <Segmented
               value={mode}
-              onChange={(v) => setMode(v as 'day' | 'period')}
+              onChange={(v) => setMode(v as 'day' | 'period' | 'days')}
               options={[
                 { value: 'day', label: 'Один день' },
                 { value: 'period', label: 'Период' },
+                { value: 'days', label: 'Отдельные дни' },
               ]}
             />
           </Form.Item>
@@ -249,15 +260,27 @@ export function RecordFormDrawer({ kind, open, record, onClose, onSaved }: Props
           </Form.Item>
         ) : (
           <Space.Compact block style={{ gap: 12 }}>
-            <Form.Item
-              name="period"
-              label="Период"
-              rules={[{ required: true, message: 'Выберите период' }]}
-              extra={`По записи на каждый день, не больше ${MAX_PERIOD_DAYS}`}
-              style={{ flex: 2 }}
-            >
-              <DatePicker.RangePicker format="DD.MM.YYYY" style={{ width: '100%' }} placeholder={['С даты', 'По дату']} />
-            </Form.Item>
+            {mode === 'period' ? (
+              <Form.Item
+                name="period"
+                label="Период"
+                rules={[{ required: true, message: 'Выберите период' }]}
+                extra={`По записи на каждый день, не больше ${MAX_PERIOD_DAYS}`}
+                style={{ flex: 2 }}
+              >
+                <DatePicker.RangePicker format="DD.MM.YYYY" style={{ width: '100%' }} placeholder={['С даты', 'По дату']} />
+              </Form.Item>
+            ) : (
+              <Form.Item
+                name="days"
+                label="Дни"
+                rules={[{ required: true, message: 'Отметьте дни в календаре' }]}
+                extra={`Отметьте нужные дни; повторный щелчок снимает отметку. Не больше ${MAX_PERIOD_DAYS}`}
+                style={{ flex: 2 }}
+              >
+                <DatePicker multiple format="DD.MM.YYYY" maxTagCount="responsive" style={{ width: '100%' }} placeholder="Выберите дни" />
+              </Form.Item>
+            )}
             <Form.Item
               name="period_time"
               label="Время (по Москве)"
