@@ -90,15 +90,29 @@ async def sync_entity(
                     await upsert(session, payload)
             except (ValidationError, IntegrityError, MissingReferenceError) as exc:
                 reason = "catalog_invalid" if isinstance(exc, ValidationError) else "catalog_fk"
-                session.add(
-                    InboxFailure(
-                        message_id=str(item.get("id", "?")),
-                        event_type=f"catalog.{entity}",
-                        reason=reason,
-                        detail=str(exc)[:500],
-                        payload=item,
+                message_id = str(item.get("id", "?"))[:128]
+                # Плохая строка запрашивается заново при каждом проходе (отметку она не двигает):
+                # тот же сбой по той же карточке записываем один раз, иначе журнал сбоев растёт
+                # на сотни строк в сутки и прячет настоящие сбои.
+                already = await session.scalar(
+                    select(InboxFailure.id)
+                    .where(
+                        InboxFailure.message_id == message_id,
+                        InboxFailure.event_type == f"catalog.{entity}",
+                        InboxFailure.reason == reason,
                     )
+                    .limit(1)
                 )
+                if already is None:
+                    session.add(
+                        InboxFailure(
+                            message_id=message_id,
+                            event_type=f"catalog.{entity}",
+                            reason=reason,
+                            detail=str(exc)[:500],
+                            payload=item,
+                        )
+                    )
                 logger.warning("Справочник %s: строка пропущена (%s)", entity, reason)
                 continue
             applied += 1

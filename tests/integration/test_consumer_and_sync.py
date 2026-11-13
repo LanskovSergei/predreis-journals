@@ -375,6 +375,9 @@ async def test_catalog_sync_is_incremental_and_tolerant(session: AsyncSession) -
     await run_sync(session, source, settings)
     since = next(c[1] for c in source.calls if c[0] == "organizations")
     assert since is not None and since.date() == date(2026, 10, 2)
+    # Плохие строки пришли снова (они свежее отметки), но сбой по каждой записан один раз.
+    again = sorted(f.reason for f in (await session.execute(select(InboxFailure))).scalars())
+    assert again == ["catalog_fk", "catalog_invalid"]
 
 
 async def test_sync_does_not_overwrite_local_fields(session: AsyncSession) -> None:
