@@ -5273,6 +5273,35 @@
         "title": "OrganizationOut",
         "description": "Организация в каталоге."
       },
+      "OrganizationStats": {
+        "properties": {
+          "active": {
+            "type": "integer",
+            "title": "Active"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "paper": {
+            "type": "integer",
+            "title": "Paper"
+          },
+          "epl": {
+            "type": "integer",
+            "title": "Epl"
+          }
+        },
+        "type": "object",
+        "required": [
+          "active",
+          "total",
+          "paper",
+          "epl"
+        ],
+        "title": "OrganizationStats",
+        "description": "Организации на сводке: активные, всего, на бумаге и на ЭПЛ."
+      },
       "OrganizationUpdate": {
         "properties": {
           "legal_form": {
@@ -6036,7 +6065,7 @@
           "organizations": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/CountPair"
+                "$ref": "#/components/schemas/OrganizationStats"
               },
               {
                 "type": "null"
@@ -6774,6 +6803,11 @@
           "total": {
             "type": "integer",
             "title": "Total"
+          },
+          "epl": {
+            "type": "integer",
+            "title": "Epl",
+            "default": 0
           }
         },
         "type": "object",
@@ -6783,7 +6817,7 @@
           "total"
         ],
         "title": "RecordCounters",
-        "description": "Счётчики записей специалиста: «на подпись / подписанных / всего»."
+        "description": "Счётчики записей специалиста: «на подпись / подписанных / всего», включая ЭПЛ."
       },
       "app__modules__stats__service__RecordCounters": {
         "properties": {

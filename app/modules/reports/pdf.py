@@ -142,7 +142,9 @@ def _layout(spec: RegistrySpec) -> _Layout:
         if cell.rotate:
             need = stringWidth(cell.text, FONT_BOLD, HEAD_PT) + 4 * PAD
         else:
-            need = _lines_height(len(_wrap(cell.text, FONT_BOLD, HEAD_PT, width)), HEAD_PT) + 2 * PAD
+            need = (
+                _lines_height(len(_wrap(cell.text, FONT_BOLD, HEAD_PT, width)), HEAD_PT) + 2 * PAD
+            )
         if cell.rowspan == 1:
             head[cell.row] = max(head[cell.row], need)
         else:

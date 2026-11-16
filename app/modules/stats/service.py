@@ -86,7 +86,9 @@ class StatsService:
         ).scalar_one()
         paper = (
             await self.session.execute(
-                select(func.count(Organization.id)).where(Organization.work_format == WorkFormat.PAPER)
+                select(func.count(Organization.id)).where(
+                    Organization.work_format == WorkFormat.PAPER
+                )
             )
         ).scalar_one()
         epl = (
