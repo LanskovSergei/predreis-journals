@@ -19,7 +19,8 @@ export function DashboardPage() {
   const kinds = (['medical', 'technical'] as Kind[]).filter(hasJournalAccess)
   const canCreate = (k: Kind) => hasPermission(`${k}:create`)
 
-  const { stats, cert, loading } = useDashboardData(isSpecialist)
+  const canViewStats = hasPermission('stats:view')
+  const { stats, cert, loading } = useDashboardData(isSpecialist, canViewStats)
 
   return (
     <Space orientation="vertical" size="large" style={{ width: '100%' }}>
@@ -38,7 +39,13 @@ export function DashboardPage() {
         />
       )}
 
-      <DashboardJournalsStats kinds={kinds} stats={stats} loading={loading} canCreate={canCreate} />
+      <DashboardJournalsStats
+        kinds={kinds}
+        stats={stats}
+        loading={loading}
+        canCreate={canCreate}
+        showCounters={canViewStats}
+      />
 
       {isSA && <DashboardEJournals />}
       {isSA && <DashboardSpecialists />}

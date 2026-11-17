@@ -1,4 +1,4 @@
-import { Button, Card, Col, Row, Space, Statistic } from 'antd'
+import { Button, Card, Col, Row, Space, Statistic, Typography } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import type { Kind, RecordCounters, Stats } from '../../../shared/types/api.types'
 import { JOURNAL_CONFIG } from '../utils/dashboard.constants'
@@ -8,9 +8,11 @@ interface Props {
   stats: Stats | null
   loading: boolean
   canCreate: (kind: Kind) => boolean
+  /** Показывать счётчики записей (нужно право stats:view; у клиента и диспетчера его нет). */
+  showCounters: boolean
 }
 
-export function DashboardJournalsStats({ kinds, stats, loading, canCreate }: Props) {
+export function DashboardJournalsStats({ kinds, stats, loading, canCreate, showCounters }: Props) {
   const navigate = useNavigate()
 
   const getCounters = (kind: Kind): RecordCounters | null | undefined => stats?.[kind]
@@ -36,6 +38,11 @@ export function DashboardJournalsStats({ kinds, stats, loading, canCreate }: Pro
             }
             loading={loading}
           >
+            {!showCounters ? (
+              <Typography.Text type="secondary">
+                Записи вашей организации: просмотр, фильтры и выгрузка — в архиве журнала.
+              </Typography.Text>
+            ) : (
             <Row gutter={16}>
               <Col span={8}>
                 <Card size="small" hoverable onClick={() => navigate(`/${k}?signed=0`)}>
@@ -53,6 +60,7 @@ export function DashboardJournalsStats({ kinds, stats, loading, canCreate }: Pro
                 </Card>
               </Col>
             </Row>
+            )}
           </Card>
         </Col>
       ))}
