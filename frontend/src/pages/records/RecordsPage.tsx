@@ -148,7 +148,6 @@ export function RecordsPage({ kind }: { kind: Kind }) {
         isManager={isManager || hasPermission(`${kind}:create`)}
         isClient={isClient}
         searchPlaceholder={text.search}
-        searchParam={text.searchParam}
         onFilterChange={setFilter}
         onSearchTextChange={setSearchText}
       />
