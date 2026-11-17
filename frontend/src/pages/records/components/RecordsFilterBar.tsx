@@ -1,7 +1,8 @@
-import { Card, DatePicker, Input, Select, Space, App } from 'antd'
+import { AutoComplete, Card, DatePicker, Input, Select, Space, App } from 'antd'
 import { OrganizationSelect } from '../../../shared/components/CatalogSelects'
 import type { Kind } from '../../../shared/types/api.types'
 import type { RecordsFilters } from '../types'
+import { MIN_SEARCH_LENGTH, useSearchSuggestions } from '../hooks/useSearchSuggestions'
 
 interface Props {
   kind: Kind
@@ -10,6 +11,8 @@ interface Props {
   isManager: boolean
   isClient: boolean
   searchPlaceholder: string
+  /** Параметр поиска на сервере: driver_name для медосмотров, vehicle для техконтроля. */
+  searchParam: string
   onFilterChange: (patch: Partial<RecordsFilters>) => void
   onSearchTextChange: (text: string) => void
 }
@@ -21,10 +24,21 @@ export function RecordsFilterBar({
   isManager,
   isClient,
   searchPlaceholder,
+  searchParam,
   onFilterChange,
   onSearchTextChange,
 }: Props) {
   const { message } = App.useApp()
+  const { suggestions, loading: suggesting } = useSearchSuggestions(kind, searchParam, searchText, filters)
+
+  const applySearch = (value: string) => {
+    const v = value.trim()
+    if (v && v.length < MIN_SEARCH_LENGTH) {
+      message.info(`Введите хотя бы ${MIN_SEARCH_LENGTH} символа`)
+      return
+    }
+    onFilterChange({ text: v || undefined })
+  }
 
   return (
     <Card>
@@ -42,23 +56,24 @@ export function RecordsFilterBar({
           onChange={(values) => onFilterChange({ range: values as RecordsFilters['range'] })}
           placeholder={['С даты', 'По дату']}
         />
-        <Input.Search
-          allowClear
-          placeholder={searchPlaceholder}
+        <AutoComplete
           value={searchText}
-          onChange={(e) => {
-            onSearchTextChange(e.target.value)
-            if (!e.target.value) onFilterChange({ text: undefined })
+          options={suggestions}
+          onChange={(value: string) => {
+            onSearchTextChange(value)
+            if (!value) onFilterChange({ text: undefined })
           }}
-          onSearch={(value) => {
-            const v = value.trim()
-            if (v && v.length < 3) {
-              message.info('Введите хотя бы 3 символа')
-              return
-            }
-            onFilterChange({ text: v || undefined })
+          onSelect={(value: string) => {
+            onSearchTextChange(value)
+            applySearch(value)
           }}
-        />
+          notFoundContent={
+            suggesting ? 'Поиск…' : searchText.trim().length >= MIN_SEARCH_LENGTH ? 'Ничего не найдено' : null
+          }
+          popupMatchSelectWidth={320}
+        >
+          <Input.Search allowClear placeholder={searchPlaceholder} onSearch={applySearch} />
+        </AutoComplete>
         <Select
           allowClear
           placeholder={kind === 'medical' ? 'Заключение' : 'Результат'}
