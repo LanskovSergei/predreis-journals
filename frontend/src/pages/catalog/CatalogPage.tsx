@@ -11,8 +11,12 @@ const CATALOG_SUBTITLE =
 export function CatalogPage() {
   const { hasPermission } = useAuth()
   const canManage = hasPermission('catalog:manage')
+  const canView = hasPermission('catalog:view')
+  const canAddDrivers = hasPermission('catalog:driver_create')
+  const canAddVehicles = hasPermission('catalog:vehicle_create')
   const [params, setParams] = useSearchParams()
-  const tab = params.get('tab') || 'orgs'
+  const defaultTab = canView ? 'orgs' : canAddDrivers ? 'drivers' : 'vehicles'
+  const tab = params.get('tab') || defaultTab
   const create = params.get('create')
 
   const setTab = (key: string) => {
@@ -29,51 +33,58 @@ export function CatalogPage() {
     setParams(next, { replace: true })
   }
 
+  const items = [
+    ...(canView
+      ? [{
+          key: 'orgs',
+          label: 'Организации',
+          children: (
+            <OrganizationsTab
+              canManage={canManage}
+              startCreate={create === 'org'}
+              onCreateConsumed={clearCreate}
+            />
+          ),
+        }]
+      : []),
+    ...(canView || canAddDrivers
+      ? [{
+          key: 'drivers',
+          label: 'Водители',
+          children: (
+            <PeopleAndVehiclesTab
+              kind="drivers"
+              canManage={canManage}
+              canAdd={canAddDrivers}
+              startCreate={tab === 'drivers' && create === '1'}
+              onCreateConsumed={clearCreate}
+            />
+          ),
+        }]
+      : []),
+    ...(canView || canAddVehicles
+      ? [{
+          key: 'vehicles',
+          label: 'Транспортные средства',
+          children: (
+            <PeopleAndVehiclesTab
+              kind="vehicles"
+              canManage={canManage}
+              canAdd={canAddVehicles}
+              startCreate={tab === 'vehicles' && create === '1'}
+              onCreateConsumed={clearCreate}
+            />
+          ),
+        }]
+      : []),
+  ]
+  const activeKey = items.some((item) => item.key === tab) ? tab : defaultTab
+
   return (
     <Space orientation="vertical" size="large" style={{ width: '100%' }}>
       <PageHeader title="Каталог" subtitle={CATALOG_SUBTITLE} />
       <Card>
-        <Tabs
-          activeKey={tab}
-          onChange={setTab}
-          items={[
-            {
-              key: 'orgs',
-              label: 'Организации',
-              children: (
-                <OrganizationsTab
-                  canManage={canManage}
-                  startCreate={create === 'org'}
-                  onCreateConsumed={clearCreate}
-                />
-              ),
-            },
-            {
-              key: 'drivers',
-              label: 'Водители',
-              children: (
-                <PeopleAndVehiclesTab
-                  kind="drivers"
-                  canManage={canManage}
-                  startCreate={tab === 'drivers' && create === '1'}
-                  onCreateConsumed={clearCreate}
-                />
-              ),
-            },
-            {
-              key: 'vehicles',
-              label: 'Транспортные средства',
-              children: (
-                <PeopleAndVehiclesTab
-                  kind="vehicles"
-                  canManage={canManage}
-                  startCreate={tab === 'vehicles' && create === '1'}
-                  onCreateConsumed={clearCreate}
-                />
-              ),
-            },
-          ]}
-        />
+        <Tabs activeKey={activeKey} onChange={setTab} items={items} />
       </Card>
     </Space>
   )

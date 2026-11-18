@@ -15,7 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.errors import NotFoundError, ValidationFailedError
 from app.core.security import Principal
+from app.core.storage import Storage, get_storage
 from app.core.timeutils import local_date
+from app.integrations.predreis.cms import extract_cert_info
 from app.domain.enums import JournalKind
 from app.domain.permissions import CLIENT_ROLES
 from app.models.catalog import Driver, Organization
@@ -61,8 +63,28 @@ def content_disposition(filename: str) -> str:
     return f"attachment; filename=\"report.pdf\"; filename*=UTF-8''{quote(filename)}"
 
 
+async def complete_cert_from_signature(doc: RecordDocument, storage: Storage) -> None:
+    """Дополняет серийный номер и срок сертификата из файла подписи, если их нет в карточке документа."""
+    if (doc.cert_serial and doc.cert_subject and doc.cert_valid_from and doc.cert_valid_to) or not doc.sig_key:
+        return
+    try:
+        signature = await storage.get(doc.sig_key)
+    except OSError:
+        return
+    info = extract_cert_info(signature)
+    if info is None:
+        return
+    doc.cert_serial = doc.cert_serial or info.serial
+    doc.cert_subject = doc.cert_subject or info.subject
+    doc.cert_valid_from = doc.cert_valid_from or info.valid_from
+    doc.cert_valid_to = doc.cert_valid_to or info.valid_to
+
+
 async def render_single_record_pdf(
-    kind: JournalKind, record: MedicalRecord | TechnicalRecord, doc: RecordDocument | None
+    kind: JournalKind,
+    record: MedicalRecord | TechnicalRecord,
+    doc: RecordDocument | None,
+    fallback_gender: str | None = None,
 ) -> bytes:
     """PDF одной записи (человекочитаемая часть электронного документа типа 1)."""
     org = record.snapshot.get("organization", {})
@@ -79,7 +101,7 @@ async def render_single_record_pdf(
         spec = build_spec(
             medical=True,
             title=MEDICAL_RECORD_TITLE,
-            rows=[medical_row(1, record, doc)],
+            rows=[medical_row(1, record, doc, fallback_gender)],
             customer=customer,
             settings=get_settings(),
         )
@@ -232,6 +254,9 @@ class ReportService:
         if org is None:
             raise NotFoundError("Организация не найдена")
         docs = await svc.signatures([r.id for r in records])
+        storage = get_storage()
+        for doc in docs.values():
+            await complete_cert_from_signature(doc, storage)
         driver_genders = await self._catalog_genders(records)
         date_from = req.date_from or local_date(records[0].performed_at)
         date_to = req.date_to or local_date(records[-1].performed_at)

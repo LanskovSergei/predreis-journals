@@ -76,9 +76,11 @@ def _signature(sig: Mapping[str, str] | None) -> str:
     """Текст ячейки подписи: сертификат, владелец и срок действия."""
     if not sig:
         return ""
-    return "\n".join(
-        [sig["serial"], sig["owner"], f"Действителен с {sig['valid_from']} по {sig['valid_to']}"]
-    )
+    lines = [part for part in (sig.get("serial"), sig.get("owner")) if part and part != "—"]
+    start, end = sig.get("valid_from") or "", sig.get("valid_to") or ""
+    if start or end:
+        lines.append(f"Действителен с {start or '—'} по {end or '—'}")
+    return "\n".join(lines)
 
 
 def medical_cells(row: Mapping[str, Any]) -> list[str]:

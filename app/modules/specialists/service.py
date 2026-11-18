@@ -102,7 +102,7 @@ class SpecialistsService:
         )
 
     async def list_specialists(self, principal: Principal, role: Role) -> SpecialistsOut:
-        """Медики или механики с сертификатами; счётчики записей только для СА (ТЗ, стр. 17)."""
+        """Медики или механики с сертификатами и счётчиками записей (включая ЭПЛ)."""
         if not has_permission(principal.role, Permission.CATALOG_VIEW):
             raise ForbiddenError("Недостаточно прав", code="permission_denied")
         if role not in SPECIALIST_ROLES:
@@ -133,7 +133,7 @@ class SpecialistsService:
         for user in known:
             names.setdefault(user.id, user.full_name)
             names[user.id] = names[user.id] or user.full_name
-        counters = await self._counters(role) if principal.role is Role.SA else {}
+        counters = await self._counters(role)
         items: list[SpecialistOut] = []
         for user_id, name in names.items():
             user_certs = by_user.get(user_id, [])
@@ -149,9 +149,7 @@ class SpecialistsService:
                     certificates=[to_out(c) for c in user_certs],
                     records=counters.get(
                         user_id, RecordCounters(to_sign=0, signed=0, total=0, epl=0)
-                    )
-                    if principal.role is Role.SA
-                    else None,
+                    ),
                 )
             )
         items.sort(key=lambda i: i.full_name.lower())

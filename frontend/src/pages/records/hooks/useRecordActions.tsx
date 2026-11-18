@@ -97,11 +97,32 @@ export function useRecordActions(
   }
 
   const downloadDocument = async (record: AnyRecord) => {
+    setBusy(true)
     try {
       const { blob, filename } = await JournalsService.getRecordDocument(kind, record.id)
       saveBlob(blob, filename)
     } catch (err) {
       message.error(ApiErrorUtils.getMessage(err, 'Не удалось скачать документ записи'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const downloadDocuments = async (ids: string[]) => {
+    if (ids.length === 0) {
+      message.info('Среди выбранных нет подписанных записей с электронным документом')
+      return
+    }
+    setBusy(true)
+    try {
+      for (const id of ids) {
+        const { blob, filename } = await JournalsService.getRecordDocument(kind, id)
+        saveBlob(blob, filename)
+      }
+    } catch (err) {
+      message.error(ApiErrorUtils.getMessage(err, 'Не удалось скачать документ записи'))
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -208,5 +229,5 @@ export function useRecordActions(
     }
   }
 
-  return { busy, sign, removeSelected, download, runAction }
+  return { busy, sign, removeSelected, download, downloadDocuments, runAction }
 }

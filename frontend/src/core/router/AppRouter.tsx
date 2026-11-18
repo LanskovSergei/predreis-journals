@@ -44,7 +44,7 @@ const routes = [
       { path: 'technical', element: <JournalRoute kind="technical" /> },
       { path: 'ejournals', element: <RequireAny permissions={['ejournal:view']}><EJournalsPage /></RequireAny> },
       { path: 'deletion-requests', element: <RequireAny permissions={['medical:delete_signed', 'technical:delete_signed']}><DeletionRequestsPage /></RequireAny> },
-      { path: 'catalog', element: <RequireAny permissions={['catalog:view']}><CatalogPage /></RequireAny> },
+      { path: 'catalog', element: <RequireAny permissions={['catalog:view', 'catalog:driver_create', 'catalog:vehicle_create']}><CatalogPage /></RequireAny> },
       { path: 'specialists', element: <RequireAny permissions={['catalog:view']}><SpecialistsPage /></RequireAny> },
       { path: '*', element: <NotFoundPage /> },
     ],

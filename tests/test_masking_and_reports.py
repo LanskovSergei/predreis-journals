@@ -83,6 +83,16 @@ def test_redact_medical_hides_only_secret_fields() -> None:
     assert row["conclusion"] == "допущен"
 
 
+def test_medical_row_shows_certificate_and_catalog_gender() -> None:
+    """В PDF-строке — номер сертификата и пол из картотеки, если в снимке его нет."""
+    rec = _medical()
+    rec.snapshot = {**SNAP, "driver": {**SNAP["driver"], "gender": None}}
+    row = medical_row(1, rec, _doc(rec.id, JournalKind.MEDICAL), "F")
+    assert row["gender"] == "Ж"
+    assert row["signature"]["serial"] == "f18dd73747eccc4ab0d2b1ee00d4040e"
+    assert "Абдуллаева" in row["signature"]["owner"]
+
+
 def test_medical_row_never_contains_vitals() -> None:
     """В строке отчёта нет ни одного медицинского показателя."""
     rec = _medical()

@@ -23,7 +23,7 @@ async def _manual_org(stack: Stack, prefix: str, contract: str, name: str) -> st
 
 
 async def test_medic_and_mechanic_see_only_organizations_of_their_journal(stack: Stack) -> None:
-    """Медику — договоры «мед» и «медтех», механику — «тех» и «медтех»; раздел «Каталог» им не открыт."""
+    """Медику — договоры «мед» и «медтех», механику — «тех» и «медтех»."""
     c = stack.client
     med = await _manual_org(stack, "770000011", "med", "Только мед")
     tech = await _manual_org(stack, "770000012", "tech", "Только тех")

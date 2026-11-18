@@ -19,9 +19,9 @@ from app.core.errors import ConflictError
 from app.core.storage import Storage
 from app.domain.enums import JournalKind, RecordSource
 from app.models.documents import RecordDocument
-from app.models.records import AnyRecord
+from app.models.records import AnyRecord, MedicalRecord
 from app.modules.ejournal.container import ContainerFile, build_zip, sha256_hex
-from app.modules.reports.service import render_single_record_pdf
+from app.modules.reports.service import complete_cert_from_signature, render_single_record_pdf
 from app.modules.signing.xml_builder import build_record_xml
 
 GENERATOR = "predreis-journals: документ записи"
@@ -127,10 +127,14 @@ async def build_record_package(
     """
     if not doc.sig_key:
         raise ConflictError("У записи нет файла подписи", code="signature_missing")
+    await complete_cert_from_signature(doc, storage)
+    gender = None
+    if isinstance(record, MedicalRecord):
+        gender = (record.snapshot.get("driver") or {}).get("gender")
     rid = str(record.id)
     if record.source is RecordSource.EPL:
         xml = build_record_xml(kind, record)
-        pdf = await render_single_record_pdf(kind, record, doc)
+        pdf = await render_single_record_pdf(kind, record, doc, gender)
         sig_name, signed_file = "epl-title.sig", None
     else:
         if not doc.xml_key:
@@ -139,7 +143,7 @@ async def build_record_package(
         pdf = (
             await _read_checked(storage, doc.pdf_key, doc.pdf_sha256, f"{rid}/record.pdf")
             if doc.pdf_key
-            else await render_single_record_pdf(kind, record, doc)
+            else await render_single_record_pdf(kind, record, doc, gender)
         )
         sig_name, signed_file = "record.xml.sig", "record.xml"
     sig = await _read_checked(storage, doc.sig_key, None, f"{rid}/подпись")

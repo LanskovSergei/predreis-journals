@@ -1,10 +1,10 @@
 import { Button, Dropdown, Space, Table, Tag, Tooltip, Typography, type MenuProps, type TableColumnsType } from 'antd'
 import {
-  DownloadOutlined,
   CheckCircleOutlined,
   DeleteOutlined,
   EditOutlined,
   ExclamationCircleOutlined,
+  FileZipOutlined,
   MoreOutlined,
   SafetyCertificateOutlined,
 } from '@ant-design/icons'
@@ -94,14 +94,11 @@ export function RecordsTable({
       <Typography.Text type="secondary">—</Typography.Text>
     )
 
-  // Пункты меню строки: действия с записью от сервера (только известные интерфейсу)
-  // и «Скачать документ» у подписанных записей.
+  // Меню «⋯»: правка и удаление. Документ подписанной записи — отдельная кнопка.
   const KNOWN: RecordAction[] = ['edit', 'delete', 'clear_note', 'request_deletion']
   const actionItems = (record: AnyRecord): MenuProps['items'] =>
     [
       ...(record.actions ?? []).filter((a) => KNOWN.includes(a)),
-      ...(record.document_available ? (['download'] as RecordAction[]) : []),
-      // Безвозвратное удаление — последним пунктом, отдельно от остальных.
       ...((record.actions ?? []).includes('delete_signed') ? (['delete_signed'] as RecordAction[]) : []),
     ].map((a) => ({
         key: a,
@@ -112,7 +109,7 @@ export function RecordsTable({
           clear_note: <CheckCircleOutlined />,
           request_deletion: <DeleteOutlined />,
           delete_signed: <DeleteOutlined />,
-          download: <DownloadOutlined />,
+          download: null,
           sign: null,
         }[a],
         label: {
@@ -121,7 +118,7 @@ export function RecordsTable({
           clear_note: 'Снять примечание',
           request_deletion: 'Запросить удаление',
           delete_signed: 'Удалить подписанную запись',
-          download: 'Скачать документ',
+          download: '',
           sign: '',
         }[a],
         onClick: () => onRunAction(a, record),
@@ -150,7 +147,7 @@ export function RecordsTable({
     {
       title: '',
       key: 'actions',
-      width: 150,
+      width: 220,
       align: 'right',
       render: (_: unknown, r: AnyRecord) => (
         <Space size={4}>
@@ -158,6 +155,18 @@ export function RecordsTable({
             <Button size="small" type="primary" ghost onClick={() => onRunAction('sign', r)} disabled={busy}>
               Подписать
             </Button>
+          )}
+          {r.document_available && (
+            <Tooltip title="Электронный документ записи: ZIP с XML, PDF, SIG и TSP">
+              <Button
+                size="small"
+                icon={<FileZipOutlined />}
+                onClick={() => onRunAction('download', r)}
+                disabled={busy}
+              >
+                Документ
+              </Button>
+            </Tooltip>
           )}
           {(actionItems(r) ?? []).length > 0 && (
             <Dropdown menu={{ items: actionItems(r) }} trigger={['click']} placement="bottomRight">

@@ -85,15 +85,19 @@ export function RecordsPage({ kind }: { kind: Kind }) {
   const { data, loading, load, setTrackedSigning } = useRecordsQuery(kind, filters, page, text.searchParam)
 
   // Действия по записям, которые уже показывались: отметка может охватывать несколько страниц.
-  // Кнопки «Подписать» и «Удалить» над таблицей считают только те отмеченные записи,
-  // с которыми это действие возможно (подписанную нельзя удалить или подписать повторно).
+  // Кнопки над таблицей считают только те отмеченные записи, с которыми действие возможно.
   const actionsById = useRef(new Map<string, string[]>())
-  for (const r of data?.items ?? []) actionsById.current.set(r.id, r.actions ?? [])
+  const documentById = useRef(new Map<string, boolean>())
+  for (const r of data?.items ?? []) {
+    actionsById.current.set(r.id, r.actions ?? [])
+    documentById.current.set(r.id, Boolean(r.document_available))
+  }
   const selectedWith = (action: string) =>
     selected.filter((id) => actionsById.current.get(id)?.includes(action))
   const signable = selectedWith('sign')
   const deletable = selectedWith('delete')
-  const { busy, sign, removeSelected, download, runAction } = useRecordActions(
+  const documentIds = selected.filter((id) => documentById.current.get(id))
+  const { busy, sign, removeSelected, download, downloadDocuments, runAction } = useRecordActions(
     kind,
     load,
     setTrackedSigning,
@@ -173,11 +177,13 @@ export function RecordsPage({ kind }: { kind: Kind }) {
       <RecordsBatchActions
         selectedCount={selected.length}
         signableCount={canSign ? signable.length : 0}
+        documentCount={documentIds.length}
         canExport={canExport}
         deletableCount={canDelete ? deletable.length : 0}
         busy={busy}
         onSign={() => void sign(signable)}
         onExport={() => void download({ record_ids: selected })}
+        onDownloadDocuments={() => void downloadDocuments(documentIds)}
         onDelete={() => removeSelected(deletable, selected.length)}
         onClearSelection={() => setSelected([])}
       />

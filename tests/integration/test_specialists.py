@@ -80,7 +80,7 @@ async def test_my_certificates_only_for_specialists(stack: Stack) -> None:
 
 
 async def test_specialists_list_for_managers_without_counters(stack: Stack) -> None:
-    """Плашки сертификатов у Предрейс и Админа: статус и срок каждого медика, но без счётчиков записей."""
+    """Предрейс и Админ видят сертификаты и счётчики записей (включая ЭПЛ) по каждому специалисту."""
     w = stack.world
     ghost = uuid.uuid4()  # есть в Предрейсе, в журналах не появлялся
     stack.predreis.certificates = [
@@ -99,9 +99,13 @@ async def test_specialists_list_for_managers_without_counters(stack: Stack) -> N
             items[str(ghost)]["status"] == "missing"
             and items[str(ghost)]["certificates"][0]["serial"] is None
         )
-        assert all(
-            i["records"] is None for i in items.values()
-        )  # счётчики только у СА (ТЗ, стр. 17)
+        assert items[str(w.medic.id)]["records"] == {
+            "to_sign": 0,
+            "signed": 0,
+            "total": 0,
+            "epl": 0,
+        }
+        assert items[str(ghost)]["records"]["total"] == 0
 
     names = [
         i["full_name"]

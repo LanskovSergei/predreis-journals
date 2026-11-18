@@ -1,16 +1,18 @@
 import { Card, Space, Typography, Button } from 'antd'
-import { DeleteOutlined, FilePdfOutlined } from '@ant-design/icons'
+import { DeleteOutlined, FilePdfOutlined, FileZipOutlined } from '@ant-design/icons'
 
 interface Props {
   selectedCount: number
   /** Сколько из отмеченных можно подписать (0 — кнопки нет). */
   signableCount: number
+  documentCount: number
   canExport: boolean
   /** Сколько из отмеченных можно удалить: только неподписанные (0 — кнопки нет). */
   deletableCount: number
   busy: boolean
   onSign: () => void
   onExport: () => void
+  onDownloadDocuments: () => void
   onDelete: () => void
   onClearSelection: () => void
 }
@@ -18,11 +20,13 @@ interface Props {
 export function RecordsBatchActions({
   selectedCount,
   signableCount,
+  documentCount,
   canExport,
   deletableCount,
   busy,
   onSign,
   onExport,
+  onDownloadDocuments,
   onDelete,
   onClearSelection,
 }: Props) {
@@ -40,6 +44,11 @@ export function RecordsBatchActions({
         {canExport && (
           <Button icon={<FilePdfOutlined />} loading={busy} onClick={onExport}>
             Выгрузить PDF
+          </Button>
+        )}
+        {documentCount > 0 && (
+          <Button icon={<FileZipOutlined />} loading={busy} onClick={onDownloadDocuments}>
+            Скачать документы
           </Button>
         )}
         {deletableCount > 0 && (

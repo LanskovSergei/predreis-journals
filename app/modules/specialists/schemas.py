@@ -43,7 +43,7 @@ class RecordCounters(BaseModel):
 
 
 class SpecialistOut(BaseModel):
-    """Специалист (медик или механик): сертификат и, для СА, счётчики записей."""
+    """Специалист (медик или механик): сертификат и счётчики записей, включая ЭПЛ."""
 
     user_id: uuid.UUID
     full_name: str

@@ -43,7 +43,11 @@ export function AppLayout() {
 
   const nav: NavItem[] = useMemo(() => {
     const items: NavItem[] = [{ key: 'dashboard', label: 'Сводка', icon: <DashboardOutlined />, path: '/' }]
-    if (hasPermission('catalog:view')) {
+    if (
+      hasPermission('catalog:view') ||
+      hasPermission('catalog:driver_create') ||
+      hasPermission('catalog:vehicle_create')
+    ) {
       items.push({ key: 'catalog', label: 'Каталог', icon: <DatabaseOutlined />, path: '/catalog' })
     }
     if (hasJournalAccess('medical')) {

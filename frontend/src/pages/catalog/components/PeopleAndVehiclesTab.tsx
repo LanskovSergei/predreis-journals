@@ -13,11 +13,13 @@ const GENDER = { M: 'М', F: 'Ж' } as const
 export function PeopleAndVehiclesTab({
   kind,
   canManage,
+  canAdd = false,
   startCreate,
   onCreateConsumed,
 }: {
   kind: 'drivers' | 'vehicles'
   canManage: boolean
+  canAdd?: boolean
   startCreate?: boolean
   onCreateConsumed?: () => void
 }) {
@@ -71,7 +73,7 @@ export function PeopleAndVehiclesTab({
         <OrganizationSelect allowClear value={orgId} onChange={(v) => { setOrgId(v); setPage(1) }} placeholder="Выберите организацию" />
         <Input.Search allowClear placeholder={kind === 'drivers' ? 'ФИО' : 'Марка, модель или госномер'} disabled={!orgId}
           onSearch={(v) => { setQ(v.trim()); setPage(1) }} />
-        {canManage && (
+        {(canManage || canAdd) && (
           <Button type="primary" icon={<PlusOutlined />} disabled={!orgId} onClick={() => setEditing('new')}>
             {kind === 'drivers' ? 'Добавить водителя' : 'Добавить ТС'}
           </Button>
