@@ -7,6 +7,7 @@ import { ApiErrorUtils } from '../../../shared/utils/error.utils'
 import type { AnyRecord, Kind, MedicalRecord, TechnicalRecord } from '../../../shared/types/api.types'
 import { useAuth } from '../../../core/auth/useAuth'
 import { DriverSelect, OrganizationSelect, SpecialistSelect, VehicleSelect } from '../../../shared/components/CatalogSelects'
+import { QuickAddCatalogItem } from '../../../shared/components/QuickAddCatalogItem'
 import { MAX_PERIOD_DAYS, VITAL_FIELDS, randomVitals } from '../utils/vitals'
 
 interface Props {
@@ -19,7 +20,9 @@ interface Props {
 
 /** Добавление и правка записи. По ТЗ поля предзаполнены, результат осмотра выбирается вручную. */
 export function RecordFormDrawer({ kind, open, record, onClose, onSaved }: Props) {
-  const { user } = useAuth()
+  const { user, hasPermission } = useAuth()
+  // Счётчик для перечитывания списков водителей и ТС после добавления новой карточки из формы.
+  const [catalogVersion, setCatalogVersion] = useState(0)
   const { message, modal } = App.useApp()
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
@@ -171,6 +174,17 @@ export function RecordFormDrawer({ kind, open, record, onClose, onSaved }: Props
 
   const harmful = Form.useWatch('harmful_factors', form)
 
+  const addDriverLink = hasPermission('catalog:driver_create') ? (
+    <QuickAddCatalogItem
+      kind="drivers"
+      organizationId={organizationId}
+      onCreated={(id) => {
+        setCatalogVersion((v) => v + 1)
+        form.setFieldsValue({ driver_id: id })
+      }}
+    />
+  ) : undefined
+
   return (
     <Drawer
       title={isEdit ? 'Изменить запись' : kind === 'medical' ? 'Новый медосмотр' : 'Новый техконтроль'}
@@ -197,16 +211,37 @@ export function RecordFormDrawer({ kind, open, record, onClose, onSaved }: Props
         </Form.Item>
 
         {kind === 'medical' ? (
-          <Form.Item name="driver_id" label="Водитель" rules={[{ required: true, message: 'Выберите водителя' }]}>
-            <DriverSelect organizationId={organizationId} />
+          <Form.Item
+            name="driver_id"
+            label="Водитель"
+            rules={[{ required: true, message: 'Выберите водителя' }]}
+            extra={addDriverLink}
+          >
+            <DriverSelect organizationId={organizationId} refreshKey={catalogVersion} />
           </Form.Item>
         ) : (
           <>
-            <Form.Item name="vehicle_id" label="Транспортное средство" rules={[{ required: true, message: 'Выберите ТС' }]}>
-              <VehicleSelect organizationId={organizationId} />
+            <Form.Item
+              name="vehicle_id"
+              label="Транспортное средство"
+              rules={[{ required: true, message: 'Выберите ТС' }]}
+              extra={
+                hasPermission('catalog:vehicle_create') ? (
+                  <QuickAddCatalogItem
+                    kind="vehicles"
+                    organizationId={organizationId}
+                    onCreated={(id) => {
+                      setCatalogVersion((v) => v + 1)
+                      form.setFieldsValue({ vehicle_id: id })
+                    }}
+                  />
+                ) : undefined
+              }
+            >
+              <VehicleSelect organizationId={organizationId} refreshKey={catalogVersion} />
             </Form.Item>
-            <Form.Item name="driver_id" label="Водитель">
-              <DriverSelect organizationId={organizationId} allowClear />
+            <Form.Item name="driver_id" label="Водитель" extra={addDriverLink}>
+              <DriverSelect organizationId={organizationId} allowClear refreshKey={catalogVersion} />
             </Form.Item>
           </>
         )}

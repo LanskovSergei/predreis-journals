@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { Modal, Form, Input, DatePicker, Radio, Typography } from 'antd'
 import dayjs from 'dayjs'
-import type { DriverFull } from '../../../shared/types/api.types'
+import type { DriverFull } from '../types/api.types'
 
 interface Props {
   kind: 'drivers' | 'vehicles'

@@ -42,6 +42,8 @@ class Permission(str, Enum):
     # Общие разделы
     CATALOG_VIEW = "catalog:view"
     CATALOG_MANAGE = "catalog:manage"
+    CATALOG_DRIVER_CREATE = "catalog:driver_create"
+    CATALOG_VEHICLE_CREATE = "catalog:vehicle_create"
     OCR_UPLOAD = "ocr:upload"
     STATS_VIEW = "stats:view"
     EJOURNAL_VIEW = "ejournal:view"
@@ -77,6 +79,10 @@ PERMISSION_ROLES: dict[Permission, frozenset[Role]] = {
     Permission.TECHNICAL_EJOURNAL_SIGN: frozenset({_S}),
     Permission.CATALOG_VIEW: frozenset({_P, _A, _S}),
     Permission.CATALOG_MANAGE: frozenset({_P, _A, _S}),
+    # Медик добавляет водителя, механик — ТС прямо из формы записи (решение заказчика 18.11.2026).
+    # Только добавление: правка и удаление картотеки остаются за CATALOG_MANAGE.
+    Permission.CATALOG_DRIVER_CREATE: frozenset({_M, _P, _A, _S}),
+    Permission.CATALOG_VEHICLE_CREATE: frozenset({_T, _P, _A, _S}),
     Permission.OCR_UPLOAD: frozenset({_P, _A, _S}),
     Permission.STATS_VIEW: frozenset({_M, _T, _P, _A, _S}),
     Permission.EJOURNAL_VIEW: frozenset({_P, _A, _S}),
@@ -109,6 +115,8 @@ PERMISSION_TITLES: dict[Permission, str] = {
     Permission.TECHNICAL_EJOURNAL_SIGN: "Подпись электронного журнала техконтроля",
     Permission.CATALOG_VIEW: "Справочники организаций, водителей и ТС; сертификаты специалистов",
     Permission.CATALOG_MANAGE: "Ведение справочников (создание в журналах пока не реализовано)",
+    Permission.CATALOG_DRIVER_CREATE: "Добавление водителя в картотеку",
+    Permission.CATALOG_VEHICLE_CREATE: "Добавление ТС в картотеку",
     Permission.OCR_UPLOAD: "Загрузка сканов для распознавания (не реализовано)",
     Permission.STATS_VIEW: "Статистика стартовой страницы",
     Permission.EJOURNAL_VIEW: "Раздел «Электронные журналы» (список, просмотр, скачивание ZIP)",

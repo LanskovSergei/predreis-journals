@@ -237,3 +237,10 @@ def test_real_looking_signature_is_kept() -> None:
     """Корректная base64-подпись сохраняется."""
     ev = map_envelope(envelope("event_medical_pre.json", signature_b64="U0lH"))
     assert ev.signature_b64 == "U0lH" and ev.signature_state is None
+
+
+def test_title_signature_with_line_breaks_from_cryptopro_is_kept() -> None:
+    """Подпись титула КриптоПро приходит с переносами строк: её нельзя отбрасывать как испорченную."""
+    wrapped = "U0lH\r\nU0lH\nU0lH "
+    ev = map_envelope(envelope("event_medical_pre.json", signature_b64=wrapped))
+    assert ev.signature_b64 == "U0lHU0lHU0lH" and ev.signature_state is None

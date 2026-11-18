@@ -5,7 +5,7 @@ import type { DriverFull, VehicleFull } from '../../../shared/types/api.types'
 import { formatDate } from '../../../shared/utils/labels'
 import { OrganizationSelect } from '../../../shared/components/CatalogSelects'
 import { usePeopleAndVehicles } from '../hooks/usePeopleAndVehicles'
-import { PersonVehicleFormModal } from './PersonVehicleFormModal'
+import { PersonVehicleFormModal } from '../../../shared/components/PersonVehicleFormModal'
 
 const ORIGIN = { platform: 'Платформа', manual: 'Вручную' } as const
 const GENDER = { M: 'М', F: 'Ж' } as const

@@ -59,3 +59,52 @@ async def test_inactive_organization_is_not_offered_and_client_has_no_catalog(
     assert org not in medic
     denied = await c.get(ORGS, headers=stack.auth("client"))
     assert denied.status_code == 403
+
+
+async def test_medic_adds_driver_and_mechanic_adds_vehicle_only_in_their_journal(
+    stack: Stack,
+) -> None:
+    """Медик добавляет водителя, механик — ТС; только в «свои» организации и без правки картотеки."""
+    c = stack.client
+    med = await _manual_org(stack, "770000015", "med", "Мед для добавления")
+    tech = await _manual_org(stack, "770000016", "tech", "Тех для добавления")
+    driver = {"drivers": [{"organization_id": med, "full_name": "Новиков Олег Петрович"}]}
+    vehicle = {
+        "vehicles": [
+            {"organization_id": tech, "brand": "ГАЗ", "model": "Газель", "plate": "А001АА77"}
+        ]
+    }
+
+    added = await c.post("/api/v1/catalog/drivers", json=driver, headers=stack.auth("medic"))
+    assert added.status_code == 201, added.text
+    assert (
+        await c.post("/api/v1/catalog/vehicles", json=vehicle, headers=stack.auth("mechanic"))
+    ).status_code == 201
+
+    # чужое: медику — ТС, механику — водитель
+    assert (
+        await c.post("/api/v1/catalog/vehicles", json=vehicle, headers=stack.auth("medic"))
+    ).status_code == 403
+    assert (
+        await c.post("/api/v1/catalog/drivers", json=driver, headers=stack.auth("mechanic"))
+    ).status_code == 403
+
+    # организация без журнала медика (договор «тех») — нельзя
+    foreign = {"drivers": [{"organization_id": tech, "full_name": "Чужой Водитель"}]}
+    refused = await c.post("/api/v1/catalog/drivers", json=foreign, headers=stack.auth("medic"))
+    assert refused.status_code == 422 and refused.json()["error"]["code"] == "organization_invalid"
+
+    # правка и удаление картотеки остаются за менеджерами
+    driver_id = (
+        added.json()[0]["id"] if isinstance(added.json(), list) else added.json()["items"][0]["id"]
+    )
+    assert (
+        await c.patch(
+            f"/api/v1/catalog/drivers/{driver_id}",
+            json={"gender": "M"},
+            headers=stack.auth("medic"),
+        )
+    ).status_code == 403
+    assert (
+        await c.delete(f"/api/v1/catalog/drivers/{driver_id}", headers=stack.auth("medic"))
+    ).status_code == 403

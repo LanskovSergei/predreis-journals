@@ -286,10 +286,15 @@ class EplRecordEvent(BaseModel):
             if is_placeholder(value):
                 data[field], data["signature_state"] = None, "placeholder"
                 continue
+            # КриптоПро переносит base64 по строкам: убираем пробелы и переносы до
+            # строгой проверки, иначе настоящая подпись титула считалась бы испорченной.
+            compact = "".join(value.split()) if isinstance(value, str) else value
             try:
-                base64.b64decode(value, validate=True)
+                base64.b64decode(compact, validate=True)
             except (ValueError, TypeError):
                 data[field], data["signature_state"] = None, "invalid"
+                continue
+            data[field] = compact
         return data
 
     @model_validator(mode="after")

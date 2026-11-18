@@ -56,13 +56,20 @@ export function OrganizationSelect({ value, onChange, placeholder = 'Орган�
   )
 }
 
-export function DriverSelect({ organizationId, value, onChange, ...rest }: SelectProps & { organizationId?: string }) {
+/** refreshKey: смените значение, чтобы перечитать список (например, после добавления водителя). */
+export function DriverSelect({
+  organizationId,
+  refreshKey,
+  value,
+  onChange,
+  ...rest
+}: SelectProps & { organizationId?: string; refreshKey?: number }) {
   const { options, loading, search } = useRemoteOptions(
     async (q) =>
       organizationId
         ? (await JournalsService.searchDrivers(organizationId, q)).map((d) => ({ value: d.id, label: d.full_name }))
         : [],
-    [organizationId],
+    [organizationId, refreshKey],
   )
   return (
     <Select
@@ -79,7 +86,14 @@ export function DriverSelect({ organizationId, value, onChange, ...rest }: Selec
   )
 }
 
-export function VehicleSelect({ organizationId, value, onChange, ...rest }: SelectProps & { organizationId?: string }) {
+/** refreshKey: смените значение, чтобы перечитать список (например, после добавления ТС). */
+export function VehicleSelect({
+  organizationId,
+  refreshKey,
+  value,
+  onChange,
+  ...rest
+}: SelectProps & { organizationId?: string; refreshKey?: number }) {
   const { options, loading, search } = useRemoteOptions(
     async (q) =>
       organizationId
@@ -88,7 +102,7 @@ export function VehicleSelect({ organizationId, value, onChange, ...rest }: Sele
             label: `${v.brand} ${v.model}, ${v.plate}`,
           }))
         : [],
-    [organizationId],
+    [organizationId, refreshKey],
   )
   return (
     <Select

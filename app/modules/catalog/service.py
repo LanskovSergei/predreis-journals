@@ -524,11 +524,11 @@ class ManualCatalogService(CatalogService):
     # --- водители ---
     async def create_drivers(self, principal: Principal, data: DriversCreate) -> list[Driver]:
         """Добавляет до 10 водителей; всё или ничего, чтобы не было половины формы."""
-        self._require(principal, Permission.CATALOG_MANAGE)
+        self._require(principal, Permission.CATALOG_DRIVER_CREATE)
         created: list[Driver] = []
         seen: set[tuple[uuid.UUID, str, Any]] = set()
         for index, item in enumerate(data.drivers):
-            await self._get_active_org(item.organization_id)
+            await self._get_org_for_new_card(principal, item.organization_id)
             key = (item.organization_id, item.full_name.strip().lower(), item.birth_date)
             duplicate = (
                 key in seen
@@ -564,6 +564,30 @@ class ManualCatalogService(CatalogService):
             await self._audit(principal, "catalog.created", "driver", driver.id)
         await self.session.commit()
         return created
+
+    async def _get_org_for_new_card(self, principal: Principal, org_id: uuid.UUID) -> Organization:
+        """Организация для новой карточки с учётом роли.
+
+        Менеджеры добавляют в любую активную организацию. Медик и механик — только в те,
+        где ведут свой журнал, то есть в те же, что видят в форме записи.
+
+        Args:
+            principal: Кто добавляет.
+            org_id: Организация новой карточки.
+
+        Returns:
+            Организация.
+
+        Raises:
+            ValidationFailedError: Организации нет, она неактивна или недоступна роли.
+        """
+        org = await self._get_active_org(org_id)
+        kinds = self._picker_kinds(principal)
+        if kinds is not None and not (journals_for(org.contract_type) & kinds):
+            raise ValidationFailedError(
+                "Организация не найдена или неактивна", code="organization_invalid"
+            )
+        return org
 
     async def _get_active_org(self, org_id: uuid.UUID) -> Organization:
         """Организация для новой карточки: существует и активна."""
@@ -603,11 +627,11 @@ class ManualCatalogService(CatalogService):
     # --- ТС ---
     async def create_vehicles(self, principal: Principal, data: VehiclesCreate) -> list[Vehicle]:
         """Добавляет до 10 ТС; госномер уникален в организации; всё или ничего."""
-        self._require(principal, Permission.CATALOG_MANAGE)
+        self._require(principal, Permission.CATALOG_VEHICLE_CREATE)
         created: list[Vehicle] = []
         seen: set[tuple[uuid.UUID, str]] = set()
         for index, item in enumerate(data.vehicles):
-            await self._get_active_org(item.organization_id)
+            await self._get_org_for_new_card(principal, item.organization_id)
             existing = (
                 (
                     await self.session.execute(
