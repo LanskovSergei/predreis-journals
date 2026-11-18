@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { Button, Card, Space } from 'antd'
+import { App, Button, Card, Space } from 'antd'
 import { FilePdfOutlined, PlusOutlined } from '@ant-design/icons'
 import { useSearchParams } from 'react-router-dom'
 import dayjs, { type Dayjs } from 'dayjs'
@@ -63,6 +63,7 @@ function writeFilterParams(params: URLSearchParams, patch: RecordsFilters) {
 }
 
 export function RecordsPage({ kind }: { kind: Kind }) {
+  const { message } = App.useApp()
   const text = TEXT[kind]
   const { user, hasPermission } = useAuth()
   const [params, setParams] = useSearchParams()
@@ -119,11 +120,18 @@ export function RecordsPage({ kind }: { kind: Kind }) {
   const exportPeriod = () => {
     const [from, to] = filters.range ?? []
     if (!from || !to) {
-      // Not using message directly here to keep it clean, but could import App
+      message.info('Выберите период для выгрузки')
+      return
+    }
+    // Сервер делает выгрузку только по одной организации: без неё
+    // ответит отказом, а человек увидит невнятную ошибку.
+    const orgId = filters.organizationId?.trim()
+    if (!orgId) {
+      message.info('Выберите организацию: выгрузка формируется по одной организации')
       return
     }
     void download({
-      organization_id: filters.organizationId,
+      organization_id: orgId,
       date_from: from.format('YYYY-MM-DD'),
       date_to: to.format('YYYY-MM-DD'),
     })
