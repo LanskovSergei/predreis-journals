@@ -6,7 +6,7 @@ export type RecordSource = 'manual' | 'ocr' | 'epl'
 export type Phase = 'pre' | 'post'
 export type Result = 'admitted' | 'not_admitted'
 export type HarmfulFactors = 'absent' | 'detected'
-export type RecordAction = 'edit' | 'delete' | 'sign' | 'clear_note' | 'request_deletion' | 'download'
+export type RecordAction = 'edit' | 'delete' | 'sign' | 'clear_note' | 'request_deletion' | 'delete_signed' | 'download'
 
 export interface Me {
   user_id: string

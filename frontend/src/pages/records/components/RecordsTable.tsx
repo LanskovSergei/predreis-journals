@@ -101,14 +101,17 @@ export function RecordsTable({
     [
       ...(record.actions ?? []).filter((a) => KNOWN.includes(a)),
       ...(record.document_available ? (['download'] as RecordAction[]) : []),
+      // Безвозвратное удаление — последним пунктом, отдельно от остальных.
+      ...((record.actions ?? []).includes('delete_signed') ? (['delete_signed'] as RecordAction[]) : []),
     ].map((a) => ({
         key: a,
-        danger: a === 'delete' || a === 'request_deletion',
+        danger: a === 'delete' || a === 'request_deletion' || a === 'delete_signed',
         icon: {
           edit: <EditOutlined />,
           delete: <DeleteOutlined />,
           clear_note: <CheckCircleOutlined />,
           request_deletion: <DeleteOutlined />,
+          delete_signed: <DeleteOutlined />,
           download: <DownloadOutlined />,
           sign: null,
         }[a],
@@ -117,6 +120,7 @@ export function RecordsTable({
           delete: 'Удалить',
           clear_note: 'Снять примечание',
           request_deletion: 'Запросить удаление',
+          delete_signed: 'Удалить подписанную запись',
           download: 'Скачать документ',
           sign: '',
         }[a],

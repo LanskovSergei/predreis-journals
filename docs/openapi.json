@@ -1756,7 +1756,7 @@
           "Удаление подписанных записей"
         ],
         "summary": "Удалить подписанную запись напрямую (Админ/СА)",
-        "description": "Прямое удаление записи типа Б.",
+        "description": "Прямое удаление записи типа Б (по ТЗ — СА; право есть и у Админа).",
         "operationId": "delete_signed_api_v1_records__kind___record_id__signed_delete",
         "security": [
           {
@@ -1781,6 +1781,25 @@
               "format": "uuid",
               "title": "Record Id"
             }
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Причина (пишется в аудит)",
+              "title": "Reason"
+            },
+            "description": "Причина (пишется в аудит)"
           }
         ],
         "responses": {

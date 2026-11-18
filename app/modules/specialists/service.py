@@ -122,10 +122,14 @@ class SpecialistsService:
             names[cert.user_id] = cert.full_name or names.get(cert.user_id, "")
         # специалисты, известные журналам, даже без записи о сертификате в Предрейсе
         known = (
-            await self.session.execute(
-                select(User).where(User.role == role, User.is_active.is_(True))
+            (
+                await self.session.execute(
+                    select(User).where(User.role == role, User.is_active.is_(True))
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         for user in known:
             names.setdefault(user.id, user.full_name)
             names[user.id] = names[user.id] or user.full_name

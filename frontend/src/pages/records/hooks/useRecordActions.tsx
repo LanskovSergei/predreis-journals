@@ -172,6 +172,40 @@ export function useRecordActions(
         },
       })
     }
+    if (action === 'delete_signed') {
+      let reason = ''
+      modal.confirm({
+        title: 'Удалить подписанную запись?',
+        content: (
+          <Space orientation="vertical" style={{ width: '100%' }}>
+            <Typography.Text>
+              {formatDateTime(record.performed_at)}, {kind === 'medical' ? getDriverName(record) : getVehicleLabel(record)}
+            </Typography.Text>
+            <Typography.Text type="danger">
+              Запись будет удалена безвозвратно вместе с электронным документом и подписью.
+            </Typography.Text>
+            <Input.TextArea
+              rows={3}
+              maxLength={500}
+              placeholder="Причина удаления (сохранится в журнале действий)"
+              onChange={(e) => (reason = e.target.value)}
+            />
+          </Space>
+        ),
+        okText: 'Удалить',
+        okButtonProps: { danger: true },
+        cancelText: 'Отмена',
+        onOk: async () => {
+          try {
+            await JournalsService.deleteSignedRecord(kind, record.id, reason.trim())
+            message.success('Подписанная запись удалена')
+            await load(true)
+          } catch (err) {
+            message.error(ApiErrorUtils.getMessage(err))
+          }
+        },
+      })
+    }
   }
 
   return { busy, sign, removeSelected, download, runAction }

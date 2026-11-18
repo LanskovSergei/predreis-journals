@@ -146,9 +146,20 @@ class DeletionService:
         return request
 
     async def delete_signed_direct(
-        self, principal: Principal, kind: JournalKind, record_id: uuid.UUID
+        self,
+        principal: Principal,
+        kind: JournalKind,
+        record_id: uuid.UUID,
+        reason: str | None = None,
     ) -> None:
-        """Прямое удаление подписанной записи Админом/СА (без запроса)."""
+        """Прямое удаление подписанной записи Админом/СА (без запроса).
+
+        Args:
+            principal: Кто удаляет.
+            kind: Вид журнала.
+            record_id: Запись.
+            reason: Причина; пишется в аудит (удаление необратимо).
+        """
         self._require_resolver(principal, kind)
         record = await load_record(self.session, kind, record_id, for_update=True)
         if record is None:
@@ -177,7 +188,7 @@ class DeletionService:
             action="record.delete_signed",
             entity_type=kind.value,
             entity_id=str(record_id),
-            payload={"direct": True},
+            payload={"direct": True, "reason": (reason or "").strip() or None},
         )
         await self.session.commit()
         await self._delete_files(keys)

@@ -7,7 +7,9 @@ from datetime import timedelta
 from typing import Any
 
 import pytest
+from sqlalchemy import select
 
+from app.models.audit import AuditLog
 from tests.http_stack import WHEN, Stack, medical_body
 from tests.integration.test_ejournal_container import _ingest
 
@@ -163,8 +165,19 @@ async def test_direct_deletion_of_signed_record(stack: Stack) -> None:
             await c.delete(f"/api/v1/records/medical/{rid}/signed", headers=stack.auth(role))
         ).status_code == 403
     assert (
-        await c.delete(f"/api/v1/records/medical/{rid}/signed", headers=stack.auth("sa"))
+        await c.delete(
+            f"/api/v1/records/medical/{rid}/signed",
+            params={"reason": "Ошибка в записи"},
+            headers=stack.auth("sa"),
+        )
     ).status_code == 204
+    async with stack.sessions() as session:
+        audit = (
+            await session.execute(
+                select(AuditLog).where(AuditLog.action == "record.delete_signed")
+            )
+        ).scalar_one()
+        assert audit.payload == {"direct": True, "reason": "Ошибка в записи"}
     assert (
         await c.get(f"/api/v1/medical/records/{rid}", headers=stack.auth("sa"))
     ).status_code == 404

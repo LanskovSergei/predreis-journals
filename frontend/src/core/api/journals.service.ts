@@ -69,6 +69,13 @@ export class JournalsService {
     await httpClient.post(`${BASE_PATH}/${kind}/records/${id}/deletion-request`, { reason })
   }
 
+  /** Прямое удаление подписанной записи (СА, Админ). Причина пишется в журнал действий. */
+  static async deleteSignedRecord(kind: Kind, id: string, reason?: string): Promise<void> {
+    await httpClient.delete(`${BASE_PATH}/records/${kind}/${id}/signed`, {
+      params: reason ? { reason } : undefined,
+    })
+  }
+
   static async getStandardTime(kind: Kind, params: Record<string, string>): Promise<{ time: string | null }> {
     const { data } = await httpClient.get(`${BASE_PATH}/${kind}/records/standard-time`, { params })
     return data

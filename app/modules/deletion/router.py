@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -76,9 +76,10 @@ async def reject(
 async def delete_signed(
     kind: JournalKind,
     record_id: uuid.UUID,
+    reason: str | None = Query(None, max_length=500, description="Причина (пишется в аудит)"),
     principal: Principal = Depends(get_principal),
     session: AsyncSession = Depends(get_session),
 ) -> Response:
-    """Прямое удаление записи типа Б."""
-    await DeletionService(session).delete_signed_direct(principal, kind, record_id)
+    """Прямое удаление записи типа Б (по ТЗ — СА; право есть и у Админа)."""
+    await DeletionService(session).delete_signed_direct(principal, kind, record_id, reason)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
