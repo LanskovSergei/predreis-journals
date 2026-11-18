@@ -64,8 +64,11 @@ def content_disposition(filename: str) -> str:
 
 
 async def complete_cert_from_signature(doc: RecordDocument, storage: Storage) -> None:
-    """Дополняет серийный номер и срок сертификата из файла подписи, если их нет в карточке документа."""
-    if (doc.cert_serial and doc.cert_subject and doc.cert_valid_from and doc.cert_valid_to) or not doc.sig_key:
+    """Дополняет номер и срок сертификата из файла подписи, если их нет в документе."""
+    has_cert = (
+        doc.cert_serial and doc.cert_subject and doc.cert_valid_from and doc.cert_valid_to
+    )
+    if has_cert or not doc.sig_key:
         return
     try:
         signature = await storage.get(doc.sig_key)
