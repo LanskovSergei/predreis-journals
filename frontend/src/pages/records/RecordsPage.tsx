@@ -182,7 +182,20 @@ export function RecordsPage({ kind }: { kind: Kind }) {
         deletableCount={canDelete ? deletable.length : 0}
         busy={busy}
         onSign={() => void sign(signable)}
-        onExport={() => void download({ record_ids: selected })}
+        onExport={() => {
+          const orgId =
+            filters.organizationId?.trim() ||
+            [...new Set(
+              (data?.items ?? [])
+                .filter((r) => selected.includes(r.id) && r.organization_id)
+                .map((r) => r.organization_id as string),
+            )][0]
+          if (!orgId) {
+            message.info('Выберите организацию: выгрузка формируется по одной организации')
+            return
+          }
+          void download({ organization_id: orgId, record_ids: selected })
+        }}
         onDownloadDocuments={() => void downloadDocuments(documentIds)}
         onDelete={() => removeSelected(deletable, selected.length)}
         onClearSelection={() => setSelected([])}

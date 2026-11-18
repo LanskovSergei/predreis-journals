@@ -229,6 +229,17 @@ class ReportService:
         organization_id = (
             principal.org_id if principal.role in CLIENT_ROLES else req.organization_id
         )
+        if organization_id is None and req.record_ids:
+            # Выгрузка отмеченных строк: организацию берём из самих записей, если все из одной.
+            scoped = await svc._scope(
+                select(svc.model.organization_id).where(svc.model.id.in_(req.record_ids)),
+                principal,
+            )
+            orgs = {row[0] for row in (await self.session.execute(scoped)).all()}
+            if len(orgs) > 1:
+                raise ValidationFailedError("Выгрузка формируется по одной организации")
+            if len(orgs) == 1:
+                organization_id = next(iter(orgs))
         if organization_id is None:
             raise ValidationFailedError("Укажите организацию (organization_id)")
         stmt: Any = await svc._scope(select(svc.model), principal)

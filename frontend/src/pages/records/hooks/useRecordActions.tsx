@@ -90,7 +90,7 @@ export function useRecordActions(
       const { blob, filename } = await JournalsService.exportPdf(kind, body)
       saveBlob(blob, filename)
     } catch (err) {
-      message.error(ApiErrorUtils.getMessage(err, 'Не удалось сформировать выгрузку'))
+      message.error(await ApiErrorUtils.getMessageAsync(err, 'Не удалось сформировать выгрузку'))
     } finally {
       setBusy(false)
     }
@@ -102,7 +102,7 @@ export function useRecordActions(
       const { blob, filename } = await JournalsService.getRecordDocument(kind, record.id)
       saveBlob(blob, filename)
     } catch (err) {
-      message.error(ApiErrorUtils.getMessage(err, 'Не удалось скачать документ записи'))
+      message.error(await ApiErrorUtils.getMessageAsync(err, 'Не удалось скачать документ записи'))
     } finally {
       setBusy(false)
     }
@@ -120,7 +120,7 @@ export function useRecordActions(
         saveBlob(blob, filename)
       }
     } catch (err) {
-      message.error(ApiErrorUtils.getMessage(err, 'Не удалось скачать документ записи'))
+      message.error(await ApiErrorUtils.getMessageAsync(err, 'Не удалось скачать документ записи'))
     } finally {
       setBusy(false)
     }
