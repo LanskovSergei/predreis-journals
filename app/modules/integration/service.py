@@ -19,6 +19,7 @@ from app.core.storage import Storage, get_storage
 from app.core.timeutils import business_tz, local_date
 from app.domain.contracts import CONTRACT_EXCLUDES_MESSAGE, journal_allowed
 from app.domain.enums import (
+    Gender,
     HarmfulFactors,
     InspectionPhase,
     InspectionResult,
@@ -186,8 +187,11 @@ class IntegrationService:
         raise ConflictError("ТС события нельзя определить однозначно", code="ambiguous_vehicle")
 
     @staticmethod
-    def _epl_snapshot(ev: EplRecordEvent) -> dict[str, Any]:
+    def _epl_snapshot(ev: EplRecordEvent, driver_gender: Gender | None = None) -> dict[str, Any]:
         """Снимок реквизитов строится из события (данные на момент осмотра), а не из реплики."""
+        # Платформа часто не знает пол водителя; тогда берём его из картотеки журналов,
+        # где менеджер мог его дополнить.
+        gender = ev.driver_gender or driver_gender
         snap: dict[str, Any] = {
             "organization": {
                 "inn": ev.org_inn,
@@ -200,7 +204,7 @@ class IntegrationService:
             "driver": {
                 "full_name": ev.driver_full_name,
                 "birth_date": ev.driver_birth_date.isoformat(),
-                "gender": ev.driver_gender.value if ev.driver_gender else None,
+                "gender": gender.value if gender else None,
                 "license": ev.license_text,
             },
             "specialist": {"full_name": ev.specialist_full_name},
@@ -252,7 +256,7 @@ class IntegrationService:
             "organization_id": org.id,
             "specialist_user_id": specialist.id,
             "performed_at": performed_at,
-            "snapshot": self._epl_snapshot(ev),
+            "snapshot": self._epl_snapshot(ev, driver_gender=driver.gender),
             "note": (ev.notes or "").strip() or None,
             "epl_details": details,
         }

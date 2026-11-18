@@ -46,7 +46,12 @@ def signature_view(
     }
 
 
-def medical_row(n: int, rec: MedicalRecord, doc: RecordDocument | None) -> dict[str, Any]:
+def medical_row(
+    n: int,
+    rec: MedicalRecord,
+    doc: RecordDocument | None,
+    fallback_gender: str | None = None,
+) -> dict[str, Any]:
     """Строка отчёта по медосмотрам; медицинские показатели заменяются на N/A (323-ФЗ)."""
     driver = rec.snapshot.get("driver", {})
     birth = driver.get("birth_date", "")
@@ -60,7 +65,7 @@ def medical_row(n: int, rec: MedicalRecord, doc: RecordDocument | None) -> dict[
         "time": fmt_time(rec.performed_at),
         "driver_name": driver.get("full_name", ""),
         "birth_date": birth,
-        "gender": GENDER_LABEL.get(driver.get("gender", ""), ""),
+        "gender": GENDER_LABEL.get(driver.get("gender") or fallback_gender or "", ""),
         "complaints": rec.complaints,
         "blood_pressure": f"{rec.bp_systolic}/{rec.bp_diastolic}",
         "pulse": rec.pulse,

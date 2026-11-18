@@ -18,7 +18,7 @@ from app.core.security import Principal
 from app.core.timeutils import local_date
 from app.domain.enums import JournalKind
 from app.domain.permissions import CLIENT_ROLES
-from app.models.catalog import Organization
+from app.models.catalog import Driver, Organization
 from app.models.documents import RecordDocument
 from app.models.records import MedicalRecord, TechnicalRecord
 from app.modules.audit.service import append_audit
@@ -119,12 +119,18 @@ async def render_registry_pdf(
     period_to: str,
     title: str | None = None,
     stamp: dict[str, str] | None = None,
+    driver_genders: dict[uuid.UUID, str] | None = None,
 ) -> bytes:
-    """Рендерит PDF-реестр записей (Выгрузка или человекочитаемая версия электронного журнала)."""
+    """Рендерит PDF-реестр записей (Выгрузка или человекочитаемая версия электронного журнала).
+
+    driver_genders — пол из картотеки для записей, где его нет в снимке. Передаётся только для
+    Выгрузки (отчёта); электронный журнал строится строго по данным подписанных записей.
+    """
+    genders = driver_genders or {}
     medical = kind is JournalKind.MEDICAL
     if medical:
         rows = [
-            medical_row(i, r, docs.get(r.id))
+            medical_row(i, r, docs.get(r.id), genders.get(r.driver_id))
             for i, r in enumerate(records, 1)
             if isinstance(r, MedicalRecord)
         ]
@@ -161,6 +167,36 @@ class ReportService:
             else TechnicalService(self.session)
         )
 
+    async def _catalog_genders(
+        self, records: Sequence[MedicalRecord | TechnicalRecord]
+    ) -> dict[uuid.UUID, str]:
+        """Пол водителей из картотеки для записей, в снимке которых его нет.
+
+        Платформа долго теряла пол водителя, поэтому у многих записей он пустой. Менеджер может
+        дополнить его в картотеке; в отчёте (Выгрузке) показываем его оттуда.
+
+        Args:
+            records: Записи отчёта.
+
+        Returns:
+            Код пола (M/F) по id водителя — только для водителей без пола в снимке записи.
+        """
+        missing = {
+            r.driver_id
+            for r in records
+            if isinstance(r, MedicalRecord)
+            and r.driver_id is not None
+            and not (r.snapshot.get("driver") or {}).get("gender")
+        }
+        if not missing:
+            return {}
+        rows = await self.session.execute(
+            select(Driver.id, Driver.gender).where(
+                Driver.id.in_(missing), Driver.gender.is_not(None)
+            )
+        )
+        return {driver_id: gender.value for driver_id, gender in rows.all() if gender is not None}
+
     async def registry_pdf(
         self, principal: Principal, kind: JournalKind, req: ExportRequest
     ) -> tuple[bytes, str]:
@@ -196,6 +232,7 @@ class ReportService:
         if org is None:
             raise NotFoundError("Организация не найдена")
         docs = await svc.signatures([r.id for r in records])
+        driver_genders = await self._catalog_genders(records)
         date_from = req.date_from or local_date(records[0].performed_at)
         date_to = req.date_to or local_date(records[-1].performed_at)
         period_from = fmt_date_value(date_from)
@@ -211,6 +248,7 @@ class ReportService:
             docs=docs,
             period_from=period_from,
             period_to=period_to,
+            driver_genders=driver_genders,
         )
         name = "Отчёт о медосмотрах" if kind is JournalKind.MEDICAL else "Отчёт о техконтроле"
         filename = f"{name} ПРЕДРЕЙС_с {period_from} по {period_to}.pdf"

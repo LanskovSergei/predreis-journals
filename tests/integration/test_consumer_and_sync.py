@@ -79,10 +79,11 @@ async def test_message_creates_record_binding_by_requisites(
     rec = (await session.execute(select(MedicalRecord))).scalar_one()
     assert rec.status is RecordStatus.SIGNED and rec.driver_id == w.driver.id
     assert rec.snapshot["organization"]["name"] == "ООО «Название на момент осмотра»"
-    assert (
-        rec.snapshot["driver"]["license"] == "9900000000"
-        and rec.snapshot["driver"]["gender"] is None
-    )
+    driver = await session.get(Driver, w.driver.id)
+    # пола в событии нет (платформа его не знает) — берётся из картотеки журналов
+    assert rec.snapshot["driver"]["license"] == "9900000000" and rec.snapshot["driver"][
+        "gender"
+    ] == (driver.gender.value if driver and driver.gender else None)
 
 
 async def test_duplicate_message_is_harmless(session: AsyncSession, storage: LocalStorage) -> None:
