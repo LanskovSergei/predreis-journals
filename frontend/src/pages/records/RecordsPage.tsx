@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Button, Card, Space } from 'antd'
 import { FilePdfOutlined, PlusOutlined } from '@ant-design/icons'
 import { useSearchParams } from 'react-router-dom'
@@ -82,6 +82,16 @@ export function RecordsPage({ kind }: { kind: Kind }) {
   const [editing, setEditing] = useState<AnyRecord | null>(null)
 
   const { data, loading, load, setTrackedSigning } = useRecordsQuery(kind, filters, page, text.searchParam)
+
+  // Действия по записям, которые уже показывались: отметка может охватывать несколько страниц.
+  // Кнопки «Подписать» и «Удалить» над таблицей считают только те отмеченные записи,
+  // с которыми это действие возможно (подписанную нельзя удалить или подписать повторно).
+  const actionsById = useRef(new Map<string, string[]>())
+  for (const r of data?.items ?? []) actionsById.current.set(r.id, r.actions ?? [])
+  const selectedWith = (action: string) =>
+    selected.filter((id) => actionsById.current.get(id)?.includes(action))
+  const signable = selectedWith('sign')
+  const deletable = selectedWith('delete')
   const { busy, sign, removeSelected, download, runAction } = useRecordActions(
     kind,
     load,
@@ -154,13 +164,13 @@ export function RecordsPage({ kind }: { kind: Kind }) {
 
       <RecordsBatchActions
         selectedCount={selected.length}
-        canSign={canSign}
+        signableCount={canSign ? signable.length : 0}
         canExport={canExport}
-        canDelete={canDelete}
+        deletableCount={canDelete ? deletable.length : 0}
         busy={busy}
-        onSign={() => void sign(selected)}
+        onSign={() => void sign(signable)}
         onExport={() => void download({ record_ids: selected })}
-        onDelete={() => removeSelected(selected)}
+        onDelete={() => removeSelected(deletable, selected.length)}
         onClearSelection={() => setSelected([])}
       />
 

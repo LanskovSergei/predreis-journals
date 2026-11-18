@@ -3,9 +3,11 @@ import { DeleteOutlined, FilePdfOutlined } from '@ant-design/icons'
 
 interface Props {
   selectedCount: number
-  canSign: boolean
+  /** Сколько из отмеченных можно подписать (0 — кнопки нет). */
+  signableCount: number
   canExport: boolean
-  canDelete: boolean
+  /** Сколько из отмеченных можно удалить: только неподписанные (0 — кнопки нет). */
+  deletableCount: number
   busy: boolean
   onSign: () => void
   onExport: () => void
@@ -15,9 +17,9 @@ interface Props {
 
 export function RecordsBatchActions({
   selectedCount,
-  canSign,
+  signableCount,
   canExport,
-  canDelete,
+  deletableCount,
   busy,
   onSign,
   onExport,
@@ -30,9 +32,9 @@ export function RecordsBatchActions({
     <Card size="small">
       <Space wrap>
         <Typography.Text strong>Выбрано: {selectedCount}</Typography.Text>
-        {canSign && (
-          <Button type="primary" loading={busy} onClick={onSign} disabled={selectedCount > 50}>
-            Подписать
+        {signableCount > 0 && (
+          <Button type="primary" loading={busy} onClick={onSign} disabled={signableCount > 50}>
+            Подписать{signableCount < selectedCount ? ` (${signableCount})` : ''}
           </Button>
         )}
         {canExport && (
@@ -40,15 +42,15 @@ export function RecordsBatchActions({
             Выгрузить PDF
           </Button>
         )}
-        {canDelete && (
+        {deletableCount > 0 && (
           <Button danger icon={<DeleteOutlined />} onClick={onDelete}>
-            Удалить
+            Удалить{deletableCount < selectedCount ? ` (${deletableCount})` : ''}
           </Button>
         )}
         <Button type="text" onClick={onClearSelection}>
           Снять выбор
         </Button>
-        {selectedCount > 50 && (
+        {signableCount > 50 && (
           <Typography.Text type="warning">За раз можно подписать до 50 записей</Typography.Text>
         )}
       </Space>

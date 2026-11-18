@@ -61,10 +61,14 @@ export function useRecordActions(
     }
   }
 
-  const removeSelected = (selected: string[]) =>
+  /** Удаляет неподписанные из отмеченных; ids — только те, что можно удалить. */
+  const removeSelected = (selected: string[], totalSelected: number = selected.length) =>
     modal.confirm({
-      title: `Удалить выбранные записи (${selected.length})?`,
-      content: 'Удаляются только неподписанные записи. Действие нельзя отменить.',
+      title: `Удалить неподписанные записи (${selected.length})?`,
+      content:
+        totalSelected > selected.length
+          ? `Подписанные записи (${totalSelected - selected.length}) этой кнопкой не удаляются. Действие нельзя отменить.`
+          : 'Действие нельзя отменить.',
       okText: 'Удалить',
       okButtonProps: { danger: true },
       cancelText: 'Отмена',
