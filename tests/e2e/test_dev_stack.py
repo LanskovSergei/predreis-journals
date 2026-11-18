@@ -280,7 +280,7 @@ def test_ejournal_end_to_end(stack: DevStack) -> None:
 
 
 def test_certificates_and_specialists(stack: DevStack) -> None:
-    """Сертификаты: свои у медика, плашки у менеджера, счётчики по специалистам только у СА."""
+    """Сертификаты: свои у медика, плашки и счётчики у менеджера и СА."""
     medic, nocert = Session("medic"), Session("nocert")
     mine = medic.get("/me/certificates").json()
     assert mine["status"] == "active" and mine["certificates"][0]["serial"]
@@ -296,7 +296,7 @@ def test_certificates_and_specialists(stack: DevStack) -> None:
     by_name = {i["full_name"]: i for i in listed["items"]}
     assert by_name["Сидорова Анна Сергеевна"]["status"] == "active"
     assert by_name["Безсертов Сергей Сергеевич"]["status"] == "missing"
-    assert all(i["records"] is None for i in listed["items"])  # менеджеру счётчики не положены
+    assert all(i["records"] is not None for i in listed["items"])
 
     sa = Session("superadmin").get("/specialists?role=medic").json()
     counters = {i["full_name"]: i["records"] for i in sa["items"]}

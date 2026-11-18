@@ -17,9 +17,9 @@ from app.core.errors import NotFoundError, ValidationFailedError
 from app.core.security import Principal
 from app.core.storage import Storage, get_storage
 from app.core.timeutils import local_date
-from app.integrations.predreis.cms import extract_cert_info
 from app.domain.enums import JournalKind
 from app.domain.permissions import CLIENT_ROLES
+from app.integrations.predreis.cms import extract_cert_info
 from app.models.catalog import Driver, Organization
 from app.models.documents import RecordDocument
 from app.models.records import MedicalRecord, TechnicalRecord
@@ -65,9 +65,7 @@ def content_disposition(filename: str) -> str:
 
 async def complete_cert_from_signature(doc: RecordDocument, storage: Storage) -> None:
     """Дополняет номер и срок сертификата из файла подписи, если их нет в документе."""
-    has_cert = (
-        doc.cert_serial and doc.cert_subject and doc.cert_valid_from and doc.cert_valid_to
-    )
+    has_cert = doc.cert_serial and doc.cert_subject and doc.cert_valid_from and doc.cert_valid_to
     if has_cert or not doc.sig_key:
         return
     try:

@@ -279,7 +279,9 @@ async def test_export_by_record_ids(stack: Stack) -> None:
         "/api/v1/exports/medical", json={"record_ids": [first]}, headers=stack.auth("manager")
     )
     assert by_ids.status_code == 200 and by_ids.content.startswith(b"%PDF")
-    no_org = await stack.client.post("/api/v1/exports/medical", json={}, headers=stack.auth("manager"))
+    no_org = await stack.client.post(
+        "/api/v1/exports/medical", json={}, headers=stack.auth("manager")
+    )
     assert no_org.status_code == 422
 
 
