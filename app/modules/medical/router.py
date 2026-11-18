@@ -103,6 +103,26 @@ async def delete_records(
     return await MedicalService(session).delete_unsigned_many(principal, body.record_ids)
 
 
+@router.get(
+    "/{record_id}/document",
+    summary="Скачать электронный документ подписанной записи (ZIP)",
+    response_class=Response,
+    responses={200: {"content": {"application/zip": {}}}},
+)
+async def download_document(
+    record_id: uuid.UUID,
+    principal: Principal = Depends(get_principal),
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    """ZIP: record.xml, record.pdf, подпись, README со сведениями о подписи, manifest.xml."""
+    data, filename = await MedicalService(session).document_package(principal, record_id)
+    return Response(
+        content=data,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.get("/{record_id}", response_model=MedicalOut, summary="Получить запись")
 async def get_record(
     record_id: uuid.UUID,

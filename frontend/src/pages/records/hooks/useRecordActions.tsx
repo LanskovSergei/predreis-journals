@@ -92,7 +92,17 @@ export function useRecordActions(
     }
   }
 
+  const downloadDocument = async (record: AnyRecord) => {
+    try {
+      const { blob, filename } = await JournalsService.getRecordDocument(kind, record.id)
+      saveBlob(blob, filename)
+    } catch (err) {
+      message.error(ApiErrorUtils.getMessage(err, 'Не удалось скачать документ записи'))
+    }
+  }
+
   const runAction = (action: RecordAction, record: AnyRecord) => {
+    if (action === 'download') void downloadDocument(record)
     if (action === 'sign') void sign([record.id])
     if (action === 'edit') {
       setEditing(record)

@@ -124,6 +124,7 @@ class TechnicalService(BaseRecordService):
             signing_status=signing[0],
             signing_error=signing[1],
             actions=self.actions(record, principal, job),
+            document_available=self.document_available(record, principal, doc),
         )
 
     async def out(self, principal: Principal, record: AnyRecord) -> TechnicalRecordOut:

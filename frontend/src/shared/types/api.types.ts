@@ -6,7 +6,7 @@ export type RecordSource = 'manual' | 'ocr' | 'epl'
 export type Phase = 'pre' | 'post'
 export type Result = 'admitted' | 'not_admitted'
 export type HarmfulFactors = 'absent' | 'detected'
-export type RecordAction = 'edit' | 'delete' | 'sign' | 'clear_note' | 'request_deletion'
+export type RecordAction = 'edit' | 'delete' | 'sign' | 'clear_note' | 'request_deletion' | 'download'
 
 export interface Me {
   user_id: string
@@ -55,6 +55,8 @@ interface RecordBase {
   signing_status?: string | null
   signing_error?: string | null
   actions?: RecordAction[]
+  /** Подписанную запись можно скачать документом (ZIP: XML, PDF, подпись). */
+  document_available?: boolean
   snapshot?: Snapshot
   organization_id?: string
   specialist_user_id?: string

@@ -180,6 +180,14 @@ export class JournalsService {
     await httpClient.delete(`${BASE_PATH}/ejournals/${id}`)
   }
 
+  /** ZIP электронного документа подписанной записи (XML, PDF, подпись, README, манифест). */
+  static async getRecordDocument(kind: Kind, id: string): Promise<{ blob: Blob; filename: string }> {
+    const response = await httpClient.get(`${BASE_PATH}/${kind}/records/${id}/document`, { responseType: 'blob' })
+    const header = String(response.headers['content-disposition'] ?? '')
+    const plain = /filename="?([^";]+)"?/i.exec(header)
+    return { blob: response.data as Blob, filename: plain ? plain[1] : `record_${id}.zip` }
+  }
+
   static async getEJournalFile(id: string, what: 'preview' | 'download'): Promise<{ blob: Blob; filename: string }> {
     const response = await httpClient.get(`${BASE_PATH}/ejournals/${id}/${what}`, { responseType: 'blob' })
     const header = String(response.headers['content-disposition'] ?? '')

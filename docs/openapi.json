@@ -533,6 +533,51 @@
         ]
       }
     },
+    "/api/v1/medical/records/{record_id}/document": {
+      "get": {
+        "tags": [
+          "Журнал медосмотров"
+        ],
+        "summary": "Скачать электронный документ подписанной записи (ZIP)",
+        "description": "ZIP: record.xml, record.pdf, подпись, README со сведениями о подписи, manifest.xml.",
+        "operationId": "download_document_api_v1_medical_records__record_id__document_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/zip": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/medical/records/{record_id}": {
       "get": {
         "tags": [
@@ -1234,6 +1279,51 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/api/v1/technical/records/{record_id}/document": {
+      "get": {
+        "tags": [
+          "Журнал техконтроля"
+        ],
+        "summary": "Скачать электронный документ подписанной записи (ZIP)",
+        "description": "ZIP: record.xml, record.pdf, подпись, README со сведениями о подписи, manifest.xml.",
+        "operationId": "download_document_api_v1_technical_records__record_id__document_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/zip": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/technical/records/{record_id}": {
@@ -4612,6 +4702,11 @@
             },
             "type": "array",
             "title": "Actions"
+          },
+          "document_available": {
+            "type": "boolean",
+            "title": "Document Available",
+            "default": false
           }
         },
         "type": "object",
@@ -6302,6 +6397,11 @@
             },
             "type": "array",
             "title": "Actions"
+          },
+          "document_available": {
+            "type": "boolean",
+            "title": "Document Available",
+            "default": false
           }
         },
         "type": "object",

@@ -70,3 +70,5 @@ class TechnicalRecordOut(BaseModel):
     signing_status: str | None = None
     signing_error: str | None = None
     actions: list[str]
+    document_available: bool = False
+    """Можно скачать электронный документ подписанной записи (GET …/{id}/document)."""

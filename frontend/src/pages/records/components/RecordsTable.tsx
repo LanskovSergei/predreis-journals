@@ -1,5 +1,6 @@
 import { Button, Dropdown, Space, Table, Tag, Tooltip, Typography, type MenuProps, type TableColumnsType } from 'antd'
 import {
+  DownloadOutlined,
   CheckCircleOutlined,
   DeleteOutlined,
   EditOutlined,
@@ -93,10 +94,14 @@ export function RecordsTable({
       <Typography.Text type="secondary">—</Typography.Text>
     )
 
+  // Пункты меню строки: действия с записью от сервера (только известные интерфейсу)
+  // и «Скачать документ» у подписанных записей.
+  const KNOWN: RecordAction[] = ['edit', 'delete', 'clear_note', 'request_deletion']
   const actionItems = (record: AnyRecord): MenuProps['items'] =>
-    (record.actions ?? [])
-      .filter((a) => a !== 'sign')
-      .map((a) => ({
+    [
+      ...(record.actions ?? []).filter((a) => KNOWN.includes(a)),
+      ...(record.document_available ? (['download'] as RecordAction[]) : []),
+    ].map((a) => ({
         key: a,
         danger: a === 'delete' || a === 'request_deletion',
         icon: {
@@ -104,6 +109,7 @@ export function RecordsTable({
           delete: <DeleteOutlined />,
           clear_note: <CheckCircleOutlined />,
           request_deletion: <DeleteOutlined />,
+          download: <DownloadOutlined />,
           sign: null,
         }[a],
         label: {
@@ -111,6 +117,7 @@ export function RecordsTable({
           delete: 'Удалить',
           clear_note: 'Снять примечание',
           request_deletion: 'Запросить удаление',
+          download: 'Скачать документ',
           sign: '',
         }[a],
         onClick: () => onRunAction(a, record),

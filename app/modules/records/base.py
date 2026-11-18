@@ -334,6 +334,67 @@ class BaseRecordService:
             acts.append("delete_signed")
         return acts
 
+    def document_available(
+        self, record: AnyRecord, principal: Principal, doc: RecordDocument | None
+    ) -> bool:
+        """Можно ли скачать электронный документ записи (отдельно от действий, меняющих запись).
+
+        Args:
+            record: Запись.
+            principal: Кто смотрит.
+            doc: Электронный документ записи, если есть.
+
+        Returns:
+            True — запись подписана, файл подписи есть и роли он доступен
+            (клиенту медосмотр — нет).
+        """
+        if self.kind is JournalKind.MEDICAL and principal.role in CLIENT_ROLES:
+            return False
+        return record.status is not RecordStatus.UNSIGNED and doc is not None and bool(doc.sig_key)
+
+    async def document_package(
+        self, principal: Principal, record_id: uuid.UUID
+    ) -> tuple[bytes, str]:
+        """ZIP электронного документа подписанной записи (XML, PDF, подпись, README, манифест).
+
+        Args:
+            principal: Кто скачивает.
+            record_id: Запись.
+
+        Returns:
+            Содержимое ZIP и имя файла.
+
+        Raises:
+            ForbiddenError: Клиент запрашивает медосмотр (в XML медицинские данные, 323-ФЗ).
+            ConflictError: Запись не подписана или у неё нет файла подписи.
+        """
+        record = await self.get(principal, record_id)
+        if self.kind is JournalKind.MEDICAL and principal.role in CLIENT_ROLES:
+            raise ForbiddenError(
+                "Документ медосмотра содержит медицинские данные", code="permission_denied"
+            )
+        if record.status is RecordStatus.UNSIGNED:
+            raise ConflictError("Запись ещё не подписана", code="not_signed")
+        doc = (await self.signatures([record.id])).get(record.id)
+        if doc is None or not doc.sig_key:
+            raise ConflictError("У записи нет файла подписи", code="signature_missing")
+        # Импорт здесь: модуль пакета тянет отчёты, а они — сервисы журналов (цикл импортов).
+        from app.core.storage import get_storage
+        from app.modules.records.document_package import build_record_package
+
+        data = await build_record_package(self.kind, record, doc, get_storage())
+        await append_audit(
+            self.session,
+            principal,
+            action="record.document_downloaded",
+            entity_type=self.kind.value,
+            entity_id=str(record.id),
+        )
+        await self.session.commit()
+        prefix = "medosmotr" if self.kind is JournalKind.MEDICAL else "tehkontrol"
+        day = record.performed_at.astimezone(business_tz()).strftime("%Y-%m-%d")
+        return data, f"{prefix}-{day}-{str(record.id)[:8]}.zip"
+
     # --- общие операции --------------------------------------------------------------------
     async def delete_unsigned(self, principal: Principal, record_id: uuid.UUID) -> None:
         """Удаляет неподписанную запись (тип А)."""
